@@ -78,6 +78,7 @@ public class LoggedTaskAttempt implements DeepCompare {
   
   List<Integer> clockSplits = new ArrayList<Integer>();
   List<Integer> cpuUsages = new ArrayList<Integer>();
+  List<Integer> gpuUsages = new ArrayList<Integer>();
   List<Integer> vMemKbytes = new ArrayList<Integer>();
   List<Integer> physMemKbytes = new ArrayList<Integer>();
 
@@ -118,6 +119,17 @@ public class LoggedTaskAttempt implements DeepCompare {
       @Override
       public void set(LoggedTaskAttempt attempt, List<Integer> newValue) {
         attempt.setCpuUsages(newValue);
+      }
+    },
+
+    GPU_USAGE {
+      @Override
+      public List<Integer> get(LoggedTaskAttempt attempt) {
+        return attempt.getGpuUsages();
+      }
+      @Override
+      public void set(LoggedTaskAttempt attempt, List<Integer> newValue) {
+        attempt.setGpuUsages(newValue);
       }
     },
 
@@ -190,6 +202,25 @@ public class LoggedTaskAttempt implements DeepCompare {
 
   static private Set<String> alreadySeenAnySetterAttributes =
       new TreeSet<String>();
+
+  public List<Integer> getGpuUsages() {
+    return gpuUsages;
+  }
+
+  void setGpuUsages(List<Integer> gpuUsages) {
+    this.gpuUsages = gpuUsages;
+  }
+
+  void arraySetGpuUsages(int[] gpuUsages) {
+    List<Integer> result = new ArrayList<Integer>();
+
+    for (int i = 0; i < gpuUsages.length; ++i) {
+      result.add(gpuUsages[i]);
+    }
+
+    this.gpuUsages = result;
+  }
+
 
   // for input parameter ignored.
   @JsonAnySetter
@@ -575,7 +606,15 @@ public class LoggedTaskAttempt implements DeepCompare {
         metrics.setCumulativeCpuUsage(val);
       }
     }, counters, "CPU_MILLISECONDS");
-    
+
+//    // incorporate GPU usage
+//    incorporateCounter(new SetField(this) {
+//      @Override
+//      void set(long val) {
+//        metrics.setCumulativeGpuUsage(val);
+//      }
+//    }, counters, "GPU_MILLISECONDS");
+
     // incorporate virtual memory usage
     incorporateCounter(new SetField(this) {
       @Override
@@ -766,6 +805,7 @@ public class LoggedTaskAttempt implements DeepCompare {
 
     compare1(clockSplits, other.clockSplits, loc, "clockSplits");
     compare1(cpuUsages, other.cpuUsages, loc, "cpuUsages");
+    compare1(gpuUsages, other.gpuUsages, loc, "gpuUsages");
     compare1(vMemKbytes, other.vMemKbytes, loc, "vMemKbytes");
     compare1(physMemKbytes, other.physMemKbytes, loc, "physMemKbytes");
   }

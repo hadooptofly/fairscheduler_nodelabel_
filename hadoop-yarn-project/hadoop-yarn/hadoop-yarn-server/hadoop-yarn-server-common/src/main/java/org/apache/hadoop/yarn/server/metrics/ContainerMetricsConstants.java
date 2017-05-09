@@ -48,6 +48,8 @@ public class ContainerMetricsConstants {
   public static final String ALLOCATED_PRIORITY_ENTITY_INFO =
       "YARN_CONTAINER_ALLOCATED_PRIORITY";
 
+  public static final String ALLOCATED_GCORE_ENTITY_INFO =
+          "YARN_CONTAINER_ALLOCATED_GCORE";
   public static final String DIAGNOSTICS_INFO_EVENT_INFO =
       "YARN_CONTAINER_DIAGNOSTICS_INFO";
 

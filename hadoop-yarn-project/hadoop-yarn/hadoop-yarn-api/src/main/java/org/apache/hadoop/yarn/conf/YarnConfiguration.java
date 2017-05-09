@@ -117,7 +117,16 @@ public class YarnConfiguration extends Configuration {
     IPC_PREFIX + "rpc.class";
   public static final String DEFAULT_IPC_RPC_IMPL = 
     "org.apache.hadoop.yarn.ipc.HadoopYarnProtoRPC";
-  
+
+  public static final String RM_SCHEDULER_MINIMUM_ALLOCATION_GCORES =
+      YARN_PREFIX + "scheduler.minimum-allocation-gcores";
+  public static final int DEFAULT_RM_SCHEDULER_MINIMUM_ALLOCATION_GCORES = 0;
+
+  public static final String RM_SCHEDULER_MAXIMUM_ALLOCATION_GCORES =
+      YARN_PREFIX + "scheduler.maximum-allocation-gcores";
+  public static final int DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_GCORES = 8;
+
+  public static final int DEFAULT_NM_RESOURCE_PERCENTAGE_GPU_LIMIT = 100;
   ////////////////////////////////
   // Resource Manager Configs
   ////////////////////////////////
@@ -490,6 +499,7 @@ public class YarnConfiguration extends Configuration {
           RM_ADMIN_ADDRESS,
           RM_RESOURCE_TRACKER_ADDRESS,
           RM_WEBAPP_HTTPS_ADDRESS));
+
 
   public static final String AUTO_FAILOVER_PREFIX =
       RM_HA_PREFIX + "automatic-failover.";
@@ -971,7 +981,11 @@ public class YarnConfiguration extends Configuration {
     NM_PREFIX + "health-checker.script.timeout-ms";
   public static final long DEFAULT_NM_HEALTH_CHECK_SCRIPT_TIMEOUT_MS = 
     2 * DEFAULT_NM_HEALTH_CHECK_INTERVAL_MS;
-  
+  public static final String NM_GCORES = NM_PREFIX + "resource.gcores";
+  public static final int DEFAULT_NM_GCORES = 0;
+
+  public static final String NM_RESOURCE_PERCENTAGE_GPU_LIMIT =
+          NM_PREFIX + "resource.percentage-gpu-limit";
   /** The health check script to run.*/
   public static final String NM_HEALTH_CHECK_SCRIPT_PATH = 
     NM_PREFIX + "health-checker.script.path";

@@ -251,6 +251,18 @@ public class ApplicationAttemptStateDataPBImpl extends
   }
 
   @Override
+  public long getGcoreSeconds() {
+    ApplicationAttemptStateDataProtoOrBuilder p = viaProto ? proto : builder;
+    return p.getGcoreSeconds();
+  }
+
+  @Override
+  public void setGcoreSeconds(long gcoreSeconds) {
+    maybeInitBuilder();
+    builder.setGcoreSeconds(gcoreSeconds);
+  }
+
+  @Override
   public void setMemorySeconds(long memorySeconds) {
     maybeInitBuilder();
     builder.setMemorySeconds(memorySeconds);

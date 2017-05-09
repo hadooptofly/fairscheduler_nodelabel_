@@ -158,7 +158,7 @@
         <unpack>false</unpack>
       </binaries>
     </moduleSet>
-    <moduleSet>
+    <!--<moduleSet>
       <includes>
         <include>org.apache.hadoop:hadoop-mapreduce-client-jobclient</include>
         <include>org.apache.hadoop:hadoop-yarn-server-tests</include>
@@ -169,7 +169,7 @@
         <includeDependencies>false</includeDependencies>
         <unpack>false</unpack>
       </binaries>
-    </moduleSet>
+    </moduleSet>-->
   </moduleSets>
   <dependencySets>
     <dependencySet>

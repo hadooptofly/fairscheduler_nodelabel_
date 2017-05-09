@@ -424,7 +424,7 @@ public class LeafQueue extends AbstractCSQueue {
     ArrayList<UserInfo> usersToReturn = new ArrayList<UserInfo>();
     for (Map.Entry<String, User> entry : users.entrySet()) {
       User user = entry.getValue();
-      Resource usedRes = Resource.newInstance(0, 0);
+      Resource usedRes = Resource.newInstance(0, 0, 0);
       for (String nl : getAccessibleLabelSet()) {
         Resources.addTo(usedRes, user.getUsed(nl));
       }
@@ -471,7 +471,8 @@ public class LeafQueue extends AbstractCSQueue {
     Resource oldMax = getMaximumAllocation();
     Resource newMax = newlyParsedLeafQueue.getMaximumAllocation();
     if (newMax.getMemory() < oldMax.getMemory()
-        || newMax.getVirtualCores() < oldMax.getVirtualCores()) {
+        || newMax.getVirtualCores() < oldMax.getVirtualCores()
+            || newMax.getGpuCores() < oldMax.getGpuCores()) {
       throw new IOException(
           "Trying to reinitialize "
               + getQueuePath()
@@ -743,7 +744,7 @@ public class LeafQueue extends AbstractCSQueue {
   }
 
   private static final CSAssignment NULL_ASSIGNMENT =
-      new CSAssignment(Resources.createResource(0, 0), NodeType.NODE_LOCAL);
+      new CSAssignment(Resources.createResource(0, 0, 0), NodeType.NODE_LOCAL);
   
   private static final CSAssignment SKIP_ASSIGNMENT = new CSAssignment(true);
   
@@ -1035,7 +1036,7 @@ public class LeafQueue extends AbstractCSQueue {
     //   with miniscule capacity (< 1 slot) make progress
     // * If we're running over capacity, then its
     //   (usedResources + required) (which extra resources we are allocating)
-    Resource queueCapacity = Resource.newInstance(0, 0);
+    Resource queueCapacity = Resource.newInstance(0, 0, 0);
     if (requestedLabels != null && !requestedLabels.isEmpty()) {
       // if we have multiple labels to request, we will choose to use the first
       // label
@@ -1766,7 +1767,7 @@ public class LeafQueue extends AbstractCSQueue {
   @VisibleForTesting
   public static class User {
     ResourceUsage userResourceUsage = new ResourceUsage();
-    volatile Resource userResourceLimit = Resource.newInstance(0, 0);
+    volatile Resource userResourceLimit = Resource.newInstance(0, 0, 0);
     int pendingApplications = 0;
     int activeApplications = 0;
 
@@ -1878,7 +1879,7 @@ public class LeafQueue extends AbstractCSQueue {
   public synchronized Resource getTotalPendingResourcesConsideringUserLimit(
       Resource resources) {
     Map<String, Resource> userNameToHeadroom = new HashMap<String, Resource>();
-    Resource pendingConsideringUserLimit = Resource.newInstance(0, 0);
+    Resource pendingConsideringUserLimit = Resource.newInstance(0, 0, 0);
 
     for (FiCaSchedulerApp app : activeApplications) {
       String userName = app.getUser();

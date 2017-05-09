@@ -25,6 +25,9 @@ import org.apache.hadoop.classification.InterfaceStability.Unstable;
 @Unstable
 public class ApplicationMetricsConstants {
 
+  public static final String APP_GPU_METRICS =
+          "YARN_APPLICATION_GPU_METRIC";
+
   public static final String ENTITY_TYPE =
       "YARN_APPLICATION";
 
