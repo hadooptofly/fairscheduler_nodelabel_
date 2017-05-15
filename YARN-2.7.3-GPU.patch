@@ -1,0 +1,330 @@
+diff --git a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSAppAttempt.java b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSAppAttempt.java
+index c0fa67ad99..db33d710bc 100644
+--- a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSAppAttempt.java
++++ b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSAppAttempt.java
+@@ -554,6 +554,11 @@ private boolean hasNodeOrRackLocalRequests(Priority priority) {
+     return getResourceRequests(priority).size() > 1;
+   }
+ 
++  public Resource assignGPUContainer(FSSchedulerNode node){
++    //nothing
++    return Resources.none();
++  }
++
+   private Resource assignContainer(FSSchedulerNode node, boolean reserved) {
+     if (LOG.isDebugEnabled()) {
+       LOG.debug("Node offered to app: " + getName() + " reserved: " + reserved);
+diff --git a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSLeafQueue.java b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSLeafQueue.java
+index bcf81db5d8..bad3c41e9a 100644
+--- a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSLeafQueue.java
++++ b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSLeafQueue.java
+@@ -328,6 +328,59 @@ public Resource assignContainer(FSSchedulerNode node) {
+           continue;
+         }
+ 
++        if (sched.getDemand().getGpuCores() > 0) {
++          continue;
++        }
++
++        assigned = sched.assignContainer(node);
++        if (!assigned.equals(Resources.none())) {
++          break;
++        }
++      }
++    } finally {
++      readLock.unlock();
++    }
++    return assigned;
++  }
++
++  @Override
++  public Resource assignGPUContainer(FSSchedulerNode node) {
++    Resource assigned = Resources.none();
++    if (LOG.isDebugEnabled()) {
++      LOG.debug("Node " + node.getNodeName() + " offered to queue: " +
++          getName());
++    }
++
++    if (!assignContainerPreCheck(node)) {
++      return assigned;
++    }
++
++    Comparator<Schedulable> comparator = SchedulingPolicy.FIFO_POLICY.getComparator();
++    writeLock.lock();
++    try {
++      Collections.sort(runnableApps, comparator);
++    } finally {
++      writeLock.unlock();
++    }
++    // Release write lock here for better performance and avoiding deadlocks.
++    // runnableApps can be in unsorted state because of this section,
++    // but we can accept it in practice since the probability is low.
++    readLock.lock();
++    for (FSAppAttempt sched : runnableApps){
++      LOG.info("Sorted app: " + sched.getName() + " with priorty: " + sched.getPriority() + " startTime: " +
++            sched.getStartTime());
++    }
++    try {
++      for (FSAppAttempt sched : runnableApps) {
++        LOG.info("TODO Assign app: " + sched);
++        if (SchedulerAppUtils.isBlacklisted(sched, node, LOG)) {
++          continue;
++        }
++
++        if (sched.getDemand().getGpuCores() <= 0){
++          continue;
++        }
++
+         assigned = sched.assignContainer(node);
+         if (!assigned.equals(Resources.none())) {
+           break;
+diff --git a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSParentQueue.java b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSParentQueue.java
+index f74106a7da..01b0cf70ba 100644
+--- a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSParentQueue.java
++++ b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSParentQueue.java
+@@ -179,6 +179,28 @@ public Resource assignContainer(FSSchedulerNode node) {
+   }
+ 
+   @Override
++  public Resource assignGPUContainer(FSSchedulerNode node) {
++    Resource assigned = Resources.none();
++
++    // If this queue is over its limit, reject
++    //TODO REGARD ResourceType(GPU...) WHEN CHECK THIS
++    if (!assignContainerPreCheck(node)) {
++      return assigned;
++    }
++    Collections.sort(childQueues, SchedulingPolicy.GPU_POLICY.getComparator());
++    LOG.error("Nodeheartbeat:::");
++    for (FSQueue child : childQueues) {
++      LOG.error("Assgin Queue: " + child.getName() + " gpu usage: " + child.getResourceUsage().getGpuCores());
++      assigned = child.assignGPUContainer(node);
++      if (!Resources.equals(assigned, Resources.none())) {
++        break;
++      }
++    }
++    return assigned;
++  }
++
++
++  @Override
+   public RMContainer preemptContainer() {
+     RMContainer toBePreempted = null;
+ 
+diff --git a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FairScheduler.java b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FairScheduler.java
+index 387f0e51ae..675994f58d 100644
+--- a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FairScheduler.java
++++ b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FairScheduler.java
+@@ -977,7 +977,7 @@ private synchronized void nodeUpdate(RMNode nm) {
+     }
+     eventLog.log("HEARTBEAT", nm.getHostName());
+     FSSchedulerNode node = getFSSchedulerNode(nm.getNodeID());
+-    
++
+     List<UpdatedContainerInfo> containerInfoList = nm.pullContainerUpdates();
+     List<ContainerStatus> newlyLaunchedContainers = new ArrayList<ContainerStatus>();
+     List<ContainerStatus> completedContainers = new ArrayList<ContainerStatus>();
+@@ -1112,8 +1112,22 @@ synchronized void attemptScheduling(FSSchedulerNode node) {
+       int assignedContainers = 0;
+       while (node.getReservedContainer() == null) {
+         boolean assignedContainer = false;
+-        if (!queueMgr.getRootQueue().assignContainer(node).equals(
+-            Resources.none())) {
++        if (node.getAvailableResource().getGpuCores() > 0){
++          LOG.info("Assign cycle, cluster demand: " + queueMgr.getRootQueue().getDemand() + "\n"
++              + "Runnable apps: " + queueMgr.getRootQueue().getNumRunnableApps());
++          Resource gpuR = queueMgr.getRootQueue().assignGPUContainer(node);
++          if (!gpuR.equals(Resources.none())) {
++              LOG.info("Assign container: " + gpuR + " to gpu dominant application.");
++              assignedContainers++;
++              if (!assignMultiple) { break; }
++              if ((assignedContainers >= maxAssign) && (maxAssign > 0)) { break; }
++              continue;
++          }
++        }
++
++        Resource memR = queueMgr.getRootQueue().assignContainer(node);
++        if (!memR.equals(Resources.none())) {
++          LOG.info("Assign container: " + memR + " to memory dominant application.");
+           assignedContainers++;
+           assignedContainer = true;
+         }
+diff --git a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/Schedulable.java b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/Schedulable.java
+index 289887f63c..70968a8ec5 100644
+--- a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/Schedulable.java
++++ b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/Schedulable.java
+@@ -92,6 +92,11 @@
+   public Resource assignContainer(FSSchedulerNode node);
+ 
+   /**
++   * aspect of scheduling other dimensions(disk,io,gpu...)
++   */
++  public Resource assignGPUContainer(FSSchedulerNode node);
++
++  /**
+    * Preempt a container from this Schedulable if possible.
+    */
+   public RMContainer preemptContainer();
+diff --git a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/SchedulingPolicy.java b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/SchedulingPolicy.java
+index abdc834d8f..c19facd542 100644
+--- a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/SchedulingPolicy.java
++++ b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/SchedulingPolicy.java
+@@ -22,6 +22,7 @@
+ import org.apache.hadoop.util.ReflectionUtils;
+ import org.apache.hadoop.util.StringUtils;
+ import org.apache.hadoop.yarn.api.records.Resource;
++import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies.FairShareGPUPolicy;
+ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies.DominantResourceFairnessPolicy;
+ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies.FairSharePolicy;
+ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies.FifoPolicy;
+@@ -38,6 +39,12 @@
+ 
+   public static final SchedulingPolicy DEFAULT_POLICY =
+       getInstance(FairSharePolicy.class);
++
++  public static final SchedulingPolicy GPU_POLICY =
++      getInstance(FairShareGPUPolicy.class);
++
++  public static final SchedulingPolicy FIFO_POLICY =
++      getInstance(FifoPolicy.class);
+   
+   public static final byte DEPTH_LEAF = (byte) 1;
+   public static final byte DEPTH_INTERMEDIATE = (byte) 2;
+diff --git a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/policies/FairShareGPUPolicy.java b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/policies/FairShareGPUPolicy.java
+index 9ff404bff4..bc1933cec1 100644
+--- a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/policies/FairShareGPUPolicy.java
++++ b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/policies/FairShareGPUPolicy.java
+@@ -36,18 +36,18 @@
+ import static org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceType.*;
+ 
+ /**
+- * Makes scheduling decisions by trying to equalize dominant resource usage.
+- * A schedulable's dominant resource usage is the largest ratio of resource
++ * Makes scheduling decisions by trying to equalize gpu resource usage.
++ * A schedulable's gpu resource usage is the largest ratio of resource
+  * usage to capacity among the resource types it is using.
+  */
+ @Private
+ @Unstable
+-public class DominantGPUFairnessPolicy extends SchedulingPolicy {
++public class FairShareGPUPolicy extends SchedulingPolicy {
+ 
+-  public static final String NAME = "DRF";
++  public static final String NAME = "fair4gpu";
+ 
+-  private DominantGPUFairnessComparator comparator =
+-      new DominantGPUFairnessComparator();
++  private FairShareGPUComparator comparator =
++      new FairShareGPUComparator();
+ 
+   @Override
+   public String getName() {
+@@ -108,95 +108,46 @@ public Resource getHeadroom(Resource queueFairShare, Resource queueUsage,
+     return headroom;
+   }
+ 
+-  @Override
+-  public void initialize(Resource clusterCapacity) {
+-    comparator.setClusterCapacity(clusterCapacity);
+-  }
+-
+-  public static class DominantGPUFairnessComparator implements Comparator<Schedulable> {
+-    private Resource clusterCapacity;
+ 
+-    private ResourceCalculator resourceCalculator = new DominantResourceCalculator();
+-
+-    public void setClusterCapacity(Resource clusterCapacity) {
+-      this.clusterCapacity = clusterCapacity;
+-    }
++  public static class FairShareGPUComparator implements Comparator<Schedulable> {
+ 
+     @Override
+     public int compare(Schedulable s1, Schedulable s2) {
+-      ResourceWeights sharesOfCluster1 = new ResourceWeights();
+-      ResourceWeights sharesOfCluster2 = new ResourceWeights();
+-      ResourceWeights sharesOfMinShare1 = new ResourceWeights();
+-      ResourceWeights sharesOfMinShare2 = new ResourceWeights();
+-      ResourceType[] minResourceOrder1 = new ResourceType[1];
+-      ResourceType[] minResourceOrder2 = new ResourceType[1];
+-      ResourceType[] clusterResourceOrder1 = new ResourceType[1];
+-      ResourceType[] clusterResourceOrder2 = new ResourceType[1];
+       Resource minShare1 = s1.getMinShare().equals(Resources.none()) ? s1.getDemand() :
+           s1.getDemand().getGpuCores() > s1.getMinShare().getGpuCores() ? s1.getMinShare() : s1.getDemand();
+       Resource minShare2 = s2.getMinShare().equals(Resources.none()) ? s2.getDemand() :
+           s2.getDemand().getGpuCores() > s2.getMinShare().getGpuCores() ? s2.getMinShare() : s2.getDemand();
+ 
+-      // Calculate shares of the cluster for each resource both schedulables.
+-      calculateShares(s1.getResourceUsage(),
+-          clusterCapacity, sharesOfCluster1, clusterResourceOrder1, s1.getWeights());
+-      calculateShares(s1.getResourceUsage(),
+-          minShare1, sharesOfMinShare1, minResourceOrder1, s1.getWeights());
+-      calculateShares(s2.getResourceUsage(),
+-          clusterCapacity, sharesOfCluster2, clusterResourceOrder2, s2.getWeights());
+-      calculateShares(s2.getResourceUsage(),
+-          minShare2, sharesOfMinShare2, minResourceOrder2, s2.getWeights());
++      double minshareRatio1 = (double) s1.getResourceUsage().getGpuCores()/minShare1.getGpuCores();
++      double minshareRatio2 = (double) s2.getResourceUsage().getGpuCores()/ minShare2.getGpuCores();
++
++      double useToWeightRatio1 = s1.getResourceUsage().getGpuCores()/s1.getWeights().getWeight(GPU);
++      double useToWeightRatio2 = s2.getResourceUsage().getGpuCores()/s2.getWeights().getWeight(GPU);
+ 
+       // A queue is needy for its min share if its dominant resource
+       // (with respect to the cluster capacity) is below its configured min share
+       // for that resource
+-      boolean s1Needy = sharesOfMinShare1.getWeight(minResourceOrder1[0]) < 1.0f;
+-      boolean s2Needy = sharesOfMinShare2.getWeight(minResourceOrder2[0]) < 1.0f;
++      boolean s1Needy = minshareRatio1 < 1.0f;
++      boolean s2Needy = minshareRatio2 < 1.0f;
+       
+       int res = 0;
+       if (!s2Needy && !s1Needy) {
+-        res = compareShares(sharesOfCluster1, sharesOfCluster2,
+-            clusterResourceOrder1, clusterResourceOrder2);
++        res = (int) Math.signum(useToWeightRatio1 - useToWeightRatio2);
+       } else if (s1Needy && !s2Needy) {
+         res = -1;
+       } else if (s2Needy && !s1Needy) {
+         res = 1;
+       } else { // both are needy below min share
+-        res = compareShares(sharesOfMinShare1, sharesOfMinShare2,
+-            minResourceOrder1, minResourceOrder2);
++        res = (int) Math.signum(minshareRatio1 - minshareRatio2);
+       }
+       if (res == 0) {
+         // Apps are tied in fairness ratio. Break the tie by submit time.
+         res = (int)(s1.getStartTime() - s2.getStartTime());
++        if (res == 0)
++          res = s1.getName().compareTo(s2.getName());
+       }
++
+       return res;
+     }
+-    
+-    /**
+-     * Calculates and orders a resource's share of a pool in terms of two vectors.
+-     * The shares vector contains, for each resource, the fraction of the pool that
+-     * it takes up.  The resourceOrder vector contains an ordering of resources
+-     * by largest share.  So if resource=<10 MB, 5 CPU>, and pool=<100 MB, 10 CPU>,
+-     * shares will be [.1, .5] and resourceOrder will be [CPU, MEMORY].
+-     */
+-    void calculateShares(Resource resource, Resource pool,
+-        ResourceWeights shares, ResourceType[] resourceOrder, ResourceWeights weights) {
+-      shares.setWeight(GPU, (float) resource.getGpuCores() /
+-              (pool.getGpuCores() * weights.getWeight(GPU)));
+-      // sort order vector by resource share
+-        resourceOrder[0] = GPU;
+-    }
+-    
+-    private int compareShares(ResourceWeights shares1, ResourceWeights shares2,
+-        ResourceType[] resourceOrder1, ResourceType[] resourceOrder2) {
+-      for (int i = 0; i < resourceOrder1.length; i++) {
+-        int ret = (int)Math.signum(shares1.getWeight(resourceOrder1[i])
+-            - shares2.getWeight(resourceOrder2[i]));
+-        if (ret != 0) {
+-          return ret;
+-        }
+-      }
+-      return 0;
+-    }
+   }
+ }

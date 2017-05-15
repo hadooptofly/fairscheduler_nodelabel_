@@ -554,6 +554,11 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
     return getResourceRequests(priority).size() > 1;
   }
 
+  public Resource assignGPUContainer(FSSchedulerNode node){
+    //nothing
+    return Resources.none();
+  }
+
   private Resource assignContainer(FSSchedulerNode node, boolean reserved) {
     if (LOG.isDebugEnabled()) {
       LOG.debug("Node offered to app: " + getName() + " reserved: " + reserved);

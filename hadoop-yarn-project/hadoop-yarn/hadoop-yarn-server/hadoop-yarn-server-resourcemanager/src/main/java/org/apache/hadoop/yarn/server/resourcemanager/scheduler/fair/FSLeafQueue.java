@@ -328,6 +328,59 @@ public class FSLeafQueue extends FSQueue {
           continue;
         }
 
+        if (sched.getDemand().getGpuCores() > 0) {
+          continue;
+        }
+
+        assigned = sched.assignContainer(node);
+        if (!assigned.equals(Resources.none())) {
+          break;
+        }
+      }
+    } finally {
+      readLock.unlock();
+    }
+    return assigned;
+  }
+
+  @Override
+  public Resource assignGPUContainer(FSSchedulerNode node) {
+    Resource assigned = Resources.none();
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Node " + node.getNodeName() + " offered to queue: " +
+          getName());
+    }
+
+    if (!assignContainerPreCheck(node)) {
+      return assigned;
+    }
+
+    Comparator<Schedulable> comparator = SchedulingPolicy.FIFO_POLICY.getComparator();
+    writeLock.lock();
+    try {
+      Collections.sort(runnableApps, comparator);
+    } finally {
+      writeLock.unlock();
+    }
+    // Release write lock here for better performance and avoiding deadlocks.
+    // runnableApps can be in unsorted state because of this section,
+    // but we can accept it in practice since the probability is low.
+    readLock.lock();
+    for (FSAppAttempt sched : runnableApps){
+      LOG.info("Sorted app: " + sched.getName() + " with priorty: " + sched.getPriority() + " startTime: " +
+            sched.getStartTime());
+    }
+    try {
+      for (FSAppAttempt sched : runnableApps) {
+        LOG.info("TODO Assign app: " + sched);
+        if (SchedulerAppUtils.isBlacklisted(sched, node, LOG)) {
+          continue;
+        }
+
+        if (sched.getDemand().getGpuCores() <= 0){
+          continue;
+        }
+
         assigned = sched.assignContainer(node);
         if (!assigned.equals(Resources.none())) {
           break;

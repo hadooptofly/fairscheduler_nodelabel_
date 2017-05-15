@@ -977,7 +977,7 @@ public class FairScheduler extends
     }
     eventLog.log("HEARTBEAT", nm.getHostName());
     FSSchedulerNode node = getFSSchedulerNode(nm.getNodeID());
-    
+
     List<UpdatedContainerInfo> containerInfoList = nm.pullContainerUpdates();
     List<ContainerStatus> newlyLaunchedContainers = new ArrayList<ContainerStatus>();
     List<ContainerStatus> completedContainers = new ArrayList<ContainerStatus>();
@@ -1112,8 +1112,22 @@ public class FairScheduler extends
       int assignedContainers = 0;
       while (node.getReservedContainer() == null) {
         boolean assignedContainer = false;
-        if (!queueMgr.getRootQueue().assignContainer(node).equals(
-            Resources.none())) {
+        if (node.getAvailableResource().getGpuCores() > 0){
+          LOG.info("Assign cycle, cluster demand: " + queueMgr.getRootQueue().getDemand() + "\n"
+              + "Runnable apps: " + queueMgr.getRootQueue().getNumRunnableApps());
+          Resource gpuR = queueMgr.getRootQueue().assignGPUContainer(node);
+          if (!gpuR.equals(Resources.none())) {
+              LOG.info("Assign container: " + gpuR + " to gpu dominant application.");
+              assignedContainers++;
+              if (!assignMultiple) { break; }
+              if ((assignedContainers >= maxAssign) && (maxAssign > 0)) { break; }
+              continue;
+          }
+        }
+
+        Resource memR = queueMgr.getRootQueue().assignContainer(node);
+        if (!memR.equals(Resources.none())) {
+          LOG.info("Assign container: " + memR + " to memory dominant application.");
           assignedContainers++;
           assignedContainer = true;
         }

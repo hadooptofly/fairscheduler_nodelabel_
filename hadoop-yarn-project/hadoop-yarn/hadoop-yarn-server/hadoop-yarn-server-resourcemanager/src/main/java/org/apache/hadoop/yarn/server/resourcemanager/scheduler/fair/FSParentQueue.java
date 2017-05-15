@@ -179,6 +179,28 @@ public class FSParentQueue extends FSQueue {
   }
 
   @Override
+  public Resource assignGPUContainer(FSSchedulerNode node) {
+    Resource assigned = Resources.none();
+
+    // If this queue is over its limit, reject
+    //TODO REGARD ResourceType(GPU...) WHEN CHECK THIS
+    if (!assignContainerPreCheck(node)) {
+      return assigned;
+    }
+    Collections.sort(childQueues, SchedulingPolicy.GPU_POLICY.getComparator());
+    LOG.error("Nodeheartbeat:::");
+    for (FSQueue child : childQueues) {
+      LOG.error("Assgin Queue: " + child.getName() + " gpu usage: " + child.getResourceUsage().getGpuCores());
+      assigned = child.assignGPUContainer(node);
+      if (!Resources.equals(assigned, Resources.none())) {
+        break;
+      }
+    }
+    return assigned;
+  }
+
+
+  @Override
   public RMContainer preemptContainer() {
     RMContainer toBePreempted = null;
 

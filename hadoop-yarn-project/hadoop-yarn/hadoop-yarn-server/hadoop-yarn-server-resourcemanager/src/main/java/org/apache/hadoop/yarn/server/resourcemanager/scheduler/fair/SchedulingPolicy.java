@@ -22,6 +22,7 @@ import org.apache.hadoop.classification.InterfaceStability.Evolving;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies.FairShareGPUPolicy;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies.DominantResourceFairnessPolicy;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies.FairSharePolicy;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies.FifoPolicy;
@@ -38,6 +39,12 @@ public abstract class SchedulingPolicy {
 
   public static final SchedulingPolicy DEFAULT_POLICY =
       getInstance(FairSharePolicy.class);
+
+  public static final SchedulingPolicy GPU_POLICY =
+      getInstance(FairShareGPUPolicy.class);
+
+  public static final SchedulingPolicy FIFO_POLICY =
+      getInstance(FifoPolicy.class);
   
   public static final byte DEPTH_LEAF = (byte) 1;
   public static final byte DEPTH_INTERMEDIATE = (byte) 2;
