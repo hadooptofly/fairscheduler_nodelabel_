@@ -22,26 +22,15 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.LimitedPrivate;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
-import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.hadoop.yarn.api.records.Container;
-import org.apache.hadoop.yarn.api.records.ContainerId;
-import org.apache.hadoop.yarn.api.records.ContainerStatus;
-import org.apache.hadoop.yarn.api.records.NodeId;
-import org.apache.hadoop.yarn.api.records.Priority;
-import org.apache.hadoop.yarn.api.records.QueueACL;
-import org.apache.hadoop.yarn.api.records.QueueInfo;
-import org.apache.hadoop.yarn.api.records.QueueUserACLInfo;
-import org.apache.hadoop.yarn.api.records.ReservationId;
-import org.apache.hadoop.yarn.api.records.Resource;
-import org.apache.hadoop.yarn.api.records.ResourceOption;
-import org.apache.hadoop.yarn.api.records.ResourceRequest;
+import org.apache.hadoop.yarn.api.records.*;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
@@ -70,17 +59,8 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplicat
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplicationAttempt.ContainersAndNMTokensAllocation;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerUtils;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.QueueEntitlement;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.AppAddedSchedulerEvent;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.AppAttemptAddedSchedulerEvent;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.AppAttemptRemovedSchedulerEvent;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.AppRemovedSchedulerEvent;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.ContainerExpiredSchedulerEvent;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.ContainerRescheduledEvent;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeAddedSchedulerEvent;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeRemovedSchedulerEvent;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeResourceUpdateSchedulerEvent;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeUpdateSchedulerEvent;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.SchedulerEvent;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerNode;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.*;
 import org.apache.hadoop.yarn.server.resourcemanager.security.RMContainerTokenSecretManager;
 import org.apache.hadoop.yarn.util.Clock;
 import org.apache.hadoop.yarn.util.SystemClock;
@@ -357,6 +337,53 @@ public class FairScheduler extends
     for (FSLeafQueue sched : queueMgr.getLeafQueues()) {
       sched.updateStarvationStats();
     }
+  }
+
+  private synchronized void updateLabelsOnNode(NodeId nodeId,
+                                               Set<String> newLabels) {
+    FSSchedulerNode node = nodes.get(nodeId);
+    if (null == node) {
+      return;
+    }
+
+    // labels is same, we don't need do update
+    if (node.getLabels().size() == newLabels.size()
+        && node.getLabels().containsAll(newLabels)) {
+      return;
+    }
+
+    // Kill running containers since label is changed
+    for (RMContainer rmContainer : node.getRunningContainers()) {
+      ContainerId containerId = rmContainer.getContainerId();
+      completedContainer(rmContainer,
+          ContainerStatus.newInstance(containerId,
+              ContainerState.COMPLETE,
+              String.format(
+                  "Container=%s killed since labels on the node=%s changed",
+                  containerId.toString(), nodeId.toString()),
+              ContainerExitStatus.KILLED_BY_RESOURCEMANAGER),
+          RMContainerEventType.KILL);
+    }
+
+    // Unreserve container on this node
+    RMContainer reservedContainer = node.getReservedContainer();
+    if (null != reservedContainer) {
+      dropContainerReservation(reservedContainer);
+    }
+
+    // Update node labels after we've done this
+    node.updateLabels(newLabels);
+  }
+
+  private void dropContainerReservation(RMContainer container) {
+    if(LOG.isDebugEnabled()){
+      LOG.debug("DROP_RESERVATION:" + container.toString());
+    }
+    completedContainer(container,
+        SchedulerUtils.createAbnormalContainerStatus(
+            container.getContainerId(),
+            SchedulerUtils.UNRESERVED_CONTAINER),
+        RMContainerEventType.KILL);
   }
 
   /**
@@ -713,17 +740,25 @@ public class FairScheduler extends
 
     try {
       QueuePlacementPolicy placementPolicy = allocConf.getPlacementPolicy();
-      queueName = placementPolicy.assignAppToQueue(queueName, user);
+      queueName = placementPolicy.assignAppToGroupUserQueue(user);
       if (queueName == null) {
         appRejectMsg = "Application rejected by queue placement policy";
       } else {
-        queue = queueMgr.getLeafQueue(queueName, true);
-        if (queue == null) {
-          appRejectMsg = queueName + " is not a leaf queue";
+        //get application node-label
+        String label = rmApp.getApplicationSubmissionContext().getNodeLabelExpression();
+        if (!StringUtils.isBlank(label)) {
+          queueName = "root." + label + "." + queueName.split("root\\.", 2)[1];
+          queue = queueMgr.getLeafQueue(queueName, false);
+        } else {
+          queue = queueMgr.getLeafQueue(queueName, true);
         }
       }
     } catch (IOException ioe) {
       appRejectMsg = "Error assigning app to queue " + queueName;
+    }
+
+    if (queue == null) {
+      appRejectMsg = queueName + " is not a leaf queue";
     }
 
     if (appRejectMsg != null && rmApp != null) {
@@ -851,7 +886,7 @@ public class FairScheduler extends
   }
 
   private synchronized void addNode(RMNode node) {
-    FSSchedulerNode schedulerNode = new FSSchedulerNode(node, usePortForNodeName);
+    FSSchedulerNode schedulerNode = new FSSchedulerNode(node, usePortForNodeName, node.getNodeLabels());
     nodes.put(node.getNodeID(), schedulerNode);
     Resources.addTo(clusterResource, schedulerNode.getTotalResource());
     updateRootQueueMetrics();
@@ -1112,22 +1147,64 @@ public class FairScheduler extends
       int assignedContainers = 0;
       while (node.getReservedContainer() == null) {
         boolean assignedContainer = false;
-        if (node.getAvailableResource().getGpuCores() > 0){
-          LOG.info("Assign cycle, cluster demand: " + queueMgr.getRootQueue().getDemand() + "\n"
-              + "Runnable apps: " + queueMgr.getRootQueue().getNumRunnableApps());
-          Resource gpuR = queueMgr.getRootQueue().assignGPUContainer(node);
-          if (!gpuR.equals(Resources.none())) {
-              LOG.info("Assign container: " + gpuR + " to gpu dominant application.");
+        //get node label
+        if (!CollectionUtils.isEmpty(node.getLabels())){
+          String nodeLabel = (String) node.getLabels().iterator().next();
+
+          //check node label
+          if (StringUtils.isBlank(nodeLabel)){
+            //TODO EMAIL?
+            LOG.error("Alerting Node<" + node.getNodeName() + ">'s nodelabel is blank.");
+            break;
+          }
+
+          //get label-queue
+          FSParentQueue begin = queueMgr.getLabelQueue(nodeLabel);
+
+          //check label-queue existing
+          if (begin == null) {
+            //TODO EMAIL?
+            LOG.error("Alerting label-queue<root." + nodeLabel + " is not existing...");
+            break;
+          }
+
+          if (node.getAvailableResource().getGpuCores() > 0){
+            LOG.info("Assign to queue" + begin.getName() + ", label<" + nodeLabel + "> demand: " + begin.getDemand() + "\n"
+                + "Runnable apps: " + begin.getNumRunnableApps());
+            Resource gpu = begin.assignGPUContainer(node);
+            if (!gpu.equals(Resources.none())) {
+              LOG.info("Assign container: " + gpu + " to label queue: " + begin.getName() + " from node: "
+                  + node.getNodeName() + " with node label: " + nodeLabel + " availiable:" + node.getAvailableResource());
               assignedContainers++;
               if (!assignMultiple) { break; }
               if ((assignedContainers >= maxAssign) && (maxAssign > 0)) { break; }
               continue;
+            }
+
+            //no assign exit.
+            break;
+          } else {
+            LOG.info("Assign to queue" + begin.getName() + ", label<" + nodeLabel + "> demand: " + begin.getDemand() + "\n"
+                + "Runnable apps: " + begin.getNumRunnableApps());
+            Resource noGpu = begin.assignContainer(node);
+            if (!noGpu.equals(Resources.none())) {
+              LOG.info("Assign container: " + noGpu + " to label queue: " + begin.getName() + " from node: "
+                  + node.getNodeName() + " with node label: " + nodeLabel + " availiable:" + node.getAvailableResource());
+              assignedContainers++;
+              if (!assignMultiple) { break; }
+              if ((assignedContainers >= maxAssign) && (maxAssign > 0)) { break; }
+              continue;
+            }
+
+            //no assign exit.
+            break;
           }
         }
 
-        Resource memR = queueMgr.getRootQueue().assignContainer(node);
-        if (!memR.equals(Resources.none())) {
-          LOG.info("Assign container: " + memR + " to memory dominant application.");
+        //no label schedule
+        Resource res = queueMgr.getRootQueue().assignContainer(node);
+        if (!res.equals(Resources.none())) {
+          LOG.info("Assign container: " + res + " to no label request.");
           assignedContainers++;
           assignedContainer = true;
         }
@@ -1223,6 +1300,19 @@ public class FairScheduler extends
       }
       NodeUpdateSchedulerEvent nodeUpdatedEvent = (NodeUpdateSchedulerEvent)event;
       nodeUpdate(nodeUpdatedEvent.getRMNode());
+      break;
+    case NODE_LABELS_UPDATE:
+      {
+        NodeLabelsUpdateSchedulerEvent labelUpdateEvent =
+            (NodeLabelsUpdateSchedulerEvent) event;
+
+        for (Map.Entry<NodeId, Set<String>> entry : labelUpdateEvent
+            .getUpdatedNodeToLabels().entrySet()) {
+          NodeId id = entry.getKey();
+          Set<String> labels = entry.getValue();
+          updateLabelsOnNode(id, labels);
+        }
+      }
       break;
     case APP_ADDED:
       if (!(event instanceof AppAddedSchedulerEvent)) {

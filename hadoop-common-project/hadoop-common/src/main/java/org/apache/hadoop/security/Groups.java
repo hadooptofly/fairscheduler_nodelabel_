@@ -17,7 +17,7 @@
  */
 package org.apache.hadoop.security;
 
-import java.io.IOException;
+import java.io.*;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ticker;
@@ -62,6 +63,8 @@ public class Groups {
   private final GroupMappingServiceProvider impl;
 
   private final LoadingCache<String, List<String>> cache;
+  private final Map<String, String> groupToQueueMap = new HashMap<String, String>();
+  private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
   private final Map<String, List<String>> staticUserToGroupsMap =
       new HashMap<String, List<String>>();
   private final long cacheTimeout;
@@ -69,12 +72,14 @@ public class Groups {
   private final long warningDeltaMs;
   private final Timer timer;
   private Set<String> negativeCache;
+  private Configuration conf;
 
   public Groups(Configuration conf) {
     this(conf, new Timer());
   }
 
   public Groups(Configuration conf, final Timer timer) {
+    this.conf = conf;
     impl = 
       ReflectionUtils.newInstance(
           conf.getClass(CommonConfigurationKeys.HADOOP_SECURITY_GROUP_MAPPING, 
@@ -92,6 +97,7 @@ public class Groups {
       conf.getLong(CommonConfigurationKeys.HADOOP_SECURITY_GROUPS_CACHE_WARN_AFTER_MS,
         CommonConfigurationKeys.HADOOP_SECURITY_GROUPS_CACHE_WARN_AFTER_MS_DEFAULT);
     parseStaticMapping(conf);
+    loadGroupDetails(conf);
 
     this.timer = timer;
     this.cache = CacheBuilder.newBuilder()
@@ -112,6 +118,59 @@ public class Groups {
       LOG.debug("Group mapping impl=" + impl.getClass().getName() + 
           "; cacheTimeout=" + cacheTimeout + "; warningDeltaMs=" +
           warningDeltaMs);
+  }
+
+  private void loadGroupDetails(Configuration conf) {
+    String detailFile = conf.get("hadoop.security.group.mapping.groups");
+    if(detailFile == null || "".equals(detailFile)){
+      LOG.warn("hadoop.security.group.mapping.groups not set, give up refresh!");
+    }else{
+      File file = new File(detailFile);
+      if (!file.exists()) {
+        LOG.warn(detailFile + " cannot be found! make sure hadoop.security.group.mapping.groups is setting correct!");
+        return;
+      }
+      BufferedReader reader = null;
+      Map<String, String> tempMap = null;
+      try {
+        reader = new BufferedReader(new FileReader(file));
+        tempMap = new HashMap<String,String>();
+        String line;
+        while ((line = reader.readLine()) != null) {
+          if(line.startsWith("#") || line.trim().isEmpty()){
+            continue;
+          }
+          String[] segs = line.split(":");
+          if (segs != null && segs.length == 2) {
+            tempMap.put(segs[0].trim(), segs[1].trim());
+          }
+        }
+      } catch (FileNotFoundException e) {
+        LOG.error("loadGroupDetails error!", e);
+        return;
+      } catch (IOException e) {
+        LOG.error("loadGroupDetails error!", e);
+        return;
+      } finally {
+        if (reader != null) {
+          try {
+            reader.close();
+          } catch (IOException e) {
+            LOG.error("loadGroupDetails error!", e);
+          }
+        }
+      }
+
+      if (tempMap != null && tempMap.size() > 0) {
+        lock.writeLock().lock();
+        try {
+          groupToQueueMap.clear();
+          groupToQueueMap.putAll(tempMap);
+        } finally {
+          lock.writeLock().unlock();
+        }
+      }
+    }
   }
   
   @VisibleForTesting
@@ -219,7 +278,7 @@ public class Groups {
     public List<String> load(String user) throws Exception {
       List<String> groups = fetchGroupList(user);
 
-      if (groups.isEmpty()) {
+      if (groups == null || groups.isEmpty()) {
         if (isNegativeCacheEnabled()) {
           negativeCache.add(user);
         }
@@ -263,6 +322,7 @@ public class Groups {
     if(isNegativeCacheEnabled()) {
       negativeCache.clear();
     }
+    loadGroupDetails(conf);
   }
 
   /**
@@ -276,6 +336,19 @@ public class Groups {
     } catch (IOException e) {
       LOG.warn("Error caching groups", e);
     }
+  }
+
+  public String getGroupDetail(String group) {
+    String queue = group;
+    lock.readLock().lock();
+    try{
+      if(groupToQueueMap.containsKey(group)){
+        queue = groupToQueueMap.get(group);
+      }
+    } finally {
+      lock.readLock().unlock();
+    }
+    return queue;
   }
 
   private static Groups GROUPS = null;

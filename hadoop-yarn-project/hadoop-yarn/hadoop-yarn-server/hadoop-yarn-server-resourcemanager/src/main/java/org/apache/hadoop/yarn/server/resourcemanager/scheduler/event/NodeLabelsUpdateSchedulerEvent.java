@@ -31,7 +31,7 @@ public class NodeLabelsUpdateSchedulerEvent extends SchedulerEvent {
     this.nodeToLabels = nodeToLabels;
   }
   
-  public Map<NodeId, Set<String>> getUpdatedNodeToLabels() {
+public Map<NodeId, Set<String>> getUpdatedNodeToLabels() {
     return nodeToLabels;
   }
 }

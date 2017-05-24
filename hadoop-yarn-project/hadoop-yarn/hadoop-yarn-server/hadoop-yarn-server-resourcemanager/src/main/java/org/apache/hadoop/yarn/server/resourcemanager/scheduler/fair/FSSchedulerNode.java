@@ -24,10 +24,13 @@ import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.Priority;
+import org.apache.hadoop.yarn.nodelabels.CommonNodeLabelsManager;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplicationAttempt;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerNode;
+
+import java.util.Set;
 
 @Private
 @Unstable
@@ -38,7 +41,11 @@ public class FSSchedulerNode extends SchedulerNode {
   private FSAppAttempt reservedAppSchedulable;
 
   public FSSchedulerNode(RMNode node, boolean usePortForNodeName) {
-    super(node, usePortForNodeName);
+    super(node, usePortForNodeName, CommonNodeLabelsManager.EMPTY_STRING_SET);
+  }
+
+  public FSSchedulerNode(RMNode node, boolean usePortForNodeName, Set<String> nodeLabels) {
+    super(node, usePortForNodeName, nodeLabels);
   }
 
   @Override

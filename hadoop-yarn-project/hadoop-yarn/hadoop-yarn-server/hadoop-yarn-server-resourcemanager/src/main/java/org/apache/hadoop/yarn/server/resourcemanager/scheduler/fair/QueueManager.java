@@ -28,6 +28,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 import javax.xml.parsers.ParserConfigurationException;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
@@ -62,6 +63,10 @@ public class QueueManager {
   
   public FSParentQueue getRootQueue() {
     return rootQueue;
+  }
+
+  public FSParentQueue getLabelQueue(String label) {
+    return (FSParentQueue) queues.get("root." + StringUtils.trim(label));
   }
 
   public void initialize(Configuration conf) throws IOException,

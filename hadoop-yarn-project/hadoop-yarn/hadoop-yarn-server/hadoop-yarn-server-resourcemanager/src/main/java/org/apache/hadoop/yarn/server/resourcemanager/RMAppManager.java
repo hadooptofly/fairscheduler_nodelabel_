@@ -58,6 +58,7 @@ import org.apache.hadoop.yarn.server.security.ApplicationACLsManager;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.jboss.netty.util.internal.StringUtil;
 
 /**
  * This class manages the list of applications for the resource manager. 
@@ -380,6 +381,13 @@ public class RMAppManager implements EventHandler<RMAppManagerEvent>,
       if (null == amReq.getNodeLabelExpression()) {
         amReq.setNodeLabelExpression(submissionContext
             .getNodeLabelExpression());
+      }
+
+      //replace am label which is blank ""
+      //regard as this am is indicate use
+      //no label resource
+      if ("".equals(amReq.getNodeLabelExpression())) {
+        amReq.setNodeLabelExpression(null);
       }
 
       try {

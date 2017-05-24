@@ -377,8 +377,11 @@ public class RMNodeLabelsManager extends CommonNodeLabelsManager {
 
     // traverse all nms
     for (NodeId nodeId : allNMs) {
+      //*checkRunning* only influence this label based resource capacity
+      //Do not influence our functionality, so set false here.
+      //added by yuanfeng
       Node oldNM;
-      if ((oldNM = getNMInNodeSet(nodeId, before, true)) != null) {
+      if ((oldNM = getNMInNodeSet(nodeId, before, false)) != null) {
         Set<String> oldLabels = getLabelsByNode(nodeId, before);
         // no label in the past
         if (oldLabels.isEmpty()) {
@@ -410,7 +413,11 @@ public class RMNodeLabelsManager extends CommonNodeLabelsManager {
       }
 
       Node newNM;
-      if ((newNM = getNMInNodeSet(nodeId, after, true)) != null) {
+      //*checkRunning* only influence this label based resource capacity
+      //Do not influence our functionality, so set false here.
+      //added by yuanfeng
+      //TODO Node#running may have some hidden troubles
+      if ((newNM = getNMInNodeSet(nodeId, after, false)) != null) {
         Set<String> newLabels = getLabelsByNode(nodeId, after);
         
         newNodeToLabelsMap.put(nodeId, ImmutableSet.copyOf(newLabels));

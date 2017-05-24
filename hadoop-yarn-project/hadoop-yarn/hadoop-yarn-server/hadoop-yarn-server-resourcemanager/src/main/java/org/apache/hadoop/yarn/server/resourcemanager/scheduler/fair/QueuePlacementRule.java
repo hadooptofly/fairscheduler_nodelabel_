@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
@@ -146,7 +148,26 @@ public abstract class QueuePlacementRule {
     protected String getQueueForApp(String requestedQueue, String user,
         Groups groups, Map<FSQueueType, Set<String>> configuredQueues)
         throws IOException {
-      return "root." + cleanName(groups.getGroups(user).get(0));
+      List<String> gps = groups.getGroups(user);
+
+      //check user-group mapping
+      if (CollectionUtils.isEmpty(gps)) {
+        throw new IOException("User(" + user + "to group mapping have not been setted yet...");
+      }
+
+      String group = gps.get(0);
+      String queue = groups.getGroupDetail(group);
+
+      //check group-queue mapping
+      if (StringUtils.isBlank(queue)){
+        throw new IOException("Group(" + group + ") to queue mapping have not been setted yet...");
+      }
+
+      if (!StringUtils.startsWith(queue, "root")){
+        return "root." + queue;
+      } else {
+        return queue;
+      }
     }
     
     @Override

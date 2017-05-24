@@ -328,10 +328,6 @@ public class FSLeafQueue extends FSQueue {
           continue;
         }
 
-        if (sched.getDemand().getGpuCores() > 0) {
-          continue;
-        }
-
         assigned = sched.assignContainer(node);
         if (!assigned.equals(Resources.none())) {
           break;
@@ -367,20 +363,16 @@ public class FSLeafQueue extends FSQueue {
     // but we can accept it in practice since the probability is low.
     readLock.lock();
     for (FSAppAttempt sched : runnableApps){
-      LOG.info("Sorted app: " + sched.getName() + " with priorty: " + sched.getPriority() + " startTime: " +
+      LOG.info("App order: " + sched.getName() + " with priorty: " + sched.getPriority() + " startTime: " +
             sched.getStartTime());
     }
     try {
       for (FSAppAttempt sched : runnableApps) {
-        LOG.info("TODO Assign app: " + sched);
         if (SchedulerAppUtils.isBlacklisted(sched, node, LOG)) {
           continue;
         }
 
-        if (sched.getDemand().getGpuCores() <= 0){
-          continue;
-        }
-
+        LOG.info("Try to assign app: " + sched);
         assigned = sched.assignContainer(node);
         if (!assigned.equals(Resources.none())) {
           break;

@@ -498,6 +498,13 @@ public class ApplicationMasterService extends AbstractService implements
             && ResourceRequest.ANY.equals(req.getResourceName())) {
           req.setNodeLabelExpression(asc.getNodeLabelExpression());
         }
+
+        //replace container label which is blank("")
+        //regard as it is indicated use no label
+        //host
+        if ("".equals(req.getNodeLabelExpression())) {
+          req.setNodeLabelExpression(null);
+        }
       }
               
       // sanity check

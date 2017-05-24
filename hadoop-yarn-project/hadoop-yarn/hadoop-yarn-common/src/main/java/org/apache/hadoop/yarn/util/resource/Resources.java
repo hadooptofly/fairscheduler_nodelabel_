@@ -69,6 +69,49 @@ public class Resources {
     }
     
   };
+
+  //use for regard the not assign gpu container
+  //when normally scheduling(memory-based now)
+  private static final Resource SKIP_PRIORITY = new Resource() {
+
+    @Override
+    public int getMemory() {
+      return -1;
+    }
+
+    @Override
+    public void setMemory(int memory) {
+      throw new RuntimeException("NONE cannot be modified!");
+    }
+
+    @Override
+    public int getVirtualCores() {
+      return -1;
+    }
+
+    @Override
+    public void setVirtualCores(int cores) {
+      throw new RuntimeException("NONE cannot be modified!");
+    }
+
+    @Override
+    public int getGpuCores() { return -1; }
+
+    @Override
+    public void setGpuCores(int gcores) { throw new RuntimeException("NONE cannot be modified!"); }
+
+    @Override
+    public int compareTo(Resource o) {
+      int diff = 0 - o.getMemory();
+      if (diff == 0) {
+        diff = 0 - o.getVirtualCores();
+        if (diff == 0) {
+          diff = 0 - o.getGpuCores();
+        }
+      }
+      return diff;
+    }
+  };
   
   private static final Resource UNBOUNDED = new Resource() {
 
@@ -135,6 +178,8 @@ public class Resources {
   public static Resource unbounded() {
     return UNBOUNDED;
   }
+
+  public static Resource skip_priority() { return SKIP_PRIORITY; }
 
   public static Resource clone(Resource res) {
     return createResource(res.getMemory(), res.getVirtualCores(), res.getGpuCores());
@@ -282,6 +327,13 @@ public class Resources {
     return smaller.getMemory() <= bigger.getMemory() &&
         smaller.getVirtualCores() <= bigger.getVirtualCores() &&
             smaller.getGpuCores() <= bigger.getGpuCores();
+  }
+
+  public static boolean skipReservation(Resource capacity, Resource available, Resource total) {
+    return false |
+        (capacity.getMemory() > available.getMemory() && total.getMemory() <= 0) |
+        (capacity.getVirtualCores() > available.getVirtualCores() && total.getVirtualCores() <= 0) |
+        (capacity.getGpuCores() > available.getGpuCores() && total.getGpuCores() <= 0);
   }
   
   public static Resource componentwiseMin(Resource lhs, Resource rhs) {

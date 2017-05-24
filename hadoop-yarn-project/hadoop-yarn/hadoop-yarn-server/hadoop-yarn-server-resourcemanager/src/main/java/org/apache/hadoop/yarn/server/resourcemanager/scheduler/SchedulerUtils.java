@@ -223,7 +223,9 @@ public class SchedulerUtils {
         // the queueInfo here, and move forward
       }
     }
-    SchedulerUtils.normalizeNodeLabelExpressionInRequest(resReq, queueInfo);
+    //Anotation this step because node label setting handle by
+    //ourself.
+    //SchedulerUtils.normalizeNodeLabelExpressionInRequest(resReq, queueInfo);
     if (!isRecovery) {
       validateResourceRequest(resReq, maximumResource, queueInfo, rmContext);
     }
@@ -311,21 +313,23 @@ public class SchedulerUtils {
               + "in a node label expression, node label expression = "
               + labelExp);
     }
-    
-    if (labelExp != null && !labelExp.trim().isEmpty() && queueInfo != null) {
-      if (!checkQueueLabelExpression(queueInfo.getAccessibleNodeLabels(),
-          labelExp, rmContext)) {
-        throw new InvalidResourceRequestException("Invalid resource request"
-            + ", queue="
-            + queueInfo.getQueueName()
-            + " doesn't have permission to access all labels "
-            + "in resource request. labelExpression of resource request="
-            + labelExp
-            + ". Queue labels="
-            + (queueInfo.getAccessibleNodeLabels() == null ? "" : StringUtils.join(queueInfo
-                .getAccessibleNodeLabels().iterator(), ',')));
-      }
-    }
+
+    //Do not need check Queue label acl.
+    //because ourself handle it.
+//    if (labelExp != null && !labelExp.trim().isEmpty() && queueInfo != null) {
+//      if (!checkQueueLabelExpression(queueInfo.getAccessibleNodeLabels(),
+//          labelExp, rmContext)) {
+//        throw new InvalidResourceRequestException("Invalid resource request"
+//            + ", queue="
+//            + queueInfo.getQueueName()
+//            + " doesn't have permission to access all labels "
+//            + "in resource request. labelExpression of resource request="
+//            + labelExp
+//            + ". Queue labels="
+//            + (queueInfo.getAccessibleNodeLabels() == null ? "" : StringUtils.join(queueInfo
+//                .getAccessibleNodeLabels().iterator(), ',')));
+//      }
+//    }
   }
   
   public static boolean checkQueueAccessToNode(Set<String> queueLabels,

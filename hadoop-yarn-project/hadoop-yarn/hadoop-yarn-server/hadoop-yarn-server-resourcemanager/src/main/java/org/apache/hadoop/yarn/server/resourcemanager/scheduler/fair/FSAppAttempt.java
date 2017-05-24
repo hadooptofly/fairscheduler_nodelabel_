@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
@@ -496,7 +498,6 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
   private Resource assignContainer(
       FSSchedulerNode node, ResourceRequest request, NodeType type,
       boolean reserved) {
-
     // How much does this request need?
     Resource capability = request.getCapability();
 
@@ -510,43 +511,70 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
       container = createContainer(node, capability, request.getPriority());
     }
 
-    // Can we allocate a container on this node?
-    if (Resources.fitsIn(capability, available)) {
-      // Inform the application of the new container for this request
-      RMContainer allocatedContainer =
-          allocate(type, node, request.getPriority(), request, container);
-      if (allocatedContainer == null) {
-        // Did the application need this resource?
+    //check nodeLabels
+    Set<String> nodeLabels = node.getLabels();
+    String requestLabel = request.getNodeLabelExpression();
+
+    // If node is setted label ignore
+    // labeled app which label do not contain
+    // this node,
+    // and app which have not label directly.
+    if (!CollectionUtils.isEmpty(nodeLabels)
+            && !nodeLabels.contains(requestLabel)) {
+
+      return Resources.skip_priority();
+
+    } else if (CollectionUtils.isEmpty(nodeLabels) && !StringUtils.isBlank(requestLabel)) {
+
+      return Resources.skip_priority();
+
+    } else {
+      // Can we allocate a container on this node?
+      if (Resources.fitsIn(capability, available)) {
+        // Inform the application of the new container for this request
+        RMContainer allocatedContainer =
+            allocate(type, node, request.getPriority(), request, container);
+        if (allocatedContainer == null) {
+          // Did the application need this resource?
+          if (reserved) {
+            unreserve(request.getPriority(), node);
+          }
+          return Resources.none();
+        }
+
+        // If we had previously made a reservation, delete it
         if (reserved) {
           unreserve(request.getPriority(), node);
         }
-        return Resources.none();
+
+        // Inform the node
+        node.allocateContainer(allocatedContainer);
+
+        // If this container is used to run AM, update the leaf queue's AM usage
+        if (getLiveContainers().size() == 1 && !getUnmanagedAM()) {
+          getQueue().addAMResourceUsage(container.getResource());
+          setAmRunning(true);
+        }
+
+        return container.getResource();
+      } else {
+        if (!FairScheduler.fitsInMaxShare(getQueue(), capability)) {
+          return Resources.none();
+        }
+
+        //reserve pre-check if *no fit* is
+        //is because this host not one jot or tittle
+        //some resource like gpu is 0
+        //so we don need reserve in this host.
+        if (Resources.skipReservation(capability, node.getAvailableResource(), node.getTotalResource())) {
+          return Resources.none();
+        }
+
+        // The desired container won't fit here, so reserve
+        reserve(request.getPriority(), node, container, reserved);
+
+        return FairScheduler.CONTAINER_RESERVED;
       }
-
-      // If we had previously made a reservation, delete it
-      if (reserved) {
-        unreserve(request.getPriority(), node);
-      }
-
-      // Inform the node
-      node.allocateContainer(allocatedContainer);
-
-      // If this container is used to run AM, update the leaf queue's AM usage
-      if (getLiveContainers().size() == 1 && !getUnmanagedAM()) {
-        getQueue().addAMResourceUsage(container.getResource());
-        setAmRunning(true);
-      }
-
-      return container.getResource();
-    } else {
-      if (!FairScheduler.fitsInMaxShare(getQueue(), capability)) {
-        return Resources.none();
-      }
-
-      // The desired container won't fit here, so reserve
-      reserve(request.getPriority(), node, container, reserved);
-
-      return FairScheduler.CONTAINER_RESERVED;
     }
   }
 
@@ -612,8 +640,12 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
 
         if (rackLocalRequest != null && rackLocalRequest.getNumContainers() != 0
             && localRequest != null && localRequest.getNumContainers() != 0) {
-          return assignContainer(node, localRequest,
+          Resource res = assignContainer(node, localRequest,
               NodeType.NODE_LOCAL, reserved);
+          if (res.equals(Resources.skip_priority())) {
+            continue;
+          }
+          return res;
         }
 
         if (rackLocalRequest != null && !rackLocalRequest.getRelaxLocality()) {
@@ -623,8 +655,12 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
         if (rackLocalRequest != null && rackLocalRequest.getNumContainers() != 0
             && (allowedLocality.equals(NodeType.RACK_LOCAL) ||
             allowedLocality.equals(NodeType.OFF_SWITCH))) {
-          return assignContainer(node, rackLocalRequest,
+          Resource res = assignContainer(node, rackLocalRequest,
               NodeType.RACK_LOCAL, reserved);
+          if (res.equals(Resources.skip_priority())) {
+            continue;
+          }
+          return res;
         }
 
         ResourceRequest offSwitchRequest =
@@ -637,8 +673,12 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
             offSwitchRequest.getNumContainers() != 0) {
           if (!hasNodeOrRackLocalRequests(priority) ||
               allowedLocality.equals(NodeType.OFF_SWITCH)) {
-            return assignContainer(
+            Resource res = assignContainer(
                 node, offSwitchRequest, NodeType.OFF_SWITCH, reserved);
+            if (res.equals(Resources.skip_priority())) {
+              continue;
+            }
+            return res;
           }
         }
       }
