@@ -546,7 +546,9 @@ public abstract class TaskAttemptImpl implements
         getMemoryRequired(conf, taskId.getTaskType()));
     this.resourceCapability.setVirtualCores(
         getCpuRequired(conf, taskId.getTaskType()));
-
+    this.resourceCapability.setGpuCores(
+        getGpuRequired(conf, taskId.getTaskType()));
+    
     this.dataLocalHosts = resolveHosts(dataLocalHosts);
     RackResolver.init(conf);
     this.dataLocalRacks = new HashSet<String>(); 
@@ -591,7 +593,22 @@ public abstract class TaskAttemptImpl implements
     
     return vcores;
   }
+   
+  private int getGpuRequired(Configuration conf, TaskType taskType) {
+    int gcores = 0;
+    if (taskType == TaskType.MAP)  {
+      gcores =
+          conf.getInt(MRJobConfig.MAP_GPU_CORES,
+              MRJobConfig.DEFAULT_MAP_GPU_CORES);
+    } else if (taskType == TaskType.REDUCE) {
+      gcores =
+          conf.getInt(MRJobConfig.REDUCE_GPU_CORES,
+              MRJobConfig.DEFAULT_REDUCE_GPU_CORES);
+    }
 
+    return gcores;
+  }
+  
   /**
    * Create a {@link LocalResource} record with all the given parameters.
    */
@@ -1305,6 +1322,7 @@ public abstract class TaskAttemptImpl implements
     int mbRequired =
         taskAttempt.getMemoryRequired(taskAttempt.conf, taskType);
     int vcoresRequired = taskAttempt.getCpuRequired(taskAttempt.conf, taskType);
+    int gcoresRequired = taskAttempt.getGpuRequired(taskAttempt.conf, taskType);
 
     int minSlotMemSize = taskAttempt.conf.getInt(
       YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB,
@@ -1318,11 +1336,13 @@ public abstract class TaskAttemptImpl implements
       jce.addCounterUpdate(JobCounter.SLOTS_MILLIS_MAPS, simSlotsRequired * duration);
       jce.addCounterUpdate(JobCounter.MB_MILLIS_MAPS, duration * mbRequired);
       jce.addCounterUpdate(JobCounter.VCORES_MILLIS_MAPS, duration * vcoresRequired);
+      jce.addCounterUpdate(JobCounter.GCORES_MILLIS_MAPS, duration * gcoresRequired);
       jce.addCounterUpdate(JobCounter.MILLIS_MAPS, duration);
     } else {
       jce.addCounterUpdate(JobCounter.SLOTS_MILLIS_REDUCES, simSlotsRequired * duration);
       jce.addCounterUpdate(JobCounter.MB_MILLIS_REDUCES, duration * mbRequired);
       jce.addCounterUpdate(JobCounter.VCORES_MILLIS_REDUCES, duration * vcoresRequired);
+      jce.addCounterUpdate(JobCounter.GCORES_MILLIS_REDUCES, duration * gcoresRequired);
       jce.addCounterUpdate(JobCounter.MILLIS_REDUCES, duration);
     }
   }
