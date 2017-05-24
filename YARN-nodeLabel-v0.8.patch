@@ -1,0 +1,1406 @@
+diff --git a/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/security/FileBasedGroupMapping.java b/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/security/FileBasedGroupMapping.java
+new file mode 100644
+index 0000000000..d5701fdfa5
+--- /dev/null
++++ b/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/security/FileBasedGroupMapping.java
+@@ -0,0 +1,180 @@
++package org.apache.hadoop.security;
++
++import org.apache.commons.logging.Log;
++import org.apache.commons.logging.LogFactory;
++import org.apache.hadoop.conf.Configuration;
++import org.apache.hadoop.ipc.Server;
++import org.apache.hadoop.util.HostsFileReader;
++
++import java.io.*;
++import java.util.*;
++import java.util.concurrent.ConcurrentHashMap;
++
++/**
++ * This is an implementation for GroupMappingServiceProvider based on configuration file.
++ * The configuration file has multiple lines, each for one user, using the following format: 
++ * <p>
++ * user_name:group1,group2,group3:IP1,IP2,IP3
++ * </p>
++ * It uses the following order to fetch the user-group mapping:
++ * <ol>
++ * <li>Read allow slave nodes' ips from the host file and extra host file, and
++ * put them in a set. The host file path is configured using "dfs.hosts" and extra
++ * host file path using "hadoop.security.group.mapping.extrahosts".</li>
++ * <li>Read the mentioned configuration file into memory to construct two maps, 
++ * user->set(ip), and user->list(groups). The file path is configured using 
++ * "hadoop.security.group.mapping.user2groupfile". </li>
++ * <li>When trying to find the groups for a user, the client's ip is first checked. 
++ * If its ip is inside the slave host set generated in step 1, jump to step 5.</li>
++ * <li>If the client's ip is not contained in the allowed ip set generated in step 2,
++ * stop it.</li>
++ * <li>Return its groups from user->list(grops) mapping.</li>
++ * <li>If refresh is needed, redo the first two steps. </li>
++ * </ol>
++ * Note the order of user-group refresh when trying to add or remove nodes in the cluster.
++ * Remember to change the configuration hadoop.security.groups.cache.secs 
++ */
++public class FileBasedGroupMapping implements GroupMappingServiceProvider {
++  
++  private static final Log LOG = LogFactory.getLog(FileBasedGroupMapping.class);
++  Configuration conf = new Configuration();
++  Map<String, Set<String>> user2ip = new ConcurrentHashMap<String, Set<String>>();
++  Map<String, List<String>> user2group = new ConcurrentHashMap<String, List<String>>();
++  Set<String> innerNodes = new HashSet<String>();
++  
++  public FileBasedGroupMapping() {
++    try {
++      cacheGroupsRefresh();
++    } catch (IOException e) {
++      LOG.error("Error happens when loading user mapping file! ", e);
++    }
++  }
++
++  @Override
++  public List<String> getGroups(String user) throws AccessControlException {
++    String clientIP = null;
++    if(Server.getRemoteIp() != null){
++      clientIP = Server.getRemoteIp().getHostAddress();
++    }
++    // No need to check returned value. If user not allowed, throws exception. 
++    isUserLocationAllowed(user, clientIP);
++    if(!user2group.containsKey(user))
++      throw new AccessControlException("Permission denied. User " + user + " not found!");
++    if(user2group.get(user).size() == 0)
++      return new ArrayList<String>();
++    return user2group.get(user);
++  }
++  
++  /**
++   * Check whether the user came from the allowed IP.  
++   * @param user 
++   * @param clientIP 
++   * @return
++   * @throws AccessControlException
++   */
++  public boolean isUserLocationAllowed(String user, String clientIP) throws AccessControlException {
++    if(clientIP != null && !innerNodes.contains(clientIP)){
++      if (!user2ip.containsKey(user))
++        throw new AccessControlException("Permission denied. User " + user
++                                          + " not found!"); 
++      if (!user2ip.get(user).contains(clientIP))
++        throw new AccessControlException("Permission denied. User " + user
++                                          + " is not allowed from ip " + clientIP);
++    }
++    return true;
++  }
++
++  /**
++   * Is the user name present in config file?
++   * @param username
++   * @return
++   */
++  public boolean isUserPresent(String username) {
++    return user2group.containsKey(username);
++  }
++ 
++  @Override
++  public void cacheGroupsRefresh() throws IOException {
++    loadConfiguration();
++  }
++
++  @Override
++  public void cacheGroupsAdd(List<String> groups) throws IOException {
++    // I ignore this call
++  }
++  
++  private void loadConfiguration() throws IOException{
++    HostsFileReader hostsReader = new HostsFileReader(conf.get("dfs.hosts",""),
++        conf.get("dfs.hosts.exclude",""));
++    // these are hdfs slaves
++    Set<String> innerNodesTemp = hostsReader.getHosts();
++    hostsReader = new HostsFileReader(conf.get("mapred.hosts",""),
++        conf.get("dfs.hosts.exclude",""));
++    // these are mapred hosts to add
++    innerNodesTemp.addAll(hostsReader.getHosts());
++    hostsReader = new HostsFileReader(conf.get("hadoop.security.group.mapping.extrahosts",""),
++        conf.get("dfs.hosts.exclude",""));
++    // these are extra hosts to add, such as NN and JT
++    innerNodesTemp.addAll(hostsReader.getHosts());
++    ConcurrentHashMap<String, Set<String>> user2ipTemp = new ConcurrentHashMap<String, Set<String>>();
++    ConcurrentHashMap<String, List<String>> user2groupTemp = new ConcurrentHashMap<String, List<String>>();
++    readUserGroupMapping(conf.get("hadoop.security.group.mapping.user2groupfile",""), 
++        user2ipTemp, 
++        user2groupTemp);
++    synchronized(this){
++      user2ip = user2ipTemp;
++      user2group = user2groupTemp;
++      innerNodes = innerNodesTemp;
++    }
++    LOG.info("Now the user-group mapping is:");
++    for(String user : user2ip.keySet())
++      LOG.info("\tuser "+user+", IPs "+(user2ip.get(user)).toString());
++    for(String user : user2group.keySet())
++      LOG.info("\tuser "+user+", Groups "+(user2group.get(user)).toString());
++    LOG.info("\tinnerNodes "+innerNodes);
++  }
++  
++  private void readUserGroupMapping(String fileName, 
++      Map<String, Set<String>> user2ip,  
++      Map<String, List<String>> user2group) throws IOException{
++    File file = new File(fileName);
++    if (!file.exists()) {
++      throw new IOException(fileName+" cannot be found! Please recheck your settings!");
++    }
++    FileInputStream fis = new FileInputStream(file);
++    BufferedReader reader = null;
++    try {
++      reader = new BufferedReader(new InputStreamReader(fis));
++      String line;
++      while ((line = reader.readLine()) != null) {
++        // if this is comment line or empty line
++        if(line.startsWith("#") || line.trim().isEmpty())
++          continue;
++        String[] segs = line.split(":");
++        if (segs != null && segs.length == 3) {
++          String user = segs[0];
++          String groups[] = segs[1].split(",");
++          for(int i = 0; i < groups.length; ++i)
++            groups[i]=groups[i].trim();
++          String ips[] = segs[2].split(",");
++          for(int i = 0; i < ips.length; ++i)
++            ips[i] = ips[i].trim();
++          user2ip.put(user, new HashSet<String>(Arrays.asList(ips)));
++          List<String> existGroup = user2group.get(user);
++          if(existGroup == null) {
++            existGroup = new ArrayList<String>();
++          }
++          existGroup.addAll(Arrays.asList(groups));
++          user2group.put(user, existGroup);
++        }
++      }   
++    } finally {
++      if (reader != null) {
++        reader.close();
++      }
++      fis.close();
++    }  
++  }
++
++}
++
+diff --git a/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/security/Groups.java b/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/security/Groups.java
+index 9fd39b09ab..c193296824 100644
+--- a/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/security/Groups.java
++++ b/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/security/Groups.java
+@@ -17,7 +17,7 @@
+  */
+ package org.apache.hadoop.security;
+ 
+-import java.io.IOException;
++import java.io.*;
+ import java.util.Collection;
+ import java.util.Collections;
+ import java.util.HashMap;
+@@ -26,6 +26,7 @@
+ import java.util.Set;
+ import java.util.concurrent.ExecutionException;
+ import java.util.concurrent.TimeUnit;
++import java.util.concurrent.locks.ReentrantReadWriteLock;
+ 
+ import com.google.common.annotations.VisibleForTesting;
+ import com.google.common.base.Ticker;
+@@ -62,6 +63,8 @@
+   private final GroupMappingServiceProvider impl;
+ 
+   private final LoadingCache<String, List<String>> cache;
++  private final Map<String, String> groupToQueueMap = new HashMap<String, String>();
++  private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+   private final Map<String, List<String>> staticUserToGroupsMap =
+       new HashMap<String, List<String>>();
+   private final long cacheTimeout;
+@@ -69,12 +72,14 @@
+   private final long warningDeltaMs;
+   private final Timer timer;
+   private Set<String> negativeCache;
++  private Configuration conf;
+ 
+   public Groups(Configuration conf) {
+     this(conf, new Timer());
+   }
+ 
+   public Groups(Configuration conf, final Timer timer) {
++    this.conf = conf;
+     impl = 
+       ReflectionUtils.newInstance(
+           conf.getClass(CommonConfigurationKeys.HADOOP_SECURITY_GROUP_MAPPING, 
+@@ -92,6 +97,7 @@ public Groups(Configuration conf, final Timer timer) {
+       conf.getLong(CommonConfigurationKeys.HADOOP_SECURITY_GROUPS_CACHE_WARN_AFTER_MS,
+         CommonConfigurationKeys.HADOOP_SECURITY_GROUPS_CACHE_WARN_AFTER_MS_DEFAULT);
+     parseStaticMapping(conf);
++    loadGroupDetails(conf);
+ 
+     this.timer = timer;
+     this.cache = CacheBuilder.newBuilder()
+@@ -113,6 +119,59 @@ public Groups(Configuration conf, final Timer timer) {
+           "; cacheTimeout=" + cacheTimeout + "; warningDeltaMs=" +
+           warningDeltaMs);
+   }
++
++  private void loadGroupDetails(Configuration conf) {
++    String detailFile = conf.get("hadoop.security.group.mapping.groups");
++    if(detailFile == null || "".equals(detailFile)){
++      LOG.warn("hadoop.security.group.mapping.groups not set, give up refresh!");
++    }else{
++      File file = new File(detailFile);
++      if (!file.exists()) {
++        LOG.warn(detailFile + " cannot be found! make sure hadoop.security.group.mapping.groups is setting correct!");
++        return;
++      }
++      BufferedReader reader = null;
++      Map<String, String> tempMap = null;
++      try {
++        reader = new BufferedReader(new FileReader(file));
++        tempMap = new HashMap<String,String>();
++        String line;
++        while ((line = reader.readLine()) != null) {
++          if(line.startsWith("#") || line.trim().isEmpty()){
++            continue;
++          }
++          String[] segs = line.split(":");
++          if (segs != null && segs.length == 2) {
++            tempMap.put(segs[0].trim(), segs[1].trim());
++          }
++        }
++      } catch (FileNotFoundException e) {
++        LOG.error("loadGroupDetails error!", e);
++        return;
++      } catch (IOException e) {
++        LOG.error("loadGroupDetails error!", e);
++        return;
++      } finally {
++        if (reader != null) {
++          try {
++            reader.close();
++          } catch (IOException e) {
++            LOG.error("loadGroupDetails error!", e);
++          }
++        }
++      }
++
++      if (tempMap != null && tempMap.size() > 0) {
++        lock.writeLock().lock();
++        try {
++          groupToQueueMap.clear();
++          groupToQueueMap.putAll(tempMap);
++        } finally {
++          lock.writeLock().unlock();
++        }
++      }
++    }
++  }
+   
+   @VisibleForTesting
+   Set<String> getNegativeCache() {
+@@ -219,7 +278,7 @@ public long read() {
+     public List<String> load(String user) throws Exception {
+       List<String> groups = fetchGroupList(user);
+ 
+-      if (groups.isEmpty()) {
++      if (groups == null || groups.isEmpty()) {
+         if (isNegativeCacheEnabled()) {
+           negativeCache.add(user);
+         }
+@@ -263,6 +322,7 @@ public void refresh() {
+     if(isNegativeCacheEnabled()) {
+       negativeCache.clear();
+     }
++    loadGroupDetails(conf);
+   }
+ 
+   /**
+@@ -278,6 +338,19 @@ public void cacheGroupsAdd(List<String> groups) {
+     }
+   }
+ 
++  public String getGroupDetail(String group) {
++    String queue = group;
++    lock.readLock().lock();
++    try{
++      if(groupToQueueMap.containsKey(group)){
++        queue = groupToQueueMap.get(group);
++      }
++    } finally {
++      lock.readLock().unlock();
++    }
++    return queue;
++  }
++
+   private static Groups GROUPS = null;
+   
+   /**
+diff --git a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-common/src/main/java/org/apache/hadoop/yarn/util/resource/Resources.java b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-common/src/main/java/org/apache/hadoop/yarn/util/resource/Resources.java
+index 475cc88e43..b77e870971 100644
+--- a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-common/src/main/java/org/apache/hadoop/yarn/util/resource/Resources.java
++++ b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-common/src/main/java/org/apache/hadoop/yarn/util/resource/Resources.java
+@@ -69,6 +69,49 @@ public int compareTo(Resource o) {
+     }
+     
+   };
++
++  //use for regard the not assign gpu container
++  //when normally scheduling(memory-based now)
++  private static final Resource SKIP_PRIORITY = new Resource() {
++
++    @Override
++    public int getMemory() {
++      return -1;
++    }
++
++    @Override
++    public void setMemory(int memory) {
++      throw new RuntimeException("NONE cannot be modified!");
++    }
++
++    @Override
++    public int getVirtualCores() {
++      return -1;
++    }
++
++    @Override
++    public void setVirtualCores(int cores) {
++      throw new RuntimeException("NONE cannot be modified!");
++    }
++
++    @Override
++    public int getGpuCores() { return -1; }
++
++    @Override
++    public void setGpuCores(int gcores) { throw new RuntimeException("NONE cannot be modified!"); }
++
++    @Override
++    public int compareTo(Resource o) {
++      int diff = 0 - o.getMemory();
++      if (diff == 0) {
++        diff = 0 - o.getVirtualCores();
++        if (diff == 0) {
++          diff = 0 - o.getGpuCores();
++        }
++      }
++      return diff;
++    }
++  };
+   
+   private static final Resource UNBOUNDED = new Resource() {
+ 
+@@ -136,6 +179,8 @@ public static Resource unbounded() {
+     return UNBOUNDED;
+   }
+ 
++  public static Resource skip_priority() { return SKIP_PRIORITY; }
++
+   public static Resource clone(Resource res) {
+     return createResource(res.getMemory(), res.getVirtualCores(), res.getGpuCores());
+   }
+@@ -283,6 +328,13 @@ public static boolean fitsIn(Resource smaller, Resource bigger) {
+         smaller.getVirtualCores() <= bigger.getVirtualCores() &&
+             smaller.getGpuCores() <= bigger.getGpuCores();
+   }
++
++  public static boolean skipReservation(Resource capacity, Resource available, Resource total) {
++    return false |
++        (capacity.getMemory() > available.getMemory() && total.getMemory() <= 0) |
++        (capacity.getVirtualCores() > available.getVirtualCores() && total.getVirtualCores() <= 0) |
++        (capacity.getGpuCores() > available.getGpuCores() && total.getGpuCores() <= 0);
++  }
+   
+   public static Resource componentwiseMin(Resource lhs, Resource rhs) {
+     return createResource(Math.min(lhs.getMemory(), rhs.getMemory()),
+diff --git a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/ApplicationMasterService.java b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/ApplicationMasterService.java
+index 2e50a8d17a..868098f416 100644
+--- a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/ApplicationMasterService.java
++++ b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/ApplicationMasterService.java
+@@ -498,6 +498,13 @@ public AllocateResponse allocate(AllocateRequest request)
+             && ResourceRequest.ANY.equals(req.getResourceName())) {
+           req.setNodeLabelExpression(asc.getNodeLabelExpression());
+         }
++
++        //replace container label which is blank("")
++        //regard as it is indicated use no label
++        //host
++        if ("".equals(req.getNodeLabelExpression())) {
++          req.setNodeLabelExpression(null);
++        }
+       }
+               
+       // sanity check
+diff --git a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/RMAppManager.java b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/RMAppManager.java
+index 573c60f29a..d880c8ffc2 100644
+--- a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/RMAppManager.java
++++ b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/RMAppManager.java
+@@ -58,6 +58,7 @@
+ import org.apache.hadoop.yarn.server.utils.BuilderUtils;
+ 
+ import com.google.common.annotations.VisibleForTesting;
++import org.jboss.netty.util.internal.StringUtil;
+ 
+ /**
+  * This class manages the list of applications for the resource manager. 
+@@ -382,6 +383,13 @@ private ResourceRequest validateAndCreateResourceRequest(
+             .getNodeLabelExpression());
+       }
+ 
++      //replace am label which is blank ""
++      //regard as this am is indicate use
++      //no label resource
++      if ("".equals(amReq.getNodeLabelExpression())) {
++        amReq.setNodeLabelExpression(null);
++      }
++
+       try {
+         SchedulerUtils.normalizeAndValidateRequest(amReq,
+             scheduler.getMaximumResourceCapability(),
+diff --git a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/nodelabels/RMNodeLabelsManager.java b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/nodelabels/RMNodeLabelsManager.java
+index 82952073dd..6d3254d848 100644
+--- a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/nodelabels/RMNodeLabelsManager.java
++++ b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/nodelabels/RMNodeLabelsManager.java
+@@ -377,8 +377,11 @@ private void updateResourceMappings(Map<String, Host> before,
+ 
+     // traverse all nms
+     for (NodeId nodeId : allNMs) {
++      //*checkRunning* only influence this label based resource capacity
++      //Do not influence our functionality, so set false here.
++      //added by yuanfeng
+       Node oldNM;
+-      if ((oldNM = getNMInNodeSet(nodeId, before, true)) != null) {
++      if ((oldNM = getNMInNodeSet(nodeId, before, false)) != null) {
+         Set<String> oldLabels = getLabelsByNode(nodeId, before);
+         // no label in the past
+         if (oldLabels.isEmpty()) {
+@@ -410,7 +413,11 @@ private void updateResourceMappings(Map<String, Host> before,
+       }
+ 
+       Node newNM;
+-      if ((newNM = getNMInNodeSet(nodeId, after, true)) != null) {
++      //*checkRunning* only influence this label based resource capacity
++      //Do not influence our functionality, so set false here.
++      //added by yuanfeng
++      //TODO Node#running may have some hidden troubles
++      if ((newNM = getNMInNodeSet(nodeId, after, false)) != null) {
+         Set<String> newLabels = getLabelsByNode(nodeId, after);
+         
+         newNodeToLabelsMap.put(nodeId, ImmutableSet.copyOf(newLabels));
+diff --git a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/SchedulerUtils.java b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/SchedulerUtils.java
+index a365d17cc3..ecde5fcd41 100644
+--- a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/SchedulerUtils.java
++++ b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/SchedulerUtils.java
+@@ -223,7 +223,9 @@ public static void normalizeAndValidateRequest(ResourceRequest resReq,
+         // the queueInfo here, and move forward
+       }
+     }
+-    SchedulerUtils.normalizeNodeLabelExpressionInRequest(resReq, queueInfo);
++    //Anotation this step because node label setting handle by
++    //ourself.
++    //SchedulerUtils.normalizeNodeLabelExpressionInRequest(resReq, queueInfo);
+     if (!isRecovery) {
+       validateResourceRequest(resReq, maximumResource, queueInfo, rmContext);
+     }
+@@ -311,21 +313,23 @@ private static void validateResourceRequest(ResourceRequest resReq,
+               + "in a node label expression, node label expression = "
+               + labelExp);
+     }
+-    
+-    if (labelExp != null && !labelExp.trim().isEmpty() && queueInfo != null) {
+-      if (!checkQueueLabelExpression(queueInfo.getAccessibleNodeLabels(),
+-          labelExp, rmContext)) {
+-        throw new InvalidResourceRequestException("Invalid resource request"
+-            + ", queue="
+-            + queueInfo.getQueueName()
+-            + " doesn't have permission to access all labels "
+-            + "in resource request. labelExpression of resource request="
+-            + labelExp
+-            + ". Queue labels="
+-            + (queueInfo.getAccessibleNodeLabels() == null ? "" : StringUtils.join(queueInfo
+-                .getAccessibleNodeLabels().iterator(), ',')));
+-      }
+-    }
++
++    //Do not need check Queue label acl.
++    //because ourself handle it.
++//    if (labelExp != null && !labelExp.trim().isEmpty() && queueInfo != null) {
++//      if (!checkQueueLabelExpression(queueInfo.getAccessibleNodeLabels(),
++//          labelExp, rmContext)) {
++//        throw new InvalidResourceRequestException("Invalid resource request"
++//            + ", queue="
++//            + queueInfo.getQueueName()
++//            + " doesn't have permission to access all labels "
++//            + "in resource request. labelExpression of resource request="
++//            + labelExp
++//            + ". Queue labels="
++//            + (queueInfo.getAccessibleNodeLabels() == null ? "" : StringUtils.join(queueInfo
++//                .getAccessibleNodeLabels().iterator(), ',')));
++//      }
++//    }
+   }
+   
+   public static boolean checkQueueAccessToNode(Set<String> queueLabels,
+diff --git a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/event/NodeLabelsUpdateSchedulerEvent.java b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/event/NodeLabelsUpdateSchedulerEvent.java
+index 7723e25c6c..11da015555 100644
+--- a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/event/NodeLabelsUpdateSchedulerEvent.java
++++ b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/event/NodeLabelsUpdateSchedulerEvent.java
+@@ -31,7 +31,7 @@ public NodeLabelsUpdateSchedulerEvent(Map<NodeId, Set<String>> nodeToLabels) {
+     this.nodeToLabels = nodeToLabels;
+   }
+   
+-  public Map<NodeId, Set<String>> getUpdatedNodeToLabels() {
++public Map<NodeId, Set<String>> getUpdatedNodeToLabels() {
+     return nodeToLabels;
+   }
+ }
+diff --git a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSAppAttempt.java b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSAppAttempt.java
+index c0fa67ad99..be85b08197 100644
+--- a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSAppAttempt.java
++++ b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSAppAttempt.java
+@@ -27,6 +27,8 @@
+ import java.util.Map;
+ import java.util.Set;
+ 
++import org.apache.commons.collections.CollectionUtils;
++import org.apache.commons.lang.StringUtils;
+ import org.apache.commons.logging.Log;
+ import org.apache.commons.logging.LogFactory;
+ import org.apache.hadoop.classification.InterfaceAudience.Private;
+@@ -496,7 +498,6 @@ public void unreserve(Priority priority, FSSchedulerNode node) {
+   private Resource assignContainer(
+       FSSchedulerNode node, ResourceRequest request, NodeType type,
+       boolean reserved) {
+-
+     // How much does this request need?
+     Resource capability = request.getCapability();
+ 
+@@ -510,43 +511,70 @@ private Resource assignContainer(
+       container = createContainer(node, capability, request.getPriority());
+     }
+ 
+-    // Can we allocate a container on this node?
+-    if (Resources.fitsIn(capability, available)) {
+-      // Inform the application of the new container for this request
+-      RMContainer allocatedContainer =
+-          allocate(type, node, request.getPriority(), request, container);
+-      if (allocatedContainer == null) {
+-        // Did the application need this resource?
++    //check nodeLabels
++    Set<String> nodeLabels = node.getLabels();
++    String requestLabel = request.getNodeLabelExpression();
++
++    // If node is setted label ignore
++    // labeled app which label do not contain
++    // this node,
++    // and app which have not label directly.
++    if (!CollectionUtils.isEmpty(nodeLabels)
++            && !nodeLabels.contains(requestLabel)) {
++
++      return Resources.skip_priority();
++
++    } else if (CollectionUtils.isEmpty(nodeLabels) && !StringUtils.isBlank(requestLabel)) {
++
++      return Resources.skip_priority();
++
++    } else {
++      // Can we allocate a container on this node?
++      if (Resources.fitsIn(capability, available)) {
++        // Inform the application of the new container for this request
++        RMContainer allocatedContainer =
++            allocate(type, node, request.getPriority(), request, container);
++        if (allocatedContainer == null) {
++          // Did the application need this resource?
++          if (reserved) {
++            unreserve(request.getPriority(), node);
++          }
++          return Resources.none();
++        }
++
++        // If we had previously made a reservation, delete it
+         if (reserved) {
+           unreserve(request.getPriority(), node);
+         }
+-        return Resources.none();
+-      }
+ 
+-      // If we had previously made a reservation, delete it
+-      if (reserved) {
+-        unreserve(request.getPriority(), node);
+-      }
++        // Inform the node
++        node.allocateContainer(allocatedContainer);
+ 
+-      // Inform the node
+-      node.allocateContainer(allocatedContainer);
++        // If this container is used to run AM, update the leaf queue's AM usage
++        if (getLiveContainers().size() == 1 && !getUnmanagedAM()) {
++          getQueue().addAMResourceUsage(container.getResource());
++          setAmRunning(true);
++        }
+ 
+-      // If this container is used to run AM, update the leaf queue's AM usage
+-      if (getLiveContainers().size() == 1 && !getUnmanagedAM()) {
+-        getQueue().addAMResourceUsage(container.getResource());
+-        setAmRunning(true);
+-      }
++        return container.getResource();
++      } else {
++        if (!FairScheduler.fitsInMaxShare(getQueue(), capability)) {
++          return Resources.none();
++        }
+ 
+-      return container.getResource();
+-    } else {
+-      if (!FairScheduler.fitsInMaxShare(getQueue(), capability)) {
+-        return Resources.none();
+-      }
++        //reserve pre-check if *no fit* is
++        //is because this host not one jot or tittle
++        //some resource like gpu is 0
++        //so we don need reserve in this host.
++        if (Resources.skipReservation(capability, node.getAvailableResource(), node.getTotalResource())) {
++          return Resources.none();
++        }
+ 
+-      // The desired container won't fit here, so reserve
+-      reserve(request.getPriority(), node, container, reserved);
++        // The desired container won't fit here, so reserve
++        reserve(request.getPriority(), node, container, reserved);
+ 
+-      return FairScheduler.CONTAINER_RESERVED;
++        return FairScheduler.CONTAINER_RESERVED;
++      }
+     }
+   }
+ 
+@@ -554,6 +582,11 @@ private boolean hasNodeOrRackLocalRequests(Priority priority) {
+     return getResourceRequests(priority).size() > 1;
+   }
+ 
++  public Resource assignGPUContainer(FSSchedulerNode node){
++    //nothing
++    return Resources.none();
++  }
++
+   private Resource assignContainer(FSSchedulerNode node, boolean reserved) {
+     if (LOG.isDebugEnabled()) {
+       LOG.debug("Node offered to app: " + getName() + " reserved: " + reserved);
+@@ -607,8 +640,12 @@ private Resource assignContainer(FSSchedulerNode node, boolean reserved) {
+ 
+         if (rackLocalRequest != null && rackLocalRequest.getNumContainers() != 0
+             && localRequest != null && localRequest.getNumContainers() != 0) {
+-          return assignContainer(node, localRequest,
++          Resource res = assignContainer(node, localRequest,
+               NodeType.NODE_LOCAL, reserved);
++          if (res.equals(Resources.skip_priority())) {
++            continue;
++          }
++          return res;
+         }
+ 
+         if (rackLocalRequest != null && !rackLocalRequest.getRelaxLocality()) {
+@@ -618,8 +655,12 @@ private Resource assignContainer(FSSchedulerNode node, boolean reserved) {
+         if (rackLocalRequest != null && rackLocalRequest.getNumContainers() != 0
+             && (allowedLocality.equals(NodeType.RACK_LOCAL) ||
+             allowedLocality.equals(NodeType.OFF_SWITCH))) {
+-          return assignContainer(node, rackLocalRequest,
++          Resource res = assignContainer(node, rackLocalRequest,
+               NodeType.RACK_LOCAL, reserved);
++          if (res.equals(Resources.skip_priority())) {
++            continue;
++          }
++          return res;
+         }
+ 
+         ResourceRequest offSwitchRequest =
+@@ -632,8 +673,12 @@ private Resource assignContainer(FSSchedulerNode node, boolean reserved) {
+             offSwitchRequest.getNumContainers() != 0) {
+           if (!hasNodeOrRackLocalRequests(priority) ||
+               allowedLocality.equals(NodeType.OFF_SWITCH)) {
+-            return assignContainer(
++            Resource res = assignContainer(
+                 node, offSwitchRequest, NodeType.OFF_SWITCH, reserved);
++            if (res.equals(Resources.skip_priority())) {
++              continue;
++            }
++            return res;
+           }
+         }
+       }
+diff --git a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSLeafQueue.java b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSLeafQueue.java
+index bcf81db5d8..6db3f0c8be 100644
+--- a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSLeafQueue.java
++++ b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSLeafQueue.java
+@@ -340,6 +340,51 @@ public Resource assignContainer(FSSchedulerNode node) {
+   }
+ 
+   @Override
++  public Resource assignGPUContainer(FSSchedulerNode node) {
++    Resource assigned = Resources.none();
++    if (LOG.isDebugEnabled()) {
++      LOG.debug("Node " + node.getNodeName() + " offered to queue: " +
++          getName());
++    }
++
++    if (!assignContainerPreCheck(node)) {
++      return assigned;
++    }
++
++    Comparator<Schedulable> comparator = SchedulingPolicy.FIFO_POLICY.getComparator();
++    writeLock.lock();
++    try {
++      Collections.sort(runnableApps, comparator);
++    } finally {
++      writeLock.unlock();
++    }
++    // Release write lock here for better performance and avoiding deadlocks.
++    // runnableApps can be in unsorted state because of this section,
++    // but we can accept it in practice since the probability is low.
++    readLock.lock();
++    for (FSAppAttempt sched : runnableApps){
++      LOG.info("App order: " + sched.getName() + " with priorty: " + sched.getPriority() + " startTime: " +
++            sched.getStartTime());
++    }
++    try {
++      for (FSAppAttempt sched : runnableApps) {
++        if (SchedulerAppUtils.isBlacklisted(sched, node, LOG)) {
++          continue;
++        }
++
++        LOG.info("Try to assign app: " + sched);
++        assigned = sched.assignContainer(node);
++        if (!assigned.equals(Resources.none())) {
++          break;
++        }
++      }
++    } finally {
++      readLock.unlock();
++    }
++    return assigned;
++  }
++
++  @Override
+   public RMContainer preemptContainer() {
+     RMContainer toBePreempted = null;
+ 
+diff --git a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSParentQueue.java b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSParentQueue.java
+index f74106a7da..01b0cf70ba 100644
+--- a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSParentQueue.java
++++ b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSParentQueue.java
+@@ -179,6 +179,28 @@ public Resource assignContainer(FSSchedulerNode node) {
+   }
+ 
+   @Override
++  public Resource assignGPUContainer(FSSchedulerNode node) {
++    Resource assigned = Resources.none();
++
++    // If this queue is over its limit, reject
++    //TODO REGARD ResourceType(GPU...) WHEN CHECK THIS
++    if (!assignContainerPreCheck(node)) {
++      return assigned;
++    }
++    Collections.sort(childQueues, SchedulingPolicy.GPU_POLICY.getComparator());
++    LOG.error("Nodeheartbeat:::");
++    for (FSQueue child : childQueues) {
++      LOG.error("Assgin Queue: " + child.getName() + " gpu usage: " + child.getResourceUsage().getGpuCores());
++      assigned = child.assignGPUContainer(node);
++      if (!Resources.equals(assigned, Resources.none())) {
++        break;
++      }
++    }
++    return assigned;
++  }
++
++
++  @Override
+   public RMContainer preemptContainer() {
+     RMContainer toBePreempted = null;
+ 
+diff --git a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSSchedulerNode.java b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSSchedulerNode.java
+index be08dff397..e4e4168d9c 100644
+--- a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSSchedulerNode.java
++++ b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FSSchedulerNode.java
+@@ -24,11 +24,14 @@
+ import org.apache.hadoop.classification.InterfaceStability.Unstable;
+ import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
+ import org.apache.hadoop.yarn.api.records.Priority;
++import org.apache.hadoop.yarn.nodelabels.CommonNodeLabelsManager;
+ import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
+ import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
+ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplicationAttempt;
+ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerNode;
+ 
++import java.util.Set;
++
+ @Private
+ @Unstable
+ public class FSSchedulerNode extends SchedulerNode {
+@@ -38,7 +41,11 @@
+   private FSAppAttempt reservedAppSchedulable;
+ 
+   public FSSchedulerNode(RMNode node, boolean usePortForNodeName) {
+-    super(node, usePortForNodeName);
++    super(node, usePortForNodeName, CommonNodeLabelsManager.EMPTY_STRING_SET);
++  }
++
++  public FSSchedulerNode(RMNode node, boolean usePortForNodeName, Set<String> nodeLabels) {
++    super(node, usePortForNodeName, nodeLabels);
+   }
+ 
+   @Override
+diff --git a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FairScheduler.java b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FairScheduler.java
+index 387f0e51ae..501f222fbc 100644
+--- a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FairScheduler.java
++++ b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/FairScheduler.java
+@@ -22,26 +22,15 @@
+ import java.util.*;
+ import java.util.concurrent.ConcurrentHashMap;
+ 
++import org.apache.commons.collections.CollectionUtils;
++import org.apache.commons.lang.StringUtils;
+ import org.apache.commons.logging.Log;
+ import org.apache.commons.logging.LogFactory;
+ import org.apache.hadoop.classification.InterfaceAudience.LimitedPrivate;
+ import org.apache.hadoop.classification.InterfaceStability.Unstable;
+ import org.apache.hadoop.conf.Configuration;
+ import org.apache.hadoop.security.UserGroupInformation;
+-import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
+-import org.apache.hadoop.yarn.api.records.ApplicationId;
+-import org.apache.hadoop.yarn.api.records.Container;
+-import org.apache.hadoop.yarn.api.records.ContainerId;
+-import org.apache.hadoop.yarn.api.records.ContainerStatus;
+-import org.apache.hadoop.yarn.api.records.NodeId;
+-import org.apache.hadoop.yarn.api.records.Priority;
+-import org.apache.hadoop.yarn.api.records.QueueACL;
+-import org.apache.hadoop.yarn.api.records.QueueInfo;
+-import org.apache.hadoop.yarn.api.records.QueueUserACLInfo;
+-import org.apache.hadoop.yarn.api.records.ReservationId;
+-import org.apache.hadoop.yarn.api.records.Resource;
+-import org.apache.hadoop.yarn.api.records.ResourceOption;
+-import org.apache.hadoop.yarn.api.records.ResourceRequest;
++import org.apache.hadoop.yarn.api.records.*;
+ import org.apache.hadoop.yarn.conf.YarnConfiguration;
+ import org.apache.hadoop.yarn.exceptions.YarnException;
+ import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
+@@ -70,17 +59,8 @@
+ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplicationAttempt.ContainersAndNMTokensAllocation;
+ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerUtils;
+ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.QueueEntitlement;
+-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.AppAddedSchedulerEvent;
+-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.AppAttemptAddedSchedulerEvent;
+-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.AppAttemptRemovedSchedulerEvent;
+-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.AppRemovedSchedulerEvent;
+-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.ContainerExpiredSchedulerEvent;
+-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.ContainerRescheduledEvent;
+-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeAddedSchedulerEvent;
+-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeRemovedSchedulerEvent;
+-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeResourceUpdateSchedulerEvent;
+-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeUpdateSchedulerEvent;
+-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.SchedulerEvent;
++import org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerNode;
++import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.*;
+ import org.apache.hadoop.yarn.server.resourcemanager.security.RMContainerTokenSecretManager;
+ import org.apache.hadoop.yarn.util.Clock;
+ import org.apache.hadoop.yarn.util.SystemClock;
+@@ -359,6 +339,53 @@ private void updateStarvationStats() {
+     }
+   }
+ 
++  private synchronized void updateLabelsOnNode(NodeId nodeId,
++                                               Set<String> newLabels) {
++    FSSchedulerNode node = nodes.get(nodeId);
++    if (null == node) {
++      return;
++    }
++
++    // labels is same, we don't need do update
++    if (node.getLabels().size() == newLabels.size()
++        && node.getLabels().containsAll(newLabels)) {
++      return;
++    }
++
++    // Kill running containers since label is changed
++    for (RMContainer rmContainer : node.getRunningContainers()) {
++      ContainerId containerId = rmContainer.getContainerId();
++      completedContainer(rmContainer,
++          ContainerStatus.newInstance(containerId,
++              ContainerState.COMPLETE,
++              String.format(
++                  "Container=%s killed since labels on the node=%s changed",
++                  containerId.toString(), nodeId.toString()),
++              ContainerExitStatus.KILLED_BY_RESOURCEMANAGER),
++          RMContainerEventType.KILL);
++    }
++
++    // Unreserve container on this node
++    RMContainer reservedContainer = node.getReservedContainer();
++    if (null != reservedContainer) {
++      dropContainerReservation(reservedContainer);
++    }
++
++    // Update node labels after we've done this
++    node.updateLabels(newLabels);
++  }
++
++  private void dropContainerReservation(RMContainer container) {
++    if(LOG.isDebugEnabled()){
++      LOG.debug("DROP_RESERVATION:" + container.toString());
++    }
++    completedContainer(container,
++        SchedulerUtils.createAbnormalContainerStatus(
++            container.getContainerId(),
++            SchedulerUtils.UNRESERVED_CONTAINER),
++        RMContainerEventType.KILL);
++  }
++
+   /**
+    * Check for queues that need tasks preempted, either because they have been
+    * below their guaranteed share for minSharePreemptionTimeout or they have
+@@ -713,19 +740,27 @@ FSLeafQueue assignToQueue(RMApp rmApp, String queueName, String user) {
+ 
+     try {
+       QueuePlacementPolicy placementPolicy = allocConf.getPlacementPolicy();
+-      queueName = placementPolicy.assignAppToQueue(queueName, user);
++      queueName = placementPolicy.assignAppToGroupUserQueue(user);
+       if (queueName == null) {
+         appRejectMsg = "Application rejected by queue placement policy";
+       } else {
+-        queue = queueMgr.getLeafQueue(queueName, true);
+-        if (queue == null) {
+-          appRejectMsg = queueName + " is not a leaf queue";
++        //get application node-label
++        String label = rmApp.getApplicationSubmissionContext().getNodeLabelExpression();
++        if (!StringUtils.isBlank(label)) {
++          queueName = "root." + label + "." + queueName.split("root\\.", 2)[1];
++          queue = queueMgr.getLeafQueue(queueName, false);
++        } else {
++          queue = queueMgr.getLeafQueue(queueName, true);
+         }
+       }
+     } catch (IOException ioe) {
+       appRejectMsg = "Error assigning app to queue " + queueName;
+     }
+ 
++    if (queue == null) {
++      appRejectMsg = queueName + " is not a leaf queue";
++    }
++
+     if (appRejectMsg != null && rmApp != null) {
+       LOG.error(appRejectMsg);
+       rmContext.getDispatcher().getEventHandler().handle(
+@@ -851,7 +886,7 @@ protected synchronized void completedContainer(RMContainer rmContainer,
+   }
+ 
+   private synchronized void addNode(RMNode node) {
+-    FSSchedulerNode schedulerNode = new FSSchedulerNode(node, usePortForNodeName);
++    FSSchedulerNode schedulerNode = new FSSchedulerNode(node, usePortForNodeName, node.getNodeLabels());
+     nodes.put(node.getNodeID(), schedulerNode);
+     Resources.addTo(clusterResource, schedulerNode.getTotalResource());
+     updateRootQueueMetrics();
+@@ -977,7 +1012,7 @@ private synchronized void nodeUpdate(RMNode nm) {
+     }
+     eventLog.log("HEARTBEAT", nm.getHostName());
+     FSSchedulerNode node = getFSSchedulerNode(nm.getNodeID());
+-    
++
+     List<UpdatedContainerInfo> containerInfoList = nm.pullContainerUpdates();
+     List<ContainerStatus> newlyLaunchedContainers = new ArrayList<ContainerStatus>();
+     List<ContainerStatus> completedContainers = new ArrayList<ContainerStatus>();
+@@ -1112,8 +1147,64 @@ synchronized void attemptScheduling(FSSchedulerNode node) {
+       int assignedContainers = 0;
+       while (node.getReservedContainer() == null) {
+         boolean assignedContainer = false;
+-        if (!queueMgr.getRootQueue().assignContainer(node).equals(
+-            Resources.none())) {
++        //get node label
++        if (!CollectionUtils.isEmpty(node.getLabels())){
++          String nodeLabel = (String) node.getLabels().iterator().next();
++
++          //check node label
++          if (StringUtils.isBlank(nodeLabel)){
++            //TODO EMAIL?
++            LOG.error("Alerting Node<" + node.getNodeName() + ">'s nodelabel is blank.");
++            break;
++          }
++
++          //get label-queue
++          FSParentQueue begin = queueMgr.getLabelQueue(nodeLabel);
++
++          //check label-queue existing
++          if (begin == null) {
++            //TODO EMAIL?
++            LOG.error("Alerting label-queue<root." + nodeLabel + " is not existing...");
++            break;
++          }
++
++          if (node.getAvailableResource().getGpuCores() > 0){
++            LOG.info("Assign to queue" + begin.getName() + ", label<" + nodeLabel + "> demand: " + begin.getDemand() + "\n"
++                + "Runnable apps: " + begin.getNumRunnableApps());
++            Resource gpu = begin.assignGPUContainer(node);
++            if (!gpu.equals(Resources.none())) {
++              LOG.info("Assign container: " + gpu + " to label queue: " + begin.getName() + " from node: "
++                  + node.getNodeName() + " with node label: " + nodeLabel + " availiable:" + node.getAvailableResource());
++              assignedContainers++;
++              if (!assignMultiple) { break; }
++              if ((assignedContainers >= maxAssign) && (maxAssign > 0)) { break; }
++              continue;
++            }
++
++            //no assign exit.
++            break;
++          } else {
++            LOG.info("Assign to queue" + begin.getName() + ", label<" + nodeLabel + "> demand: " + begin.getDemand() + "\n"
++                + "Runnable apps: " + begin.getNumRunnableApps());
++            Resource noGpu = begin.assignContainer(node);
++            if (!noGpu.equals(Resources.none())) {
++              LOG.info("Assign container: " + noGpu + " to label queue: " + begin.getName() + " from node: "
++                  + node.getNodeName() + " with node label: " + nodeLabel + " availiable:" + node.getAvailableResource());
++              assignedContainers++;
++              if (!assignMultiple) { break; }
++              if ((assignedContainers >= maxAssign) && (maxAssign > 0)) { break; }
++              continue;
++            }
++
++            //no assign exit.
++            break;
++          }
++        }
++
++        //no label schedule
++        Resource res = queueMgr.getRootQueue().assignContainer(node);
++        if (!res.equals(Resources.none())) {
++          LOG.info("Assign container: " + res + " to no label request.");
+           assignedContainers++;
+           assignedContainer = true;
+         }
+@@ -1210,6 +1301,19 @@ public void handle(SchedulerEvent event) {
+       NodeUpdateSchedulerEvent nodeUpdatedEvent = (NodeUpdateSchedulerEvent)event;
+       nodeUpdate(nodeUpdatedEvent.getRMNode());
+       break;
++    case NODE_LABELS_UPDATE:
++      {
++        NodeLabelsUpdateSchedulerEvent labelUpdateEvent =
++            (NodeLabelsUpdateSchedulerEvent) event;
++
++        for (Map.Entry<NodeId, Set<String>> entry : labelUpdateEvent
++            .getUpdatedNodeToLabels().entrySet()) {
++          NodeId id = entry.getKey();
++          Set<String> labels = entry.getValue();
++          updateLabelsOnNode(id, labels);
++        }
++      }
++      break;
+     case APP_ADDED:
+       if (!(event instanceof AppAddedSchedulerEvent)) {
+         throw new RuntimeException("Unexpected event type: " + event);
+diff --git a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/QueueManager.java b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/QueueManager.java
+index 27e571e4f6..c18ba06b44 100644
+--- a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/QueueManager.java
++++ b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/QueueManager.java
+@@ -28,6 +28,7 @@
+ 
+ import javax.xml.parsers.ParserConfigurationException;
+ 
++import org.apache.commons.lang.StringUtils;
+ import org.apache.commons.logging.Log;
+ import org.apache.commons.logging.LogFactory;
+ import org.apache.hadoop.classification.InterfaceAudience.Private;
+@@ -64,6 +65,10 @@ public FSParentQueue getRootQueue() {
+     return rootQueue;
+   }
+ 
++  public FSParentQueue getLabelQueue(String label) {
++    return (FSParentQueue) queues.get("root." + StringUtils.trim(label));
++  }
++
+   public void initialize(Configuration conf) throws IOException,
+       SAXException, AllocationConfigurationException, ParserConfigurationException {
+     rootQueue = new FSParentQueue("root", scheduler, null);
+diff --git a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/QueuePlacementPolicy.java b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/QueuePlacementPolicy.java
+index 30ea213529..5f7ac54452 100644
+--- a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/QueuePlacementPolicy.java
++++ b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/QueuePlacementPolicy.java
+@@ -72,7 +72,7 @@ public QueuePlacementPolicy(List<QueuePlacementRule> rules,
+     }
+     this.rules = rules;
+     this.configuredQueues = configuredQueues;
+-    groups = new Groups(conf);
++    groups = Groups.getUserToGroupsMappingService(conf);
+   }
+   
+   /**
+@@ -173,6 +173,34 @@ public String assignAppToQueue(String requestedQueue, String user)
+     throw new IllegalStateException("Should have applied a rule before " +
+     		"reaching here");
+   }
++
++  public String assignAppToGroupUserQueue(String user)
++      throws IOException {
++    String ruleQueue = "";
++    for (QueuePlacementRule rule : rules) {
++      String queue = rule.assignAppToQueue(ruleQueue, user, groups,
++          configuredQueues);
++      if(queue != null && !queue.isEmpty()) {
++        ruleQueue = queue + "." + ruleQueue;
++      }
++    }
++
++    if(ruleQueue != null && !ruleQueue.isEmpty()) {
++      if(!ruleQueue.startsWith("root.")) {
++        ruleQueue = "root." + ruleQueue;
++      }
++
++      if(ruleQueue.endsWith(".")) {
++        ruleQueue = ruleQueue + user;
++      }else {
++        ruleQueue = ruleQueue + "." + user;
++      }
++      return ruleQueue;
++    }
++
++    throw new IllegalStateException("Should have applied a rule before " +
++        "reaching here");
++  }
+   
+   public List<QueuePlacementRule> getRules() {
+     return rules;
+diff --git a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/QueuePlacementRule.java b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/QueuePlacementRule.java
+index 80de315b2b..ec6f561ebb 100644
+--- a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/QueuePlacementRule.java
++++ b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/QueuePlacementRule.java
+@@ -23,6 +23,8 @@
+ import java.util.Map;
+ import java.util.Set;
+ 
++import org.apache.commons.collections.CollectionUtils;
++import org.apache.commons.lang.StringUtils;
+ import org.apache.commons.logging.Log;
+ import org.apache.commons.logging.LogFactory;
+ import org.apache.hadoop.classification.InterfaceAudience.Private;
+@@ -146,7 +148,26 @@ public boolean isTerminal() {
+     protected String getQueueForApp(String requestedQueue, String user,
+         Groups groups, Map<FSQueueType, Set<String>> configuredQueues)
+         throws IOException {
+-      return "root." + cleanName(groups.getGroups(user).get(0));
++      List<String> gps = groups.getGroups(user);
++
++      //check user-group mapping
++      if (CollectionUtils.isEmpty(gps)) {
++        throw new IOException("User(" + user + "to group mapping have not been setted yet...");
++      }
++
++      String group = gps.get(0);
++      String queue = groups.getGroupDetail(group);
++
++      //check group-queue mapping
++      if (StringUtils.isBlank(queue)){
++        throw new IOException("Group(" + group + ") to queue mapping have not been setted yet...");
++      }
++
++      if (!StringUtils.startsWith(queue, "root")){
++        return "root." + queue;
++      } else {
++        return queue;
++      }
+     }
+     
+     @Override
+diff --git a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/Schedulable.java b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/Schedulable.java
+index 289887f63c..70968a8ec5 100644
+--- a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/Schedulable.java
++++ b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/Schedulable.java
+@@ -92,6 +92,11 @@
+   public Resource assignContainer(FSSchedulerNode node);
+ 
+   /**
++   * aspect of scheduling other dimensions(disk,io,gpu...)
++   */
++  public Resource assignGPUContainer(FSSchedulerNode node);
++
++  /**
+    * Preempt a container from this Schedulable if possible.
+    */
+   public RMContainer preemptContainer();
+diff --git a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/SchedulingPolicy.java b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/SchedulingPolicy.java
+index abdc834d8f..c19facd542 100644
+--- a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/SchedulingPolicy.java
++++ b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/SchedulingPolicy.java
+@@ -22,6 +22,7 @@
+ import org.apache.hadoop.util.ReflectionUtils;
+ import org.apache.hadoop.util.StringUtils;
+ import org.apache.hadoop.yarn.api.records.Resource;
++import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies.FairShareGPUPolicy;
+ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies.DominantResourceFairnessPolicy;
+ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies.FairSharePolicy;
+ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies.FifoPolicy;
+@@ -38,6 +39,12 @@
+ 
+   public static final SchedulingPolicy DEFAULT_POLICY =
+       getInstance(FairSharePolicy.class);
++
++  public static final SchedulingPolicy GPU_POLICY =
++      getInstance(FairShareGPUPolicy.class);
++
++  public static final SchedulingPolicy FIFO_POLICY =
++      getInstance(FifoPolicy.class);
+   
+   public static final byte DEPTH_LEAF = (byte) 1;
+   public static final byte DEPTH_INTERMEDIATE = (byte) 2;
+diff --git a/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/policies/FairShareGPUPolicy.java b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/policies/FairShareGPUPolicy.java
+new file mode 100644
+index 0000000000..bc1933cec1
+--- /dev/null
++++ b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/java/org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/policies/FairShareGPUPolicy.java
+@@ -0,0 +1,153 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one
++ * or more contributor license agreements.  See the NOTICE file
++ * distributed with this work for additional information
++ * regarding copyright ownership.  The ASF licenses this file
++ * to you under the Apache License, Version 2.0 (the
++ * "License"); you may not use this file except in compliance
++ * with the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies;
++
++import org.apache.hadoop.classification.InterfaceAudience.Private;
++import org.apache.hadoop.classification.InterfaceStability.Unstable;
++import org.apache.hadoop.yarn.api.records.Resource;
++import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceType;
++import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
++import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSQueue;
++import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.Schedulable;
++import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.SchedulingPolicy;
++import org.apache.hadoop.yarn.util.resource.DominantResourceCalculator;
++import org.apache.hadoop.yarn.util.resource.ResourceCalculator;
++import org.apache.hadoop.yarn.util.resource.Resources;
++
++import java.util.Collection;
++import java.util.Comparator;
++
++import static org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceType.*;
++
++/**
++ * Makes scheduling decisions by trying to equalize gpu resource usage.
++ * A schedulable's gpu resource usage is the largest ratio of resource
++ * usage to capacity among the resource types it is using.
++ */
++@Private
++@Unstable
++public class FairShareGPUPolicy extends SchedulingPolicy {
++
++  public static final String NAME = "fair4gpu";
++
++  private FairShareGPUComparator comparator =
++      new FairShareGPUComparator();
++
++  @Override
++  public String getName() {
++    return NAME;
++  }
++
++  @Override
++  public byte getApplicableDepth() {
++    return SchedulingPolicy.DEPTH_ANY;
++  }
++
++  @Override
++  public Comparator<Schedulable> getComparator() {
++    return comparator;
++  }
++  
++  @Override
++  public void computeShares(Collection<? extends Schedulable> schedulables,
++      Resource totalResources) {
++    for (ResourceType type : ResourceType.values()) {
++      ComputeFairShares.computeShares(schedulables, totalResources, type);
++    }
++  }
++
++  @Override
++  public void computeSteadyShares(Collection<? extends FSQueue> queues,
++      Resource totalResources) {
++    for (ResourceType type : ResourceType.values()) {
++      ComputeFairShares.computeSteadyShares(queues, totalResources, type);
++    }
++  }
++
++  @Override
++  public boolean checkIfUsageOverFairShare(Resource usage, Resource fairShare) {
++    return !Resources.fitsIn(usage, fairShare);
++  }
++
++  @Override
++  public boolean checkIfAMResourceUsageOverLimit(Resource usage, Resource maxAMResource) {
++    return !Resources.fitsIn(usage, maxAMResource);
++  }
++
++  @Override
++  public Resource getHeadroom(Resource queueFairShare, Resource queueUsage,
++                              Resource maxAvailable) {
++    int queueAvailableMemory =
++        Math.max(queueFairShare.getMemory() - queueUsage.getMemory(), 0);
++    int queueAvailableCPU =
++        Math.max(queueFairShare.getVirtualCores() - queueUsage
++            .getVirtualCores(), 0);
++    int queueAvailableGPU =
++            Math.max(queueFairShare.getGpuCores() - queueUsage.getGpuCores(), 0);
++    Resource headroom = Resources.createResource(
++        Math.min(maxAvailable.getMemory(), queueAvailableMemory),
++        Math.min(maxAvailable.getVirtualCores(),
++            queueAvailableCPU),
++                Math.min(maxAvailable.getGpuCores(), queueAvailableGPU));
++    return headroom;
++  }
++
++
++  public static class FairShareGPUComparator implements Comparator<Schedulable> {
++
++    @Override
++    public int compare(Schedulable s1, Schedulable s2) {
++      Resource minShare1 = s1.getMinShare().equals(Resources.none()) ? s1.getDemand() :
++          s1.getDemand().getGpuCores() > s1.getMinShare().getGpuCores() ? s1.getMinShare() : s1.getDemand();
++      Resource minShare2 = s2.getMinShare().equals(Resources.none()) ? s2.getDemand() :
++          s2.getDemand().getGpuCores() > s2.getMinShare().getGpuCores() ? s2.getMinShare() : s2.getDemand();
++
++      double minshareRatio1 = (double) s1.getResourceUsage().getGpuCores()/minShare1.getGpuCores();
++      double minshareRatio2 = (double) s2.getResourceUsage().getGpuCores()/ minShare2.getGpuCores();
++
++      double useToWeightRatio1 = s1.getResourceUsage().getGpuCores()/s1.getWeights().getWeight(GPU);
++      double useToWeightRatio2 = s2.getResourceUsage().getGpuCores()/s2.getWeights().getWeight(GPU);
++
++      // A queue is needy for its min share if its dominant resource
++      // (with respect to the cluster capacity) is below its configured min share
++      // for that resource
++      boolean s1Needy = minshareRatio1 < 1.0f;
++      boolean s2Needy = minshareRatio2 < 1.0f;
++      
++      int res = 0;
++      if (!s2Needy && !s1Needy) {
++        res = (int) Math.signum(useToWeightRatio1 - useToWeightRatio2);
++      } else if (s1Needy && !s2Needy) {
++        res = -1;
++      } else if (s2Needy && !s1Needy) {
++        res = 1;
++      } else { // both are needy below min share
++        res = (int) Math.signum(minshareRatio1 - minshareRatio2);
++      }
++      if (res == 0) {
++        // Apps are tied in fairness ratio. Break the tie by submit time.
++        res = (int)(s1.getStartTime() - s2.getStartTime());
++        if (res == 0)
++          res = s1.getName().compareTo(s2.getName());
++      }
++
++      return res;
++    }
++  }
++}
