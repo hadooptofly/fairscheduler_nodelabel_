@@ -95,6 +95,8 @@ public class TestNMWebServer {
         return 0;
       }
       @Override
+      public long getGCoresAllocatedForContainers() { return 0; }
+      @Override
       public boolean isVmemCheckEnabled() {
         return true;
       }
@@ -154,9 +156,9 @@ public class TestNMWebServer {
         return 0;
       }
       @Override
-      public long getVCoresAllocatedForContainers() {
-        return 0;
-      }
+      public long getVCoresAllocatedForContainers() { return 0; }
+      @Override
+      public long getGCoresAllocatedForContainers() {return 0; }
       @Override
       public boolean isVmemCheckEnabled() {
         return true;

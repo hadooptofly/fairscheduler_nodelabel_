@@ -52,7 +52,7 @@ public class TestProtocolRecords {
     ApplicationId appId = ApplicationId.newInstance(123456789, 1);
     ApplicationAttemptId attemptId = ApplicationAttemptId.newInstance(appId, 1);
     ContainerId containerId = ContainerId.newContainerId(attemptId, 1);
-    Resource resource = Resource.newInstance(1000, 200);
+    Resource resource = Resource.newInstance(1000, 200, 300);
 
     NMContainerStatus report =
         NMContainerStatus.newInstance(containerId,
@@ -80,13 +80,13 @@ public class TestProtocolRecords {
 
     NMContainerStatus containerReport =
         NMContainerStatus.newInstance(containerId,
-          ContainerState.RUNNING, Resource.newInstance(1024, 1), "diagnostics",
+          ContainerState.RUNNING, Resource.newInstance(1024, 1, 2), "diagnostics",
           0, Priority.newInstance(10), 1234);
     List<NMContainerStatus> reports = Arrays.asList(containerReport);
     RegisterNodeManagerRequest request =
         RegisterNodeManagerRequest.newInstance(
           NodeId.newInstance("1.1.1.1", 1000), 8080,
-            Resource.newInstance(1024, 1), "NM-version-id", reports,
+            Resource.newInstance(1024, 1, 2), "NM-version-id", reports,
             Arrays.asList(appId));
     RegisterNodeManagerRequest requestProto =
         new RegisterNodeManagerRequestPBImpl(

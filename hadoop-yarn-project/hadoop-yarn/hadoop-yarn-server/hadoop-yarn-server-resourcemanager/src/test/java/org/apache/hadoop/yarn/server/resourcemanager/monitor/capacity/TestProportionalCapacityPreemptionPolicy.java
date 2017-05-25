@@ -823,7 +823,7 @@ public class TestProportionalCapacityPreemptionPolicy {
     ProportionalCapacityPreemptionPolicy policy = buildPolicy(qData);
     // Subtracting Label X resources from cluster resources
     when(lm.getResourceByLabel(anyString(), any(Resource.class))).thenReturn(
-        Resources.clone(Resource.newInstance(80, 0)));
+        Resources.clone(Resource.newInstance(80, 0, 0)));
     clusterResources.setMemory(100);
     policy.editSchedule();
 
@@ -968,7 +968,7 @@ public class TestProportionalCapacityPreemptionPolicy {
     ProportionalCapacityPreemptionPolicy policy =
       new ProportionalCapacityPreemptionPolicy(conf, rmContext, mCS, mClock);
     clusterResources =
-        Resource.newInstance(leafAbsCapacities(qData[0], qData[7]), 0);
+        Resource.newInstance(leafAbsCapacities(qData[0], qData[7]), 0, 0);
     ParentQueue mRoot = buildMockRootQueue(rand, qData);
     when(mCS.getRootQueue()).thenReturn(mRoot);
 
@@ -1195,7 +1195,7 @@ public class TestProportionalCapacityPreemptionPolicy {
     int cAlloc = 0;
     Resource unit = gran;
     List<RMContainer> cReserved = new ArrayList<RMContainer>();
-    Resource resIter = Resource.newInstance(0, 0);
+    Resource resIter = Resource.newInstance(0, 0, 0);
     for (; Resources.lessThan(rc, clusterResources, resIter, reserved); Resources
         .addTo(resIter, gran)) {
       cReserved.add(mockContainer(appAttId, cAlloc, unit,
@@ -1205,7 +1205,7 @@ public class TestProportionalCapacityPreemptionPolicy {
     when(app.getReservedContainers()).thenReturn(cReserved);
 
     List<RMContainer> cLive = new ArrayList<RMContainer>();
-    Resource usedIter = Resource.newInstance(0, 0);
+    Resource usedIter = Resource.newInstance(0, 0, 0);
     int i = 0;
     for (; Resources.lessThan(rc, clusterResources, usedIter, used); Resources
         .addTo(usedIter, gran)) {

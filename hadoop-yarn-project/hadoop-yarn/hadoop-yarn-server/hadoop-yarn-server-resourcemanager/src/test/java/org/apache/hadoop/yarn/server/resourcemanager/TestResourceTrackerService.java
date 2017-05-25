@@ -377,6 +377,7 @@ public class TestResourceTrackerService {
     Configuration conf = new Configuration();
     conf.set(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB, "2048");
     conf.set(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_VCORES, "4");
+    conf.set(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_GCORES, "4");
     rm = new MockRM(conf);
     rm.start();
 
@@ -395,6 +396,7 @@ public class TestResourceTrackerService {
     
     capability.setMemory(2048);
     capability.setVirtualCores(1);
+    capability.setGpuCores(1);
     req.setResource(capability);
     RegisterNodeManagerResponse response2 =
         resourceTrackerService.registerNodeManager(req);
@@ -402,6 +404,7 @@ public class TestResourceTrackerService {
     
     capability.setMemory(1024);
     capability.setVirtualCores(4);
+    capability.setGpuCores(4);
     req.setResource(capability);
     RegisterNodeManagerResponse response3 =
         resourceTrackerService.registerNodeManager(req);
@@ -409,6 +412,7 @@ public class TestResourceTrackerService {
     
     capability.setMemory(2048);
     capability.setVirtualCores(4);
+    capability.setGpuCores(4);
     req.setResource(capability);
     RegisterNodeManagerResponse response4 =
         resourceTrackerService.registerNodeManager(req);
@@ -616,7 +620,7 @@ public class TestResourceTrackerService {
     // reconnect of node with changed capability and running applications
     List<ApplicationId> runningApps = new ArrayList<ApplicationId>();
     runningApps.add(ApplicationId.newInstance(1, 0));
-    nm1 = rm.registerNode("host2:5678", 15360, 2, runningApps);
+    nm1 = rm.registerNode("host2:5678", 15360, 2, 2, runningApps);
     rm.drainEvents();
     response = nm1.nodeHeartbeat(true);
     rm.drainEvents();
