@@ -45,3 +45,4 @@ hadoop-yarn-project/hadoop-yarn/hadoop-yarn-ui/dist
 hadoop-yarn-project/hadoop-yarn/hadoop-yarn-ui/tmp
 yarnregistry.pdf
 patchprocess/
+YARN-5517.patch_cp
