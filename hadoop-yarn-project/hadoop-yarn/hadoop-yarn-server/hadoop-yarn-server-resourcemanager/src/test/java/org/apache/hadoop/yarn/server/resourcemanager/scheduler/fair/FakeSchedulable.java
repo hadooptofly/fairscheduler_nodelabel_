@@ -116,6 +116,9 @@ public class FakeSchedulable implements Schedulable {
   }
 
   @Override
+  public Resource assignGPUContainer(FSSchedulerNode node) { return null; }
+
+  @Override
   public Resource getResourceUsage() {
     return usage;
   }
