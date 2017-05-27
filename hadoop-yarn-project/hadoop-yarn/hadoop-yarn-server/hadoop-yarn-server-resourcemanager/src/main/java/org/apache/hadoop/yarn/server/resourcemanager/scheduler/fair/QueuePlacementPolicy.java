@@ -201,6 +201,33 @@ public class QueuePlacementPolicy {
     throw new IllegalStateException("Should have applied a rule before " +
         "reaching here");
   }
+
+  public String assignAppToGroupQueue(String user)
+      throws IOException {
+    String ruleQueue = "";
+    for (QueuePlacementRule rule : rules) {
+      String queue = rule.assignAppToQueue(ruleQueue, user, groups,
+          configuredQueues);
+      if(queue != null && !queue.isEmpty()) {
+        ruleQueue = queue + "." + ruleQueue;
+      }
+    }
+
+    if(ruleQueue != null && !ruleQueue.isEmpty()) {
+      if(!ruleQueue.startsWith("root.")) {
+        ruleQueue = "root." + ruleQueue;
+      }
+
+      if(ruleQueue.endsWith(".")) {
+        ruleQueue = ruleQueue.substring(0, ruleQueue.length() - 1);
+      }
+
+      return ruleQueue;
+    }
+
+    throw new IllegalStateException("Should have applied a rule before " +
+        "reaching here");
+  }
   
   public List<QueuePlacementRule> getRules() {
     return rules;

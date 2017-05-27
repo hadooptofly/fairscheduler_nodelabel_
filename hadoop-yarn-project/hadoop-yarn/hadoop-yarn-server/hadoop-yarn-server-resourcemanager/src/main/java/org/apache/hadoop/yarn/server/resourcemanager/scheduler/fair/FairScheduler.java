@@ -740,25 +740,31 @@ public class FairScheduler extends
 
     try {
       QueuePlacementPolicy placementPolicy = allocConf.getPlacementPolicy();
-      queueName = placementPolicy.assignAppToGroupUserQueue(user);
-      if (queueName == null) {
-        appRejectMsg = "Application rejected by queue placement policy";
-      } else {
-        //get application node-label
-        String label = rmApp.getApplicationSubmissionContext().getNodeLabelExpression();
-        if (!StringUtils.isBlank(label)) {
-          queueName = "root." + label + "." + queueName.split("root\\.", 2)[1];
-          queue = queueMgr.getLeafQueue(queueName, false);
+      //get application node-label
+      String label = rmApp.getApplicationSubmissionContext().getNodeLabelExpression();
+      if (!StringUtils.isBlank(label)) {
+        //Label acls is group level
+        FSParentQueue groupQueue;
+        queueName = placementPolicy.assignAppToGroupQueue(user);
+        queueName = "root." + label + "." + queueName.split("root\\.", 2)[1];
+        groupQueue = queueMgr.getParentQueue(queueName, false);
+        if (groupQueue == null) {
+          appRejectMsg = queueName + " is not exist,make sure your group is accessable to label \""
+              + label + "\".";
         } else {
+          queueName = queueName + "." + StringUtils.trim(user);
           queue = queueMgr.getLeafQueue(queueName, true);
         }
+      } else {
+        queueName = placementPolicy.assignAppToGroupUserQueue(user);
+        queue = queueMgr.getLeafQueue(queueName, true);
       }
     } catch (IOException ioe) {
       appRejectMsg = "Error assigning app to queue " + queueName;
     }
 
     if (queue == null) {
-      appRejectMsg = queueName + " is not a leaf queue";
+      appRejectMsg = appRejectMsg + "\n" + queueName + " is not exist.";
     }
 
     if (appRejectMsg != null && rmApp != null) {
