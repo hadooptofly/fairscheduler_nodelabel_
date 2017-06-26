@@ -18,10 +18,7 @@
 
 package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
@@ -34,6 +31,8 @@ import org.apache.hadoop.yarn.api.records.QueueState;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
+import org.apache.hadoop.yarn.nodelabels.NodeLabel;
+import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.RMNodeLabelsManager;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.Queue;
 import org.apache.hadoop.yarn.util.resource.Resources;
@@ -41,8 +40,8 @@ import org.apache.hadoop.yarn.util.resource.Resources;
 @Private
 @Unstable
 public abstract class FSQueue implements Queue, Schedulable {
-  private Resource fairShare = Resources.createResource(0, 0, 0);
-  private Resource steadyFairShare = Resources.createResource(0, 0, 0);
+  private Map<String, Resource> fairShare = new HashMap<String, Resource>();
+  private Map<String, Resource> steadyFairShare = new HashMap<String, Resource>();
   private final String name;
   protected final FairScheduler scheduler;
   private final FSQueueMetrics metrics;
@@ -96,14 +95,71 @@ public abstract class FSQueue implements Queue, Schedulable {
   public ResourceWeights getWeights() {
     return scheduler.getAllocationConfiguration().getQueueWeight(getName());
   }
-  
+
   @Override
-  public Resource getMinShare() {
+  public Map<String, Resource> getMinShare() {
     return scheduler.getAllocationConfiguration().getMinResources(getName());
   }
-  
+
   @Override
-  public Resource getMaxShare() {
+  public QueueInfo getQueueInfo(boolean includeChildQueues, boolean recursive) {
+    QueueInfo queueInfo = recordFactory.newRecordInstance(QueueInfo.class);
+    queueInfo.setQueueName(getQueueName());
+    // Modify refrence to labels.
+    Map<String, Float> capacity = new HashMap<String, Float>();
+    Map<String, Float> currentCapacity = new HashMap<String, Float>();
+    Set<String> labels = queueInfo.getAccessibleNodeLabels();
+    Iterator<String> it = labels.iterator();
+    while(it.hasNext()) {
+      String label = it.next();
+      // This corner handle gpu condition in simple way.
+      Resource resource = scheduler.getRMContext().getNodeLabelManager()
+          .getResourceByLabel(label, null);
+      if (resource.getGpuCores() > 0) {
+        // Gpu condition use gpu measure.
+        capacity.put(label, (float) getFairShare().get(label).getGpuCores() /
+            resource.getGpuCores());
+
+        if (getFairShare().get(label).getGpuCores() == 0) {
+          currentCapacity.put(label, 0.0f);
+        } else {
+          currentCapacity.put(label, (float) getResourceUsage().get(label).getGpuCores() /
+              getFairShare().get(label).getGpuCores());
+        }
+      } else {
+        if (resource.getMemory() == 0) {
+          capacity.put(label, 0.0f);
+        } else {
+          capacity.put(label, (float) getFairShare().get(label).getMemory() /
+              resource.getMemory());
+        }
+
+        if (getFairShare().get(label).getMemory() == 0) {
+          currentCapacity.put(label, 0.0f);
+        } else {
+          currentCapacity.put(label, (float) getResourceUsage().get(label).getMemory() /
+              getFairShare().get(label).getMemory());
+        }
+      }
+    }
+    queueInfo.setCapacity(capacity);
+    queueInfo.setCurrentCapacity(currentCapacity);
+
+    ArrayList<QueueInfo> childQueueInfos = new ArrayList<QueueInfo>();
+    if (includeChildQueues) {
+      Collection<FSQueue> childQueues = getChildQueues();
+      for (FSQueue child : childQueues) {
+        childQueueInfos.add(child.getQueueInfo(recursive, recursive));
+      }
+    }
+
+    queueInfo.setChildQueues(childQueueInfos);
+    queueInfo.setQueueState(QueueState.RUNNING);
+    return queueInfo;
+  }
+
+  @Override
+  public Map<String, Resource> getMaxShare() {
     return scheduler.getAllocationConfiguration().getMaxResources(getName());
   }
 
@@ -118,60 +174,29 @@ public abstract class FSQueue implements Queue, Schedulable {
     p.setPriority(1);
     return p;
   }
-  
-  @Override
-  public QueueInfo getQueueInfo(boolean includeChildQueues, boolean recursive) {
-    QueueInfo queueInfo = recordFactory.newRecordInstance(QueueInfo.class);
-    queueInfo.setQueueName(getQueueName());
 
-    if (scheduler.getClusterResource().getMemory() == 0) {
-      queueInfo.setCapacity(0.0f);
-    } else {
-      queueInfo.setCapacity((float) getFairShare().getMemory() /
-          scheduler.getClusterResource().getMemory());
-    }
-
-    if (getFairShare().getMemory() == 0) {
-      queueInfo.setCurrentCapacity(0.0f);
-    } else {
-      queueInfo.setCurrentCapacity((float) getResourceUsage().getMemory() /
-          getFairShare().getMemory());
-    }
-
-    ArrayList<QueueInfo> childQueueInfos = new ArrayList<QueueInfo>();
-    if (includeChildQueues) {
-      Collection<FSQueue> childQueues = getChildQueues();
-      for (FSQueue child : childQueues) {
-        childQueueInfos.add(child.getQueueInfo(recursive, recursive));
-      }
-    }
-    queueInfo.setChildQueues(childQueueInfos);
-    queueInfo.setQueueState(QueueState.RUNNING);
-    return queueInfo;
-  }
-  
   @Override
   public FSQueueMetrics getMetrics() {
     return metrics;
   }
 
   /** Get the fair share assigned to this Schedulable. */
-  public Resource getFairShare() {
+  public Map<String, Resource> getFairShare() {
     return fairShare;
   }
 
   @Override
-  public void setFairShare(Resource fairShare) {
+  public void setFairShare(Map<String, Resource> fairShare) {
     this.fairShare = fairShare;
     metrics.setFairShare(fairShare);
   }
 
   /** Get the steady fair share assigned to this Schedulable. */
-  public Resource getSteadyFairShare() {
+  public Map<String, Resource> getSteadyFairShare() {
     return steadyFairShare;
   }
 
-  public void setSteadyFairShare(Resource steadyFairShare) {
+  public void setSteadyFairShare(Map<String, Resource> steadyFairShare) {
     this.steadyFairShare = steadyFairShare;
     metrics.setSteadyFairShare(steadyFairShare);
   }
@@ -258,8 +283,11 @@ public abstract class FSQueue implements Queue, Schedulable {
    * @return true if check passes (can assign) or false otherwise
    */
   protected boolean assignContainerPreCheck(FSSchedulerNode node) {
-    if (!Resources.fitsIn(getResourceUsage(),
-        scheduler.getAllocationConfiguration().getMaxResources(getName()))
+    // Now just check default partition
+    // TODO DO MORE SANITY
+    if (!Resources.fitsIn(getResourceUsage().get(RMNodeLabelsManager.NO_LABEL),
+        scheduler.getAllocationConfiguration().getMaxResources(getName())
+            .get(RMNodeLabelsManager.NO_LABEL))
         || node.getReservedContainer() != null) {
       return false;
     }

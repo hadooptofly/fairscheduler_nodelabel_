@@ -39,6 +39,7 @@ import org.apache.hadoop.yarn.exceptions.InvalidResourceRequestException;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.ipc.RPCUtil;
 import org.apache.hadoop.yarn.server.resourcemanager.RMAuditLogger.AuditConstants;
+import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.RMNodeLabelsManager;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore.RMState;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.Recoverable;
@@ -383,11 +384,11 @@ public class RMAppManager implements EventHandler<RMAppManagerEvent>,
             .getNodeLabelExpression());
       }
 
-      //replace am label which is blank ""
+      //replace am label which is NULL
       //regard as this am is indicate use
       //no label resource
-      if ("".equals(amReq.getNodeLabelExpression())) {
-        amReq.setNodeLabelExpression(null);
+      if (null == amReq.getNodeLabelExpression()) {
+        amReq.setNodeLabelExpression(RMNodeLabelsManager.NO_LABEL);
       }
 
       try {

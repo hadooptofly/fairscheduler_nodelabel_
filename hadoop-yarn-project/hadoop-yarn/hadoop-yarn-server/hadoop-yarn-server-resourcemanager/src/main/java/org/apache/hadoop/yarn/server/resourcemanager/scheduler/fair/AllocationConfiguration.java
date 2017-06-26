@@ -38,10 +38,10 @@ public class AllocationConfiguration extends ReservationSchedulerConfiguration {
   private static final AccessControlList NOBODY_ACL = new AccessControlList(" ");
   
   // Minimum resource allocation for each queue
-  private final Map<String, Resource> minQueueResources;
+  private final Map<String, Map<String, Resource>> minQueueResources;
   // Maximum amount of resources per queue
   @VisibleForTesting
-  final Map<String, Resource> maxQueueResources;
+  final Map<String, Map<String, Resource>> maxQueueResources;
   // Sharing weights for each queue
   private final Map<String, ResourceWeights> queueWeights;
   
@@ -94,8 +94,8 @@ public class AllocationConfiguration extends ReservationSchedulerConfiguration {
   // Reservation system configuration
   private ReservationQueueConfiguration globalReservationQueueConfig;
 
-  public AllocationConfiguration(Map<String, Resource> minQueueResources,
-      Map<String, Resource> maxQueueResources,
+  public AllocationConfiguration(Map<String, Map<String, Resource>> minQueueResources,
+      Map<String, Map<String, Resource>> maxQueueResources,
       Map<String, Integer> queueMaxApps, Map<String, Integer> userMaxApps,
       Map<String, ResourceWeights> queueWeights,
       Map<String, Float> queueMaxAMShares, int userMaxAppsDefault,
@@ -132,8 +132,8 @@ public class AllocationConfiguration extends ReservationSchedulerConfiguration {
   }
   
   public AllocationConfiguration(Configuration conf) {
-    minQueueResources = new HashMap<String, Resource>();
-    maxQueueResources = new HashMap<String, Resource>();
+    minQueueResources = new HashMap<String, Map<String, Resource>>();
+    maxQueueResources = new HashMap<String, Map<String, Resource>>();
     queueWeights = new HashMap<String, ResourceWeights>();
     queueMaxApps = new HashMap<String, Integer>();
     userMaxApps = new HashMap<String, Integer>();
@@ -231,19 +231,18 @@ public class AllocationConfiguration extends ReservationSchedulerConfiguration {
    * Get the minimum resource allocation for the given queue.
    * @return the cap set on this queue, or 0 if not set.
    */
-  public Resource getMinResources(String queue) {
-    Resource minQueueResource = minQueueResources.get(queue);
-    return (minQueueResource == null) ? Resources.none() : minQueueResource;
+  public Map<String, Resource> getMinResources(String queue) {
+    Map<String, Resource> minQueueResource = minQueueResources.get(queue);
+    return (minQueueResource == null) ? null : minQueueResource;
   }
 
   /**
    * Get the maximum resource allocation for the given queue.
    * @return the cap set on this queue, or Integer.MAX_VALUE if not set.
    */
-
-  public Resource getMaxResources(String queueName) {
-    Resource maxQueueResource = maxQueueResources.get(queueName);
-    return (maxQueueResource == null) ? Resources.unbounded() : maxQueueResource;
+  public Map<String, Resource> getMaxResources(String queueName) {
+    Map<String, Resource> maxQueueResource = maxQueueResources.get(queueName);
+    return (maxQueueResource == null) ? null : maxQueueResource;
   }
   
   public boolean hasAccess(String queueName, QueueACL acl,

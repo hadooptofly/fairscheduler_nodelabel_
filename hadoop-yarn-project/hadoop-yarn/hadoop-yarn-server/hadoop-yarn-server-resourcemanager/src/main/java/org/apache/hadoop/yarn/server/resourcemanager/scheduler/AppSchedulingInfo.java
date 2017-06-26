@@ -272,6 +272,7 @@ public class AppSchedulingInfo {
     } else {
       allocateOffSwitch(node, priority, request, container, resourceRequests);
     }
+
     QueueMetrics metrics = queue.getMetrics();
     if (pending) {
       // once an allocation is done we assume the application is

@@ -36,6 +36,7 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.proto.YarnServiceProtos.SchedulerResourceTypes;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
+import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.RMNodeLabelsManager;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore.RMState;
 import org.apache.hadoop.yarn.server.resourcemanager.reservation.ReservationConstants;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
@@ -102,6 +103,7 @@ public class FairScheduler extends
   private QueueManager queueMgr;
   private volatile Clock clock;
   private boolean usePortForNodeName;
+  private RMNodeLabelsManager labelsManager;
 
   private static final Log LOG = LogFactory.getLog(FairScheduler.class);
   
@@ -558,7 +560,12 @@ public class FairScheduler extends
     double weight = 1.0;
     if (sizeBasedWeight) {
       // Set weight based on current memory demand
-      weight = Math.log1p(app.getDemand().getMemory()) / Math.log(2);
+      // Simplelify logic regard *NO_LABEL* to compute
+      // weight,and just regard MEMORY
+      // TODO IMPELEMENT LABEL to RESOURCETYPE(MEMORY,CPU,GPU)
+      // more elaboration.
+      weight = Math.log1p(app.getDemand().get(RMNodeLabelsManager.NO_LABEL)
+          .getMemory()) / Math.log(2);
     }
     weight *= app.getPriority().getPriority();
     if (weightAdjuster != null) {
@@ -902,6 +909,12 @@ public class FairScheduler extends
     queueMgr.getRootQueue().recomputeSteadyShares();
     LOG.info("Added node " + node.getNodeAddress() +
         " cluster capacity: " + clusterResource);
+
+    //update label resource
+    if (labelsManager != null) {
+      labelsManager.activateNode(node.getNodeID(),
+          schedulerNode.getTotalResource());
+    }
   }
 
   private synchronized void removeNode(RMNode rmNode) {
@@ -910,6 +923,13 @@ public class FairScheduler extends
     if (node == null) {
       return;
     }
+
+    //update label resource
+    // update this node to node label manager
+    if (labelsManager != null) {
+      labelsManager.deactivateNode(rmNode.getNodeID());
+    }
+
     Resources.subtractFrom(clusterResource, node.getTotalResource());
     updateRootQueueMetrics();
 
@@ -1456,6 +1476,10 @@ public class FairScheduler extends
     this.rmContext = rmContext;
   }
 
+  public synchronized RMContext getRMContext() {
+    return this.rmContext;
+  }
+
   private void initScheduler(Configuration conf) throws IOException {
     synchronized (this) {
       this.conf = new FairSchedulerConfiguration(conf);
@@ -1479,6 +1503,8 @@ public class FairScheduler extends
       preemptionInterval = this.conf.getPreemptionInterval();
       waitTimeBeforeKill = this.conf.getWaitTimeBeforeKill();
       usePortForNodeName = this.conf.getUsePortForNodeName();
+
+      this.labelsManager = rmContext.getNodeLabelManager();
 
       updateInterval = this.conf.getUpdateInterval();
       if (updateInterval < 0) {

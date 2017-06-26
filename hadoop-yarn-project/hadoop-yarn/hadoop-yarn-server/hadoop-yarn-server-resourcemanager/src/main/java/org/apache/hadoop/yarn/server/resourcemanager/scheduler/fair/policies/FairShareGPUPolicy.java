@@ -22,16 +22,16 @@ import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceType;
-import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSQueue;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.MyComparator;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.Schedulable;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.SchedulingPolicy;
-import org.apache.hadoop.yarn.util.resource.DominantResourceCalculator;
-import org.apache.hadoop.yarn.util.resource.ResourceCalculator;
 import org.apache.hadoop.yarn.util.resource.Resources;
 
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceType.*;
 
@@ -60,13 +60,13 @@ public class FairShareGPUPolicy extends SchedulingPolicy {
   }
 
   @Override
-  public Comparator<Schedulable> getComparator() {
+  public MyComparator<Schedulable, String> getComparator() {
     return comparator;
   }
   
   @Override
   public void computeShares(Collection<? extends Schedulable> schedulables,
-      Resource totalResources) {
+                            Map<String, Resource> totalResources) {
     for (ResourceType type : ResourceType.values()) {
       ComputeFairShares.computeShares(schedulables, totalResources, type);
     }
@@ -81,8 +81,16 @@ public class FairShareGPUPolicy extends SchedulingPolicy {
   }
 
   @Override
-  public boolean checkIfUsageOverFairShare(Resource usage, Resource fairShare) {
-    return !Resources.fitsIn(usage, fairShare);
+  public Map<String, Boolean> checkIfUsageOverFairShare(Map<String, Resource> usage, Map<String, Resource> fairShare) {
+    Map<String, Boolean> isOver = new HashMap<String, Boolean>();
+    for (String nodeLabel : usage.keySet()){
+      if (Resources.fitsIn(usage.get(nodeLabel), fairShare.get(nodeLabel))) {
+        isOver.put(nodeLabel, false);
+      } else {
+        isOver.put(nodeLabel, true);
+      }
+    }
+    return isOver;
   }
 
   @Override
@@ -109,27 +117,28 @@ public class FairShareGPUPolicy extends SchedulingPolicy {
   }
 
 
-  public static class FairShareGPUComparator implements Comparator<Schedulable> {
-
+  public static class FairShareGPUComparator implements MyComparator<Schedulable, String> {
+    // Original compare will not support mutilple labels cluster
+    // So use this from now.
     @Override
-    public int compare(Schedulable s1, Schedulable s2) {
-      Resource minShare1 = s1.getMinShare().equals(Resources.none()) ? s1.getDemand() :
-          s1.getDemand().getGpuCores() > s1.getMinShare().getGpuCores() ? s1.getMinShare() : s1.getDemand();
-      Resource minShare2 = s2.getMinShare().equals(Resources.none()) ? s2.getDemand() :
-          s2.getDemand().getGpuCores() > s2.getMinShare().getGpuCores() ? s2.getMinShare() : s2.getDemand();
+    public int compare(Schedulable s1, Schedulable s2, String nodeLabel) {
+      Resource minShare1 = s1.getMinShare().equals(Resources.none()) ? s1.getDemand().get(nodeLabel) :
+          s1.getDemand().get(nodeLabel).getGpuCores() > s1.getMinShare().get(nodeLabel).getGpuCores() ? s1.getMinShare().get(nodeLabel) : s1.getDemand().get(nodeLabel);
+      Resource minShare2 = s2.getMinShare().equals(Resources.none()) ? s2.getDemand().get(nodeLabel) :
+          s2.getDemand().get(nodeLabel).getGpuCores() > s2.getMinShare().get(nodeLabel).getGpuCores() ? s2.getMinShare().get(nodeLabel) : s2.getDemand().get(nodeLabel);
 
-      double minshareRatio1 = (double) s1.getResourceUsage().getGpuCores()/minShare1.getGpuCores();
-      double minshareRatio2 = (double) s2.getResourceUsage().getGpuCores()/ minShare2.getGpuCores();
+      double minshareRatio1 = (double) s1.getResourceUsage().get(nodeLabel).getGpuCores()/minShare1.getGpuCores();
+      double minshareRatio2 = (double) s2.getResourceUsage().get(nodeLabel).getGpuCores()/ minShare2.getGpuCores();
 
-      double useToWeightRatio1 = s1.getResourceUsage().getGpuCores()/s1.getWeights().getWeight(GPU);
-      double useToWeightRatio2 = s2.getResourceUsage().getGpuCores()/s2.getWeights().getWeight(GPU);
+      double useToWeightRatio1 = s1.getResourceUsage().get(nodeLabel).getGpuCores()/s1.getWeights().getWeight(GPU);
+      double useToWeightRatio2 = s2.getResourceUsage().get(nodeLabel).getGpuCores()/s2.getWeights().getWeight(GPU);
 
       // A queue is needy for its min share if its dominant resource
       // (with respect to the cluster capacity) is below its configured min share
       // for that resource
       boolean s1Needy = minshareRatio1 < 1.0f;
       boolean s2Needy = minshareRatio2 < 1.0f;
-      
+
       int res = 0;
       if (!s2Needy && !s1Needy) {
         res = (int) Math.signum(useToWeightRatio1 - useToWeightRatio2);

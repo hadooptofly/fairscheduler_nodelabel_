@@ -20,6 +20,8 @@ package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies;
 
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
@@ -27,6 +29,7 @@ import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceType;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSQueue;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.MyComparator;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.Schedulable;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.SchedulingPolicy;
 import org.apache.hadoop.yarn.util.resource.Resources;
@@ -58,13 +61,13 @@ public class DominantResourceFairnessPolicy extends SchedulingPolicy {
   }
 
   @Override
-  public Comparator<Schedulable> getComparator() {
+  public MyComparator<Schedulable, String> getComparator() {
     return comparator;
   }
   
   @Override
   public void computeShares(Collection<? extends Schedulable> schedulables,
-      Resource totalResources) {
+                            Map<String, Resource> totalResources) {
     for (ResourceType type : ResourceType.values()) {
       ComputeFairShares.computeShares(schedulables, totalResources, type);
     }
@@ -79,8 +82,16 @@ public class DominantResourceFairnessPolicy extends SchedulingPolicy {
   }
 
   @Override
-  public boolean checkIfUsageOverFairShare(Resource usage, Resource fairShare) {
-    return !Resources.fitsIn(usage, fairShare);
+  public Map<String, Boolean> checkIfUsageOverFairShare(Map<String, Resource> usage, Map<String, Resource> fairShare) {
+    Map<String, Boolean> isOver = new HashMap<String, Boolean>();
+    for (String nodeLabel : usage.keySet()){
+      if (Resources.fitsIn(usage.get(nodeLabel), fairShare.get(nodeLabel))) {
+        isOver.put(nodeLabel, false);
+      } else {
+        isOver.put(nodeLabel, true);
+      }
+    }
+    return isOver;
   }
 
   @Override
@@ -111,7 +122,7 @@ public class DominantResourceFairnessPolicy extends SchedulingPolicy {
     comparator.setClusterCapacity(clusterCapacity);
   }
 
-  public static class DominantResourceFairnessComparator implements Comparator<Schedulable> {
+  public static class DominantResourceFairnessComparator implements MyComparator<Schedulable, String> {
     private static final int NUM_RESOURCES = ResourceType.values().length;
     
     private Resource clusterCapacity;
@@ -121,7 +132,7 @@ public class DominantResourceFairnessPolicy extends SchedulingPolicy {
     }
 
     @Override
-    public int compare(Schedulable s1, Schedulable s2) {
+    public int compare(Schedulable s1, Schedulable s2, String nodeLabel) {
       ResourceWeights sharesOfCluster1 = new ResourceWeights();
       ResourceWeights sharesOfCluster2 = new ResourceWeights();
       ResourceWeights sharesOfMinShare1 = new ResourceWeights();
@@ -130,14 +141,14 @@ public class DominantResourceFairnessPolicy extends SchedulingPolicy {
       ResourceType[] resourceOrder2 = new ResourceType[NUM_RESOURCES];
       
       // Calculate shares of the cluster for each resource both schedulables.
-      calculateShares(s1.getResourceUsage(),
+      calculateShares(s1.getResourceUsage().get(nodeLabel),
           clusterCapacity, sharesOfCluster1, resourceOrder1, s1.getWeights());
-      calculateShares(s1.getResourceUsage(),
-          s1.getMinShare(), sharesOfMinShare1, null, ResourceWeights.NEUTRAL);
-      calculateShares(s2.getResourceUsage(),
+      calculateShares(s1.getResourceUsage().get(nodeLabel),
+          s1.getMinShare().get(nodeLabel), sharesOfMinShare1, null, ResourceWeights.NEUTRAL);
+      calculateShares(s2.getResourceUsage().get(nodeLabel),
           clusterCapacity, sharesOfCluster2, resourceOrder2, s2.getWeights());
-      calculateShares(s2.getResourceUsage(),
-          s2.getMinShare(), sharesOfMinShare2, null, ResourceWeights.NEUTRAL);
+      calculateShares(s2.getResourceUsage().get(nodeLabel),
+          s2.getMinShare().get(nodeLabel), sharesOfMinShare2, null, ResourceWeights.NEUTRAL);
       
       // A queue is needy for its min share if its dominant resource
       // (with respect to the cluster capacity) is below its configured min share

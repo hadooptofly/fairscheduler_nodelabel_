@@ -19,6 +19,7 @@
 package org.apache.hadoop.yarn.api.records;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.hadoop.classification.InterfaceAudience.Private;
@@ -26,6 +27,7 @@ import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Stable;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.yarn.api.ApplicationClientProtocol;
+import org.apache.hadoop.yarn.api.protocolrecords.MockMap;
 import org.apache.hadoop.yarn.util.Records;
 
 /**
@@ -51,8 +53,8 @@ public abstract class QueueInfo {
   
   @Private
   @Unstable
-  public static QueueInfo newInstance(String queueName, float capacity,
-      float maximumCapacity, float currentCapacity,
+  public static QueueInfo newInstance(String queueName, MockMap capacity,
+      MockMap maximumCapacity, MockMap currentCapacity,
       List<QueueInfo> childQueues, List<ApplicationReport> applications,
       QueueState queueState, Set<String> accessibleNodeLabels,
       String defaultNodeLabelExpression) {
@@ -87,11 +89,11 @@ public abstract class QueueInfo {
    */
   @Public
   @Stable
-  public abstract float getCapacity();
+  public abstract MockMap getCapacity();
   
   @Private
   @Unstable
-  public abstract void setCapacity(float capacity);
+  public abstract void setCapacity(MockMap capacity);
   
   /**
    * Get the <em>maximum capacity</em> of the queue.
@@ -99,11 +101,11 @@ public abstract class QueueInfo {
    */
   @Public
   @Stable
-  public abstract float getMaximumCapacity();
+  public abstract MockMap getMaximumCapacity();
   
   @Private
   @Unstable
-  public abstract void setMaximumCapacity(float maximumCapacity);
+  public abstract void setMaximumCapacity(MockMap maximumCapacity);
   
   /**
    * Get the <em>current capacity</em> of the queue.
@@ -111,11 +113,11 @@ public abstract class QueueInfo {
    */
   @Public
   @Stable
-  public abstract float getCurrentCapacity();
+  public abstract MockMap getCurrentCapacity();
   
   @Private
   @Unstable
-  public abstract void setCurrentCapacity(float currentCapacity);
+  public abstract void setCurrentCapacity(MockMap currentCapacity);
   
   /**
    * Get the <em>child queues</em> of the queue.

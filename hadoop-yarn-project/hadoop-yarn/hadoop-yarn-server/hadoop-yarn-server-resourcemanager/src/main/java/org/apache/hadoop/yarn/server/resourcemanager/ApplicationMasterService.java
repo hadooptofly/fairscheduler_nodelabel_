@@ -499,11 +499,11 @@ public class ApplicationMasterService extends AbstractService implements
           req.setNodeLabelExpression(asc.getNodeLabelExpression());
         }
 
-        //replace container label which is blank("")
+        //Replace container label which is NULL
         //regard as it is indicated use no label
         //host
-        if ("".equals(req.getNodeLabelExpression())) {
-          req.setNodeLabelExpression(null);
+        if (null == req.getNodeLabelExpression()) {
+          req.setNodeLabelExpression("");
         }
       }
               

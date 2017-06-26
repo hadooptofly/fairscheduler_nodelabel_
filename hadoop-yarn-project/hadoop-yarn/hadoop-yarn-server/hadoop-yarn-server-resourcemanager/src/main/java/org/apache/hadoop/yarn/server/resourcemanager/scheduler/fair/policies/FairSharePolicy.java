@@ -20,12 +20,15 @@ package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceType;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSQueue;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.MyComparator;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.Schedulable;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.SchedulingPolicy;
 import org.apache.hadoop.yarn.util.resource.DefaultResourceCalculator;
@@ -63,30 +66,30 @@ public class FairSharePolicy extends SchedulingPolicy {
    * If all weights are equal, slots are given to the job with the fewest tasks;
    * otherwise, jobs with more weight get proportionally more slots.
    */
-  private static class FairShareComparator implements Comparator<Schedulable>,
+  private static class FairShareComparator implements MyComparator<Schedulable, String>,
       Serializable {
     private static final long serialVersionUID = 5564969375856699313L;
     private static final Resource ONE = Resources.createResource(1);
 
     @Override
-    public int compare(Schedulable s1, Schedulable s2) {
+    public int compare(Schedulable s1, Schedulable s2, String nodeLabel) {
       double minShareRatio1, minShareRatio2;
       double useToWeightRatio1, useToWeightRatio2;
       Resource minShare1 = Resources.min(RESOURCE_CALCULATOR, null,
-          s1.getMinShare(), s1.getDemand());
+          s1.getMinShare().get(nodeLabel), s1.getDemand().get(nodeLabel));
       Resource minShare2 = Resources.min(RESOURCE_CALCULATOR, null,
-          s2.getMinShare(), s2.getDemand());
+          s2.getMinShare().get(nodeLabel), s2.getDemand().get(nodeLabel));
       boolean s1Needy = Resources.lessThan(RESOURCE_CALCULATOR, null,
-          s1.getResourceUsage(), minShare1);
+          s1.getResourceUsage().get(nodeLabel), minShare1);
       boolean s2Needy = Resources.lessThan(RESOURCE_CALCULATOR, null,
-          s2.getResourceUsage(), minShare2);
-      minShareRatio1 = (double) s1.getResourceUsage().getMemory()
+          s2.getResourceUsage().get(nodeLabel), minShare2);
+      minShareRatio1 = (double) s1.getResourceUsage().get(nodeLabel).getMemory()
           / Resources.max(RESOURCE_CALCULATOR, null, minShare1, ONE).getMemory();
-      minShareRatio2 = (double) s2.getResourceUsage().getMemory()
+      minShareRatio2 = (double) s2.getResourceUsage().get(nodeLabel).getMemory()
           / Resources.max(RESOURCE_CALCULATOR, null, minShare2, ONE).getMemory();
-      useToWeightRatio1 = s1.getResourceUsage().getMemory() /
+      useToWeightRatio1 = s1.getResourceUsage().get(nodeLabel).getMemory() /
           s1.getWeights().getWeight(ResourceType.MEMORY);
-      useToWeightRatio2 = s2.getResourceUsage().getMemory() /
+      useToWeightRatio2 = s2.getResourceUsage().get(nodeLabel).getMemory() /
           s2.getWeights().getWeight(ResourceType.MEMORY);
       int res = 0;
       if (s1Needy && !s2Needy)
@@ -110,7 +113,7 @@ public class FairSharePolicy extends SchedulingPolicy {
   }
 
   @Override
-  public Comparator<Schedulable> getComparator() {
+  public MyComparator<Schedulable, String> getComparator() {
     return comparator;
   }
 
@@ -127,20 +130,28 @@ public class FairSharePolicy extends SchedulingPolicy {
 
   @Override
   public void computeShares(Collection<? extends Schedulable> schedulables,
-      Resource totalResources) {
+                            Map<String, Resource> totalResources) {
     ComputeFairShares.computeShares(schedulables, totalResources, ResourceType.MEMORY);
   }
 
   @Override
   public void computeSteadyShares(Collection<? extends FSQueue> queues,
-      Resource totalResources) {
+      Map<String, Resource> totalResources) {
     ComputeFairShares.computeSteadyShares(queues, totalResources,
         ResourceType.MEMORY);
   }
 
   @Override
-  public boolean checkIfUsageOverFairShare(Resource usage, Resource fairShare) {
-    return Resources.greaterThan(RESOURCE_CALCULATOR, null, usage, fairShare);
+  public Map<String, Boolean> checkIfUsageOverFairShare(Map<String, Resource> usage, Map<String, Resource> fairShare) {
+    Map<String, Boolean> isOver = new HashMap<String, Boolean>();
+    for (String nodeLabel : usage.keySet()){
+      if (Resources.fitsIn(usage.get(nodeLabel), fairShare.get(nodeLabel))) {
+        isOver.put(nodeLabel, false);
+      } else {
+        isOver.put(nodeLabel, true);
+      }
+    }
+    return isOver;
   }
 
   @Override

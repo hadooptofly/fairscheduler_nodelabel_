@@ -25,6 +25,9 @@ import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
 
+import java.util.Map;
+import java.util.Set;
+
 /**
  * A Schedulable represents an entity that can be scheduled such as an
  * application or a queue. It provides a common interface so that algorithms
@@ -62,16 +65,16 @@ public interface Schedulable {
    * number of currently utilized resources + number of unlaunched resources (that
    * are either not yet launched or need to be speculated).
    */
-  public Resource getDemand();
+  public Map<String, Resource> getDemand();
 
   /** Get the aggregate amount of resources consumed by the schedulable. */
-  public Resource getResourceUsage();
+  public Map<String, Resource> getResourceUsage();
 
   /** Minimum Resource share assigned to the schedulable. */
-  public Resource getMinShare();
+  public Map<String, Resource> getMinShare();
 
   /** Maximum Resource share assigned to the schedulable. */
-  public Resource getMaxShare();
+  public Map<String, Resource> getMaxShare();
 
   /** Job/queue weight in fair sharing. */
   public ResourceWeights getWeights();
@@ -99,11 +102,12 @@ public interface Schedulable {
   /**
    * Preempt a container from this Schedulable if possible.
    */
-  public RMContainer preemptContainer();
+  public Set<RMContainer> preemptContainer();
 
   /** Get the fair share assigned to this Schedulable. */
-  public Resource getFairShare();
+  public Map<String, Resource> getFairShare();
 
-  /** Assign a fair share to this Schedulable. */
-  public void setFairShare(Resource fairShare);
+  /** Assign a fair share to this Schedulable.
+   * @param fairShare*/
+  public void setFairShare(Map<String, Resource> fairShare);
 }

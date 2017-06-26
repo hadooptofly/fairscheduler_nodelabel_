@@ -25,6 +25,9 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
 import org.apache.hadoop.yarn.util.Records;
 import org.apache.hadoop.yarn.util.resource.Resources;
 
+import java.util.Map;
+import java.util.Set;
+
 /**
  * Dummy implementation of Schedulable for unit testing.
  */
@@ -86,12 +89,12 @@ public class FakeSchedulable implements Schedulable {
   }
 
   @Override
-  public RMContainer preemptContainer() {
+  public Set<RMContainer> preemptContainer() {
     return null;
   }
 
   @Override
-  public Resource getFairShare() {
+  public Map<String, Resource> getFairShare() {
     return this.fairShare;
   }
 
@@ -101,7 +104,7 @@ public class FakeSchedulable implements Schedulable {
   }
 
   @Override
-  public Resource getDemand() {
+  public Map<String, Resource> getDemand() {
     return null;
   }
 
@@ -119,7 +122,7 @@ public class FakeSchedulable implements Schedulable {
   public Resource assignGPUContainer(FSSchedulerNode node) { return null; }
 
   @Override
-  public Resource getResourceUsage() {
+  public Map<String, Resource> getResourceUsage() {
     return usage;
   }
 
@@ -134,12 +137,12 @@ public class FakeSchedulable implements Schedulable {
   }
   
   @Override
-  public Resource getMinShare() {
+  public Map<String, Resource> getMinShare() {
     return minShare;
   }
   
   @Override
-  public Resource getMaxShare() {
+  public Map<String, Resource> getMaxShare() {
     return maxShare;
   }
 

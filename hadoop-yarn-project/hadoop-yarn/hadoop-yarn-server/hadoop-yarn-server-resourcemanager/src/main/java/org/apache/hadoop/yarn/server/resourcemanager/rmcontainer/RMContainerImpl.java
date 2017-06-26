@@ -42,11 +42,13 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.hadoop.yarn.server.api.protocolrecords.NMContainerStatus;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
+import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.RMNodeLabelsManager;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppRunningOnNodeEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttempt;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptEventType;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.event.RMAppAttemptContainerFinishedEvent;
+import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNodeCleanContainerEvent;
 import org.apache.hadoop.yarn.state.InvalidStateTransitonException;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.ContainerRescheduledEvent;
@@ -157,6 +159,8 @@ public class RMContainerImpl implements RMContainer {
   private final ContainerAllocationExpirer containerAllocationExpirer;
   private final String user;
 
+  private final String nodeLabel;
+
   private Resource reservedResource;
   private NodeId reservedNode;
   private Priority reservedPriority;
@@ -178,6 +182,13 @@ public class RMContainerImpl implements RMContainer {
   public RMContainerImpl(Container container,
       ApplicationAttemptId appAttemptId, NodeId nodeId,
       String user, RMContext rmContext, long creationTime) {
+      this(container, appAttemptId, nodeId, user, rmContext, creationTime,
+          RMNodeLabelsManager.NO_LABEL);
+  }
+
+  public RMContainerImpl(Container container,
+                         ApplicationAttemptId appAttemptId, NodeId nodeId,
+                         String user, RMContext rmContext, long creationTime, String nodeLabel) {
     this.stateMachine = stateMachineFactory.make(this);
     this.containerId = container.getId();
     this.nodeId = nodeId;
@@ -190,6 +201,7 @@ public class RMContainerImpl implements RMContainer {
     this.containerAllocationExpirer = rmContext.getContainerAllocationExpirer();
     this.isAMContainer = false;
     this.resourceRequests = null;
+    this.nodeLabel = nodeLabel;
 
     ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     this.readLock = lock.readLock();
@@ -349,6 +361,11 @@ public class RMContainerImpl implements RMContainer {
     } finally {
       readLock.unlock();
     }
+  }
+
+  @Override
+  public String getNodeLabel() {
+    return nodeLabel;
   }
   
   public void setResourceRequests(List<ResourceRequest> requests) {

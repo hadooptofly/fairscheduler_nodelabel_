@@ -18,11 +18,7 @@
 
 package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -46,7 +42,7 @@ public class FSParentQueue extends FSQueue {
 
   private final List<FSQueue> childQueues = 
       new ArrayList<FSQueue>();
-  private Resource demand = Resources.createResource(0);
+  private Map<String, Resource> demand = new HashMap<String, Resource>();
   private int runnableApps;
   
   public FSParentQueue(String name, FairScheduler scheduler,
@@ -87,15 +83,24 @@ public class FSParentQueue extends FSQueue {
   }
 
   @Override
-  public Resource getDemand() {
+  public Map<String, Resource> getDemand() {
     return demand;
   }
 
   @Override
-  public Resource getResourceUsage() {
-    Resource usage = Resources.createResource(0);
+  public Map<String, Resource> getResourceUsage() {
+    Map<String, Resource> usage = new HashMap<String, Resource>();
     for (FSQueue child : childQueues) {
-      Resources.addTo(usage, child.getResourceUsage());
+      Map<String, Resource> use = child.getResourceUsage();
+      for (Map.Entry<String, Resource> labelUsage : use.entrySet()) {
+        if (!usage.containsKey(labelUsage.getKey())) {
+          usage.put(labelUsage.getKey(), Resources.clone(labelUsage.getValue()));
+        } else {
+          usage.put(labelUsage.getKey(),
+              Resources.addTo(usage.get(labelUsage.getKey()),
+                  labelUsage.getValue()));
+        }
+      }
     }
     return usage;
   }
@@ -104,27 +109,54 @@ public class FSParentQueue extends FSQueue {
   public void updateDemand() {
     // Compute demand by iterating through apps in the queue
     // Limit demand to maxResources
-    Resource maxRes = scheduler.getAllocationConfiguration()
+    Map<String, Resource> maxRes = scheduler.getAllocationConfiguration()
         .getMaxResources(getName());
-    demand = Resources.createResource(0);
+    demand = new HashMap<String, Resource>();
     for (FSQueue childQueue : childQueues) {
       childQueue.updateDemand();
-      Resource toAdd = childQueue.getDemand();
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Counting resource from " + childQueue.getName() + " " + 
-            toAdd + "; Total resource consumption for " + getName() +
-            " now " + demand);
-      }
-      demand = Resources.add(demand, toAdd);
-      demand = Resources.componentwiseMin(demand, maxRes);
-      if (Resources.equals(demand, maxRes)) {
-        break;
+      Map<String, Resource> toAdd = childQueue.getDemand();
+      for (Map.Entry<String, Resource> use : toAdd.entrySet()) {
+        if (!demand.containsKey(use.getKey())) {
+          demand.put(use.getKey(), Resources.clone(use.getValue()));
+        } else {
+          demand.put(use.getKey(), Resources.addTo(demand.get(use.getKey()),
+              use.getValue()));
+        }
+
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Parent queue<" + getName() + "> upgrade demand for<" + use.getValue()
+              + "> from childQueue<" + childQueue.getName() + "> on node label<"
+              + use.getKey() == "" ? "NO_LABEL" : use.getKey()
+              + ">.");
+        }
       }
     }
+
+    //Min(demand, MaxShare)
+    for (Map.Entry<String, Resource> entry : demand.entrySet()) {
+      if (!maxRes.containsKey(entry.getKey())) {
+        entry.setValue(Resources.componentwiseMin(
+            entry.getValue(), Resources.unbounded()));
+      } else {
+        entry.setValue(Resources.componentwiseMin(entry.getValue(),
+            maxRes.get(entry.getKey())));
+      }
+    }
+
     if (LOG.isDebugEnabled()) {
-      LOG.debug("The updated demand for " + getName() + " is " + demand +
-          "; the max is " + maxRes);
-    }    
+      for (Map.Entry<String, Resource> entry : demand.entrySet()) {
+        LOG.debug("The updated demand for " + getName() + " is "
+            + entry.getValue() +
+            "; the max is "
+            + maxRes.get(entry.getKey()) == null
+              ? Resources.unbounded()
+              : maxRes.get(entry.getKey())
+            + " on node label: "
+            + entry.getKey() == ""
+              ? "NO_LABEL"
+              : entry.getKey());
+      }
+    }
   }
   
   private synchronized QueueUserACLInfo getUserAclInfo(
@@ -190,7 +222,11 @@ public class FSParentQueue extends FSQueue {
     Collections.sort(childQueues, SchedulingPolicy.GPU_POLICY.getComparator());
     LOG.error("Nodeheartbeat:::");
     for (FSQueue child : childQueues) {
-      LOG.error("Assgin Queue: " + child.getName() + " gpu usage: " + child.getResourceUsage().getGpuCores());
+      LOG.error("Assgin Queue: " + child.getName() + " gpu usage: " + child
+          .getResourceUsage()
+          .get(node.getLabels()
+          .iterator().next())
+          .getGpuCores());
       assigned = child.assignGPUContainer(node);
       if (!Resources.equals(assigned, Resources.none())) {
         break;
@@ -199,9 +235,8 @@ public class FSParentQueue extends FSQueue {
     return assigned;
   }
 
-
   @Override
-  public RMContainer preemptContainer() {
+  public Set<RMContainer> preemptContainer() {
     RMContainer toBePreempted = null;
 
     // Find the childQueue which is most over fair share

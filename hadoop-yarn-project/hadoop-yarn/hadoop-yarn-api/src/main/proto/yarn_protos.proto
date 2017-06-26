@@ -339,11 +339,23 @@ enum QueueStateProto {
   Q_RUNNING = 2;
 }
 
+// Add to display Map<String, float>:capacity
+// Becasue of protobuf do not support map data
+// structure.
+message KV {
+  required string k = 1 [default = "NULL"];
+  required float v = 2 [default = -1.0];
+}
+
+message MockMap {
+  repeated KV entry = 1;
+}
+
 message QueueInfoProto {
   optional string queueName = 1;
-  optional float capacity = 2;
-  optional float maximumCapacity = 3;
-  optional float currentCapacity = 4;
+  optional MockMap capacity = 2;
+  optional MockMap maximumCapacity = 3;
+  optional MockMap currentCapacity = 4;
   optional QueueStateProto state = 5;
   repeated QueueInfoProto childQueues = 6;
   repeated ApplicationReportProto applications = 7;

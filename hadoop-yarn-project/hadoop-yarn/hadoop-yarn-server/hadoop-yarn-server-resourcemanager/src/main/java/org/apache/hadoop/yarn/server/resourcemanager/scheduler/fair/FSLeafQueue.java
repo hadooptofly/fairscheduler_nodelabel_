@@ -18,11 +18,7 @@
 
 package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -59,7 +55,7 @@ public class FSLeafQueue extends FSQueue {
   private final Lock readLock = rwl.readLock();
   private final Lock writeLock = rwl.writeLock();
   
-  private Resource demand = Resources.createResource(0);
+  private Map<String, Resource> demand = Resources.createComposeResource();
   
   // Variables used for preemption
   private long lastTimeAtMinShare;
@@ -232,20 +228,34 @@ public class FSLeafQueue extends FSQueue {
   }
 
   @Override
-  public Resource getDemand() {
+  public Map<String, Resource> getDemand() {
     return demand;
   }
 
   @Override
-  public Resource getResourceUsage() {
-    Resource usage = Resources.createResource(0);
+  public Map<String, Resource> getResourceUsage() {
+    Map<String, Resource> usage = Resources.createComposeResource();
     readLock.lock();
     try {
       for (FSAppAttempt app : runnableApps) {
-        Resources.addTo(usage, app.getResourceUsage());
+        Map<String, Resource> appUse = app.getResourceUsage();
+        for (String nodeLabel : appUse.keySet()) {
+          if(usage.containsKey(nodeLabel)) {
+            Resources.addTo(usage.get(nodeLabel), appUse.get(nodeLabel));
+          } else {
+            usage.put(nodeLabel, Resources.clone(appUse.get(nodeLabel)));
+          }
+        }
       }
       for (FSAppAttempt app : nonRunnableApps) {
-        Resources.addTo(usage, app.getResourceUsage());
+        Map<String, Resource> appUse = app.getResourceUsage();
+        for (String nodeLabel : appUse.keySet()) {
+          if(usage.containsKey(nodeLabel)) {
+            Resources.addTo(usage.get(nodeLabel), appUse.get(nodeLabel));
+          } else {
+            usage.put(nodeLabel, Resources.clone(appUse.get(nodeLabel)));
+          }
+        }
       }
     } finally {
       readLock.unlock();
@@ -261,42 +271,45 @@ public class FSLeafQueue extends FSQueue {
   public void updateDemand() {
     // Compute demand by iterating through apps in the queue
     // Limit demand to maxResources
-    Resource maxRes = scheduler.getAllocationConfiguration()
+    Map<String, Resource> maxRes = scheduler.getAllocationConfiguration()
         .getMaxResources(getName());
-    demand = Resources.createResource(0);
+    demand = Resources.createComposeResource();
     readLock.lock();
     try {
       for (FSAppAttempt sched : runnableApps) {
-        if (Resources.equals(demand, maxRes)) {
-          break;
-        }
         updateDemandForApp(sched, maxRes);
       }
       for (FSAppAttempt sched : nonRunnableApps) {
-        if (Resources.equals(demand, maxRes)) {
-          break;
-        }
         updateDemandForApp(sched, maxRes);
       }
     } finally {
       readLock.unlock();
     }
+
     if (LOG.isDebugEnabled()) {
       LOG.debug("The updated demand for " + getName() + " is " + demand
           + "; the max is " + maxRes);
     }
   }
   
-  private void updateDemandForApp(FSAppAttempt sched, Resource maxRes) {
+  private void updateDemandForApp(FSAppAttempt sched, Map<String, Resource> maxRes) {
     sched.updateDemand();
-    Resource toAdd = sched.getDemand();
+    Map<String, Resource> toAdd = sched.getDemand();
     if (LOG.isDebugEnabled()) {
       LOG.debug("Counting resource from " + sched.getName() + " " + toAdd
           + "; Total resource consumption for " + getName() + " now "
           + demand);
     }
-    demand = Resources.add(demand, toAdd);
-    demand = Resources.componentwiseMin(demand, maxRes);
+
+    for(String nodeLable : toAdd.keySet()) {
+      if(demand.containsKey(nodeLable)) {
+        Resources.addTo(demand.get(nodeLable), toAdd.get(nodeLable));
+      } else {
+        demand.put(nodeLable, Resources.clone(toAdd.get(nodeLable)));
+      }
+      demand.put(nodeLable, Resources.componentwiseMin(
+          demand.get(nodeLable), maxRes.get(nodeLable)));
+    }
   }
 
   @Override
@@ -385,39 +398,45 @@ public class FSLeafQueue extends FSQueue {
   }
 
   @Override
-  public RMContainer preemptContainer() {
-    RMContainer toBePreempted = null;
+  public Set<RMContainer> preemptContainer() {
+    Set<RMContainer> toBePreempted = new HashSet<RMContainer>();
 
     // If this queue is not over its fair share, reject
-    if (!preemptContainerPreCheck()) {
+    Map<String, Boolean> isOver = preemptContainerPreCheck();
+    for (String nodeLabel : isOver.keySet()) {
+      if (!isOver.get(nodeLabel))
+        continue;
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Queue " + getName() + " is going to preempt a container " +
+            "from its applications.");
+      }
+
+      // Choose the app that is most over fair share
+      Comparator<Schedulable> comparator = policy.getComparator();
+      if (demand.get(nodeLabel).getGpuCores() > 0) {
+        // Use gpu comparator.
+        comparator = SchedulingPolicy.GPU_POLICY.getComparator();
+      }
+
+      FSAppAttempt candidateSched = null;
+      readLock.lock();
+      try {
+        for (FSAppAttempt sched : runnableApps) {
+          if (candidateSched == null ||
+              comparator.compare(sched, candidateSched, nodeLabel) > 0) {
+            candidateSched = sched;
+          }
+        }
+      } finally {
+        readLock.unlock();
+      }
+
+      // Preempt from the selected app
+      if (candidateSched != null) {
+        toBePreempted = candidateSched.preemptContainer();
+      }
       return toBePreempted;
     }
-
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("Queue " + getName() + " is going to preempt a container " +
-          "from its applications.");
-    }
-
-    // Choose the app that is most over fair share
-    Comparator<Schedulable> comparator = policy.getComparator();
-    FSAppAttempt candidateSched = null;
-    readLock.lock();
-    try {
-      for (FSAppAttempt sched : runnableApps) {
-        if (candidateSched == null ||
-            comparator.compare(sched, candidateSched) > 0) {
-          candidateSched = sched;
-        }
-      }
-    } finally {
-      readLock.unlock();
-    }
-
-    // Preempt from the selected app
-    if (candidateSched != null) {
-      toBePreempted = candidateSched.preemptContainer();
-    }
-    return toBePreempted;
   }
 
   @Override
@@ -576,7 +595,7 @@ public class FSLeafQueue extends FSQueue {
    *
    * @return true if check passes (can preempt) or false otherwise
    */
-  private boolean preemptContainerPreCheck() {
+  private Map<String, Boolean> preemptContainerPreCheck() {
     return parent.getPolicy().checkIfUsageOverFairShare(getResourceUsage(),
         getFairShare());
   }

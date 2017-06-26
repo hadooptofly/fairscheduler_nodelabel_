@@ -26,6 +26,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
@@ -51,6 +52,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.RMAuditLogger;
 import org.apache.hadoop.yarn.server.resourcemanager.RMAuditLogger.AuditConstants;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
+import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.RMNodeLabelsManager;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppEventType;
@@ -418,10 +420,13 @@ public abstract class AbstractYarnScheduler
           status.getPriority(), null);
     ApplicationAttemptId attemptId =
         container.getId().getApplicationAttemptId();
+    String nodeLabel = CollectionUtils.isEmpty(node.getNodeLabels())
+        ? RMNodeLabelsManager.NO_LABEL
+        : (String) node.getNodeLabels().iterator().next();
     RMContainer rmContainer =
         new RMContainerImpl(container, attemptId, node.getNodeID(),
           applications.get(attemptId.getApplicationId()).getUser(), rmContext,
-          status.getCreationTime());
+          status.getCreationTime(), nodeLabel);
     return rmContainer;
   }
 

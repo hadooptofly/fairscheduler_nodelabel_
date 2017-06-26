@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.time.DateUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -45,6 +46,7 @@ import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
+import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.RMNodeLabelsManager;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.AggregateAppResourceUsage;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttempt;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptState;
@@ -91,7 +93,7 @@ public class SchedulerApplicationAttempt {
   
   protected final Resource currentReservation = Resource.newInstance(0, 0, 0);
   private Resource resourceLimit = Resource.newInstance(0, 0, 0);
-  protected Resource currentConsumption = Resource.newInstance(0, 0, 0);
+  protected Map<String, Resource> currentConsumption = new HashMap<String, Resource>();
   private Resource amResource = Resources.none();
   private boolean unmanagedAM = true;
   private boolean amRunning = false;
@@ -307,25 +309,45 @@ public class SchedulerApplicationAttempt {
   }
   
   public synchronized RMContainer reserve(SchedulerNode node, Priority priority,
-      RMContainer rmContainer, Container container) {
-    // Create RMContainer if necessary
-    if (rmContainer == null) {
-      rmContainer = 
-          new RMContainerImpl(container, getApplicationAttemptId(), 
-              node.getNodeID(), appSchedulingInfo.getUser(), rmContext);
-        
-      Resources.addTo(currentReservation, container.getResource());
-      
-      // Reset the re-reservation count
-      resetReReservations(priority);
-    } else {
-      // Note down the re-reservation
-      addReReservation(priority);
-    }
-    rmContainer.handle(new RMContainerReservedEvent(container.getId(), 
+    RMContainer rmContainer, Container container, String nodeLabel) {
+    rmContainer =
+        new RMContainerImpl(container, getApplicationAttemptId(),
+            node.getNodeID(), appSchedulingInfo.getUser(), rmContext, System.currentTimeMillis(), nodeLabel);
+
+    //TODO
+    Resources.addTo(currentReservation, container.getResource());
+
+    // Reset the re-reservation count
+    resetReReservations(priority);
+    rmContainer.handle(new RMContainerReservedEvent(container.getId(),
         container.getResource(), node.getNodeID(), priority));
     
     Map<NodeId, RMContainer> reservedContainers = 
+        this.reservedContainers.get(priority);
+    if (reservedContainers == null) {
+      reservedContainers = new HashMap<NodeId, RMContainer>();
+      this.reservedContainers.put(priority, reservedContainers);
+    }
+    reservedContainers.put(node.getNodeID(), rmContainer);
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Application attempt " + getApplicationAttemptId()
+          + " reserved container " + rmContainer + " on node " + node
+          + ". This attempt currently has " + reservedContainers.size()
+          + " reserved containers at priority " + priority
+          + "; currentReservation " + currentReservation.getMemory());
+    }
+
+    return rmContainer;
+  }
+
+  public synchronized RMContainer reserve(SchedulerNode node, Priority priority,
+                                          RMContainer rmContainer, Container container) {
+    addReReservation(priority);
+    rmContainer.handle(new RMContainerReservedEvent(container.getId(),
+        container.getResource(), node.getNodeID(), priority));
+
+    Map<NodeId, RMContainer> reservedContainers =
         this.reservedContainers.get(priority);
     if (reservedContainers == null) {
       reservedContainers = new HashMap<NodeId, RMContainer>();
@@ -416,7 +438,7 @@ public class SchedulerApplicationAttempt {
     }
   }
   
-  public Resource getCurrentConsumption() {
+  public Map<String, Resource> getCurrentConsumption() {
     return currentConsumption;
   }
 
@@ -622,6 +644,7 @@ public class SchedulerApplicationAttempt {
     if (rmContainer.getState().equals(RMContainerState.COMPLETED)) {
       return;
     }
+
     LOG.info("SchedulerAttempt " + getApplicationAttemptId()
       + " is recovering container " + rmContainer.getContainerId());
     liveContainers.put(rmContainer.getContainerId(), rmContainer);

@@ -23,6 +23,9 @@ import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.util.Records;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @InterfaceAudience.LimitedPrivate({"YARN", "MapReduce"})
 @Unstable
 public class Resources {
@@ -157,6 +160,10 @@ public class Resources {
 
   public static Resource createResource(int memory) {
     return createResource(memory, (memory > 0) ? 1 : 0, 0);
+  }
+
+  public static Map<String, Resource> createComposeResource() {
+    return new HashMap<String, Resource>();
   }
 
   public static Resource createResource(int memory, int cores) {

@@ -28,7 +28,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies.Fai
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies.FifoPolicy;
 
 import java.util.Collection;
-import java.util.Comparator;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Public
@@ -136,19 +136,18 @@ public abstract class SchedulingPolicy {
    * 
    * @return the comparator to sort by
    */
-  public abstract Comparator<Schedulable> getComparator();
+  public abstract MyComparator<Schedulable, String> getComparator();
 
   /**
    * Computes and updates the shares of {@link Schedulable}s as per
    * the {@link SchedulingPolicy}, to be used later for scheduling decisions.
    * The shares computed are instantaneous and only consider queues with
    * running applications.
-   * 
-   * @param schedulables {@link Schedulable}s whose shares are to be updated
+   *  @param schedulables {@link Schedulable}s whose shares are to be updated
    * @param totalResources Total {@link Resource}s in the cluster
    */
   public abstract void computeShares(
-      Collection<? extends Schedulable> schedulables, Resource totalResources);
+      Collection<? extends Schedulable> schedulables, Map<String, Resource> totalResources);
 
   /**
    * Computes and updates the steady shares of {@link FSQueue}s as per the
@@ -161,7 +160,7 @@ public abstract class SchedulingPolicy {
    * @param totalResources Total {@link Resource}s in the cluster
    */
   public abstract void computeSteadyShares(
-      Collection<? extends FSQueue> queues, Resource totalResources);
+      Collection<? extends FSQueue> queues, Map<String, Resource> totalResources);
 
   /**
    * Check if the resource usage is over the fair share under this policy
@@ -170,8 +169,8 @@ public abstract class SchedulingPolicy {
    * @param fairShare {@link Resource} the fair share
    * @return true if check passes (is over) or false otherwise
    */
-  public abstract boolean checkIfUsageOverFairShare(
-      Resource usage, Resource fairShare);
+  public abstract Map<String, Boolean> checkIfUsageOverFairShare(
+      Map<String, Resource> usage, Map<String, Resource> fairShare);
 
   /**
    * Check if a leaf queue's AM resource usage over its limit under this policy

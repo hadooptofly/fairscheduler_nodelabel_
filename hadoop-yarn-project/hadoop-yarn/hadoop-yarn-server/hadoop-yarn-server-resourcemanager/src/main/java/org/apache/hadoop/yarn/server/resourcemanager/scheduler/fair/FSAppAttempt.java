@@ -44,6 +44,7 @@ import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.server.resourcemanager.RMAuditLogger;
 import org.apache.hadoop.yarn.server.resourcemanager.RMAuditLogger.AuditConstants;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
+import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.RMNodeLabelsManager;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainerEvent;
@@ -73,10 +74,10 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
   private long startTime;
   private Priority priority;
   private ResourceWeights resourceWeights;
-  private Resource demand = Resources.createResource(0);
+  private Map<String, Resource> demand = new HashMap<String, Resource>();
   private FairScheduler scheduler;
-  private Resource fairShare = Resources.createResource(0, 0, 0);
-  private Resource preemptedResources = Resources.createResource(0);
+  private Map<String, Resource> fairShare = new HashMap<String, Resource>();
+  private Map<String, Resource> preemptedResources = new HashMap<String, Resource>();
   private RMContainerComparator comparator = new RMContainerComparator();
   private final Map<RMContainer, Long> preemptionMap = new HashMap<RMContainer, Long>();
 
@@ -117,9 +118,14 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
 
   synchronized public void containerCompleted(RMContainer rmContainer,
       ContainerStatus containerStatus, RMContainerEventType event) {
-    
+
     Container container = rmContainer.getContainer();
     ContainerId containerId = container.getId();
+
+    //Get nodeLabel
+    String nodeLabel = StringUtils.isBlank(rmContainer.getNodeLabel())
+        ? RMNodeLabelsManager.NO_LABEL
+        : rmContainer.getNodeLabel();
     
     // Remove from the list of newly allocated containers if found
     newlyAllocatedContainers.remove(rmContainer);
@@ -144,7 +150,11 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
     // Update usage metrics 
     Resource containerResource = rmContainer.getContainer().getResource();
     queue.getMetrics().releaseResources(getUser(), 1, containerResource);
-    Resources.subtractFrom(currentConsumption, containerResource);
+
+    //Diff usage count
+    if (currentConsumption.get(nodeLabel) != null) {
+      Resources.subtractFrom(currentConsumption.get(nodeLabel), container.getResource());
+    }
 
     // remove from preemption map if it is completed
     preemptionMap.remove(rmContainer);
@@ -182,11 +192,12 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
     final FSQueue queue = (FSQueue) this.queue;
     SchedulingPolicy policy = queue.getPolicy();
 
-    Resource queueFairShare = queue.getFairShare();
-    Resource queueUsage = queue.getResourceUsage();
-    Resource clusterResource = this.scheduler.getClusterResource();
-    Resource clusterUsage = this.scheduler.getRootQueueMetrics()
-        .getAllocatedResources();
+    Map<String, Resource> queueFairShare = queue.getFairShare();
+    Map<String, Resource> queueUsage = queue.getResourceUsage();
+    Map<String, Resource> clusterResource = new HashMap<String, Resource>();
+    Map<String, Resource> clusterUsage = this.scheduler.getQueueManager().getRootQueue().getResourceUsage();
+
+    Set<String> queueLabels = queue.getAccessibleNodeLabels();
 
     Resource clusterAvailableResources =
         Resources.subtract(clusterResource, clusterUsage);
@@ -336,11 +347,17 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
     if (getTotalRequiredResources(priority) <= 0) {
       return null;
     }
-    
+
+    String label = StringUtils.trim(request.getNodeLabelExpression());
+    if (null == label) {
+      label = RMNodeLabelsManager.NO_LABEL;
+    }
+
     // Create RMContainer
     RMContainer rmContainer = new RMContainerImpl(container, 
         getApplicationAttemptId(), node.getNodeID(),
-        appSchedulingInfo.getUser(), rmContext);
+        appSchedulingInfo.getUser(), rmContext, System
+        .currentTimeMillis(), label);
 
     // Add it to allContainers list.
     newlyAllocatedContainers.add(rmContainer);
@@ -349,7 +366,15 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
     // Update consumption and track allocations
     List<ResourceRequest> resourceRequestList = appSchedulingInfo.allocate(
         type, node, priority, request, container);
-    Resources.addTo(currentConsumption, container.getResource());
+
+    // Diff the resource count base node label.
+    // Not only usage, and also demand, fairshare, reservation
+    Resource currentLabelUsage = currentConsumption.get(label);
+    if (null == currentLabelUsage) {
+      currentLabelUsage = Resource.newInstance(0, 0, 0);
+      currentConsumption.put(label, currentLabelUsage);
+    }
+    Resources.addTo(currentLabelUsage, container.getResource());
 
     // Update resource requests related to "request" and store in RMContainer
     ((RMContainerImpl) rmContainer).setResourceRequests(resourceRequestList);
@@ -388,7 +413,13 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
   public void addPreemption(RMContainer container, long time) {
     assert preemptionMap.get(container) == null;
     preemptionMap.put(container, time);
-    Resources.addTo(preemptedResources, container.getAllocatedResource());
+    String nodeLabel = StringUtils.isBlank(container.getNodeLabel())
+        ? RMNodeLabelsManager.NO_LABEL
+        : container.getNodeLabel();
+    if (!preemptedResources.containsKey(nodeLabel)) {
+      preemptedResources.put(nodeLabel, Resource.newInstance(0, 0, 0));
+    }
+    Resources.addTo(preemptedResources.get(nodeLabel), container.getAllocatedResource());
   }
 
   public Long getContainerPreemptionTime(RMContainer container) {
@@ -404,21 +435,25 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
     return (FSLeafQueue)super.getQueue();
   }
 
-  public Resource getPreemptedResources() {
+  public Map<String, Resource> getPreemptedResources() {
     return preemptedResources;
   }
 
   public void resetPreemptedResources() {
-    preemptedResources = Resources.createResource(0);
+    preemptedResources = new HashMap<String, Resource>();
     for (RMContainer container : getPreemptionContainers()) {
-      Resources.addTo(preemptedResources, container.getAllocatedResource());
+      String nodeLabel = StringUtils.isBlank(container.getNodeLabel())
+          ? RMNodeLabelsManager.NO_LABEL
+          : container.getNodeLabel();
+      if (!preemptedResources.containsKey(nodeLabel)) {
+        preemptedResources.put(nodeLabel, Resource.newInstance(0, 0, 0));
+      }
+      Resources.addTo(preemptedResources.get(nodeLabel), container.getAllocatedResource());
     }
   }
 
   public void clearPreemptedResources() {
-    preemptedResources.setMemory(0);
-    preemptedResources.setVirtualCores(0);
-    preemptedResources.setGpuCores(0);
+    preemptedResources.clear();
   }
 
   /**
@@ -452,10 +487,15 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
     LOG.info("Making reservation: node=" + node.getNodeName() +
         " app_id=" + getApplicationId());
 
+    //Get nodeLabel
+    String nodeLabel = CollectionUtils.isEmpty(node.getLabels())
+        ? RMNodeLabelsManager.NO_LABEL
+        : (String) node.getLabels().iterator().next();
+
     if (!alreadyReserved) {
       getMetrics().reserveResource(getUser(), container.getResource());
       RMContainer rmContainer =
-          super.reserve(node, priority, null, container);
+          super.reserve(node, priority, null, container, nodeLabel);
       node.reserveResource(this, priority, rmContainer);
     } else {
       RMContainer rmContainer = node.getReservedContainer();
@@ -764,7 +804,7 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
   }
 
   @Override
-  public Resource getDemand() {
+  public Map<String, Resource> getDemand() {
     return demand;
   }
 
@@ -774,25 +814,37 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
   }
 
   @Override
-  public Resource getMinShare() {
-    return Resources.none();
+  public Map<String, Resource> getMinShare() {
+    return null;
   }
 
   @Override
-  public Resource getMaxShare() {
-    return Resources.unbounded();
+  public Map<String, Resource> getMaxShare() {
+    return null;
   }
 
   @Override
-  public Resource getResourceUsage() {
+  public Map<String, Resource> getResourceUsage() {
     // Here the getPreemptedResources() always return zero, except in
     // a preemption round
     // In the common case where preempted resource is zero, return the
     // current consumption Resource object directly without calling
     // Resources.subtract which creates a new Resource object for each call.
-    return getPreemptedResources().equals(Resources.none()) ?
-        getCurrentConsumption() :
-        Resources.subtract(getCurrentConsumption(), getPreemptedResources());
+    if (getPreemptedResources().isEmpty()) {
+      return getCurrentConsumption();
+    }
+
+    Map<String, Resource> usages = new HashMap<String, Resource>();
+    for (Map.Entry<String, Resource> usage : getCurrentConsumption().entrySet()) {
+      if (getPreemptedResources().containsKey(usage.getKey())) {
+        usages.put(usage.getKey(), Resources
+            .subtract(usage.getValue(), getPreemptedResources().get(usage.getKey())));
+      } else {
+        usages.put(usage.getKey(), usage.getValue());
+      }
+    }
+
+    return usages;
   }
 
   @Override
@@ -808,27 +860,35 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
   }
 
   @Override
-  public Resource getFairShare() {
+  public Map<String, Resource> getFairShare() {
     return this.fairShare;
   }
 
   @Override
-  public void setFairShare(Resource fairShare) {
+  public void setFairShare(Map<String, Resource> fairShare) {
     this.fairShare = fairShare;
   }
 
   @Override
   public void updateDemand() {
-    demand = Resources.createResource(0);
     // Demand is current consumption plus outstanding requests
-    Resources.addTo(demand, getCurrentConsumption());
+    // inner copy consumption.
+    demand = new HashMap<String, Resource>();
+    for (Map.Entry<String, Resource> use : getCurrentConsumption().entrySet()) {
+      demand.put(use.getKey(), Resources.clone(use.getValue()));
+    }
 
     // Add up outstanding resource requests
     synchronized (this) {
       for (Priority p : getPriorities()) {
         for (ResourceRequest r : getResourceRequests(p).values()) {
           Resource total = Resources.multiply(r.getCapability(), r.getNumContainers());
-          Resources.addTo(demand, total);
+          String nodeLabel = r.getNodeLabelExpression();
+          if (!demand.containsKey(nodeLabel)) {
+            demand.put(nodeLabel, Resources.clone(total));
+          } else {
+            Resources.addTo(demand.get(nodeLabel), total);
+          }
         }
       }
     }
@@ -843,7 +903,7 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
    * Preempt a running container according to the priority
    */
   @Override
-  public RMContainer preemptContainer() {
+  public Set<RMContainer> preemptContainer() {
     if (LOG.isDebugEnabled()) {
       LOG.debug("App " + getName() + " is going to preempt a running " +
           "container");

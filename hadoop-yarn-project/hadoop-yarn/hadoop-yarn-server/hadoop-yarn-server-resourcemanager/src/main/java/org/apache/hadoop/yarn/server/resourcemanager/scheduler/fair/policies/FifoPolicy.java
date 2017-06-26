@@ -20,11 +20,13 @@ package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.Map;
 
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSQueue;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.MyComparator;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.Schedulable;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.SchedulingPolicy;
 import org.apache.hadoop.yarn.util.resource.Resources;
@@ -67,13 +69,13 @@ public class FifoPolicy extends SchedulingPolicy {
   }
 
   @Override
-  public Comparator<Schedulable> getComparator() {
+  public MyComparator<Schedulable, String> getComparator() {
     return comparator;
   }
 
   @Override
   public void computeShares(Collection<? extends Schedulable> schedulables,
-      Resource totalResources) {
+                            Map<String, Resource> totalResources) {
     if (schedulables.isEmpty()) {
       return;
     }
@@ -96,7 +98,7 @@ public class FifoPolicy extends SchedulingPolicy {
   }
 
   @Override
-  public boolean checkIfUsageOverFairShare(Resource usage, Resource fairShare) {
+  public Map<String, Boolean> checkIfUsageOverFairShare(Map<String, Resource> usage, Map<String, Resource> fairShare) {
     throw new UnsupportedOperationException(
         "FifoPolicy doesn't support checkIfUsageOverFairshare operation, " +
             "as FifoPolicy only works for FSLeafQueue.");

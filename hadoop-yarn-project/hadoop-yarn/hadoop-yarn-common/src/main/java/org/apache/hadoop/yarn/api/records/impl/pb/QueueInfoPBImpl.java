@@ -18,17 +18,15 @@
 
 package org.apache.hadoop.yarn.api.records.impl.pb;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
+import org.apache.hadoop.yarn.api.protocolrecords.MockMap;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.QueueInfo;
 import org.apache.hadoop.yarn.api.records.QueueState;
+import org.apache.hadoop.yarn.proto.YarnProtos;
 import org.apache.hadoop.yarn.proto.YarnProtos.ApplicationReportProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.QueueInfoProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.QueueInfoProtoOrBuilder;
@@ -47,6 +45,9 @@ public class QueueInfoPBImpl extends QueueInfo {
   List<ApplicationReport> applicationsList;
   List<QueueInfo> childQueuesList;
   Set<String> accessibleNodeLabels;
+  MockMap capacity;
+  MockMap currentCapacity;
+  MockMap maximumCapacity;
   
   public QueueInfoPBImpl() {
     builder = QueueInfoProto.newBuilder();
@@ -64,9 +65,12 @@ public class QueueInfoPBImpl extends QueueInfo {
   }
 
   @Override
-  public float getCapacity() {
+  public MockMap getCapacity() {
     QueueInfoProtoOrBuilder p = viaProto ? proto : builder;
-    return (p.hasCapacity()) ? p.getCapacity() : -1;
+    if (!p.hasCapacity()) {
+      return null;
+    }
+    return new MockMapPBImpl(p.getCapacity());
   }
 
   @Override
@@ -76,15 +80,21 @@ public class QueueInfoPBImpl extends QueueInfo {
   }
 
   @Override
-  public float getCurrentCapacity() {
+  public MockMap getCurrentCapacity() {
     QueueInfoProtoOrBuilder p = viaProto ? proto : builder;
-    return (p.hasCurrentCapacity()) ? p.getCurrentCapacity() : 0;
+    if (!p.hasCurrentCapacity()) {
+      return null;
+    }
+    return new MockMapPBImpl(p.getCurrentCapacity());
   }
 
   @Override
-  public float getMaximumCapacity() {
+  public MockMap getMaximumCapacity() {
     QueueInfoProtoOrBuilder p = viaProto ? proto : builder;
-    return (p.hasMaximumCapacity()) ? p.getMaximumCapacity() : -1;
+    if (!p.hasMaximumCapacity()) {
+      return null;
+    }
+    return new MockMapPBImpl(p.getMaximumCapacity());
   }
 
   @Override
@@ -111,9 +121,13 @@ public class QueueInfoPBImpl extends QueueInfo {
   }
 
   @Override
-  public void setCapacity(float capacity) {
+  public void setCapacity(MockMap capacity) {
     maybeInitBuilder();
-    builder.setCapacity(capacity);
+    if (capacity == null) {
+      builder.clearCapacity();
+      return;
+    }
+    this.capacity = capacity;
   }
 
   @Override
@@ -125,15 +139,23 @@ public class QueueInfoPBImpl extends QueueInfo {
   }
 
   @Override
-  public void setCurrentCapacity(float currentCapacity) {
+  public void setCurrentCapacity(MockMap currentCapacity) {
     maybeInitBuilder();
-    builder.setCurrentCapacity(currentCapacity);
+    if (currentCapacity == null) {
+      builder.clearCurrentCapacity();
+      return;
+    }
+    this.currentCapacity = currentCapacity;
   }
 
   @Override
-  public void setMaximumCapacity(float maximumCapacity) {
+  public void setMaximumCapacity(MockMap maximumCapacity) {
     maybeInitBuilder();
-    builder.setMaximumCapacity(maximumCapacity);
+    if (maximumCapacity == null) {
+      builder.clearMaximumCapacity();
+      return;
+    }
+    this.maximumCapacity = maximumCapacity;
   }
 
   @Override

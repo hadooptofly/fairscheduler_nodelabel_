@@ -28,6 +28,9 @@ import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.Queue;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Metrics(context="yarn")
 public class FSQueueMetrics extends QueueMetrics {
 
@@ -43,16 +46,19 @@ public class FSQueueMetrics extends QueueMetrics {
   @Metric("Maximum share of memory in MB") MutableGaugeInt maxShareMB;
   @Metric("Maximum share of CPU in vcores") MutableGaugeInt maxShareVCores;
   @Metric("Maximum share of GPU in gcores") MutableGaugeInt maxShareGCores;
-  
+
+  Map<String, Resource> fairShare = new HashMap<String, Resource>();
+  Map<String, Resource> steadFairShare = new HashMap<String, Resource>();
+  Map<String, Resource> minShare = new HashMap<String, Resource>();
+  Map<String, Resource> maxShare = new HashMap<String, Resource>();
+
   FSQueueMetrics(MetricsSystem ms, String queueName, Queue parent,
       boolean enableUserMetrics, Configuration conf) {
     super(ms, queueName, parent, enableUserMetrics, conf);
   }
   
-  public void setFairShare(Resource resource) {
-    fairShareMB.set(resource.getMemory());
-    fairShareVCores.set(resource.getVirtualCores());
-    fairShareGCores.set(resource.getGpuCores());
+  public void setFairShare(Map<String, Resource> resource) {
+    this.fairShare = resource;
   }
   
   public int getFairShareMB() {
@@ -67,10 +73,8 @@ public class FSQueueMetrics extends QueueMetrics {
     return fairShareGCores.value();
   }
 
-  public void setSteadyFairShare(Resource resource) {
-    steadyFairShareMB.set(resource.getMemory());
-    steadyFairShareVCores.set(resource.getVirtualCores());
-    steadyFairShareGCores.set(resource.getGpuCores());
+  public void setSteadyFairShare(Map<String, Resource> resource) {
+    this.steadFairShare = resource;
   }
 
   public int getSteadyFairShareMB() {
@@ -85,10 +89,8 @@ public class FSQueueMetrics extends QueueMetrics {
     return steadyFairShareGCores.value();
   }
 
-  public void setMinShare(Resource resource) {
-    minShareMB.set(resource.getMemory());
-    minShareVCores.set(resource.getVirtualCores());
-    minShareGCores.set(resource.getGpuCores());
+  public void setMinShare(Map<String, Resource> resource) {
+    this.minShare = resource;
   }
   
   public int getMinShareMB() {
@@ -103,10 +105,8 @@ public class FSQueueMetrics extends QueueMetrics {
     return minShareGCores.value();
   }
   
-  public void setMaxShare(Resource resource) {
-    maxShareMB.set(resource.getMemory());
-    maxShareVCores.set(resource.getVirtualCores());
-    maxShareGCores.set(resource.getGpuCores());
+  public void setMaxShare(Map<String, Resource> resource) {
+    this.maxShare = resource;
   }
   
   public int getMaxShareMB() {
