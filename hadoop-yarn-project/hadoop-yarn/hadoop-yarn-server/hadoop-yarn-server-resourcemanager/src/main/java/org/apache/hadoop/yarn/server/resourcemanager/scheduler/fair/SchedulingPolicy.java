@@ -102,7 +102,7 @@ public abstract class SchedulingPolicy {
     return getInstance(clazz);
   }
   
-  public void initialize(Resource clusterCapacity) {}
+  public void initialize(Map<String, Resource> clusterCapacity) {}
 
   /**
    * @return returns the name of {@link SchedulingPolicy}
@@ -171,6 +171,16 @@ public abstract class SchedulingPolicy {
    */
   public abstract Map<String, Boolean> checkIfUsageOverFairShare(
       Map<String, Resource> usage, Map<String, Resource> fairShare);
+
+  /**
+   * Check if the resource usage is over the fair share under this policy
+   *
+   * @param usage {@link Resource} the resource usage
+   * @param fairShare {@link Resource} the fair share
+   * @return true if check passes (is over) or false otherwise
+   */
+  public abstract boolean checkIfUsageOverFairShare(
+      Resource usage, Resource fairShare);
 
   /**
    * Check if a leaf queue's AM resource usage over its limit under this policy

@@ -925,7 +925,7 @@ public class ResourceSchedulerWrapper
   @Override
   @LimitedPrivate("yarn")
   @Unstable
-  public Resource getClusterResource() {
+  public Map<String, Resource> getClusterResource() {
     return null;
   }
 

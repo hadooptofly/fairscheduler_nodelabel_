@@ -113,9 +113,6 @@ public class ComputeFairShares {
     Collection<Schedulable> schedulables = new ArrayList<Schedulable>();
     for (Map.Entry<String, Resource> labelRes : totalResources.entrySet()) {
       String label = labelRes.getKey();
-      if (labelRes.getValue().getGpuCores() > 0) {
-        type = ResourceType.GPU;
-      }
 
       int takenResources = handleFixedFairShares(
           allSchedulables, schedulables, isSteadyShare, type, label);

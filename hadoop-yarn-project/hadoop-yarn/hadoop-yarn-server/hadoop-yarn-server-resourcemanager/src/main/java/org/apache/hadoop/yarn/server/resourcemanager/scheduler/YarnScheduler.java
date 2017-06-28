@@ -21,6 +21,7 @@ package org.apache.hadoop.yarn.server.resourcemanager.scheduler;
 import java.io.IOException;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.hadoop.classification.InterfaceAudience.LimitedPrivate;
@@ -81,7 +82,7 @@ public interface YarnScheduler extends EventHandler<SchedulerEvent> {
    */
   @LimitedPrivate("yarn")
   @Unstable
-  public Resource getClusterResource();
+  public Map<String, Resource> getClusterResource();
 
   /**
    * Get minimum allocatable {@link Resource}.

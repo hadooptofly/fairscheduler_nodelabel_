@@ -26,7 +26,6 @@ import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
 
 import java.util.Map;
-import java.util.Set;
 
 /**
  * A Schedulable represents an entity that can be scheduled such as an
@@ -101,8 +100,9 @@ public interface Schedulable {
 
   /**
    * Preempt a container from this Schedulable if possible.
+   * @param nodeLabel
    */
-  public Set<RMContainer> preemptContainer();
+  public RMContainer preemptContainer(String nodeLabel);
 
   /** Get the fair share assigned to this Schedulable. */
   public Map<String, Resource> getFairShare();

@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.google.common.collect.Sets;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
@@ -187,6 +188,7 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
    * Headroom depends on resources in the cluster, current usage of the
    * queue, queue's fair-share and queue's max-resources.
    */
+  //TODO NOW JUST NO_LABEL
   @Override
   public Resource getHeadroom() {
     final FSQueue queue = (FSQueue) this.queue;
@@ -200,14 +202,14 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
     Set<String> queueLabels = queue.getAccessibleNodeLabels();
 
     Resource clusterAvailableResources =
-        Resources.subtract(clusterResource, clusterUsage);
+        Resources.subtract(clusterResource.get(""), clusterUsage.get(""));
     Resource queueMaxAvailableResources =
-        Resources.subtract(queue.getMaxShare(), queueUsage);
+        Resources.subtract(queue.getMaxShare().get(""), queueUsage.get(""));
     Resource maxAvailableResource = Resources.componentwiseMin(
         clusterAvailableResources, queueMaxAvailableResources);
 
-    Resource headroom = policy.getHeadroom(queueFairShare,
-        queueUsage, maxAvailableResource);
+    Resource headroom = policy.getHeadroom(queueFairShare.get(""),
+        queueUsage.get(""), maxAvailableResource);
     if (LOG.isDebugEnabled()) {
       LOG.debug("Headroom calculation for " + this.getName() + ":" +
           "Min(" +
@@ -903,7 +905,7 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
    * Preempt a running container according to the priority
    */
   @Override
-  public Set<RMContainer> preemptContainer() {
+  public RMContainer preemptContainer(String nodeLabel) {
     if (LOG.isDebugEnabled()) {
       LOG.debug("App " + getName() + " is going to preempt a running " +
           "container");
@@ -913,7 +915,9 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
     for (RMContainer container : getLiveContainers()) {
       if (!getPreemptionContainers().contains(container) &&
           (toBePreempted == null ||
-              comparator.compare(toBePreempted, container) > 0)) {
+              comparator.compare(toBePreempted, container) > 0) &&
+          StringUtils.equalsIgnoreCase(container.getNodeLabel()
+            , nodeLabel)) {
         toBePreempted = container;
       }
     }

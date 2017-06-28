@@ -19,7 +19,6 @@
 package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies;
 
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -75,7 +74,7 @@ public class DominantResourceFairnessPolicy extends SchedulingPolicy {
 
   @Override
   public void computeSteadyShares(Collection<? extends FSQueue> queues,
-      Resource totalResources) {
+      Map<String, Resource> totalResources) {
     for (ResourceType type : ResourceType.values()) {
       ComputeFairShares.computeSteadyShares(queues, totalResources, type);
     }
@@ -93,6 +92,12 @@ public class DominantResourceFairnessPolicy extends SchedulingPolicy {
     }
     return isOver;
   }
+
+  @Override
+  public boolean checkIfUsageOverFairShare(Resource usage, Resource fairShare) {
+    return Resources.fitsIn(usage, fairShare);
+  }
+
 
   @Override
   public boolean checkIfAMResourceUsageOverLimit(Resource usage, Resource maxAMResource) {
@@ -118,16 +123,16 @@ public class DominantResourceFairnessPolicy extends SchedulingPolicy {
   }
 
   @Override
-  public void initialize(Resource clusterCapacity) {
+  public void initialize(Map<String, Resource> clusterCapacity) {
     comparator.setClusterCapacity(clusterCapacity);
   }
 
   public static class DominantResourceFairnessComparator implements MyComparator<Schedulable, String> {
     private static final int NUM_RESOURCES = ResourceType.values().length;
     
-    private Resource clusterCapacity;
+    private Map<String, Resource> clusterCapacity;
 
-    public void setClusterCapacity(Resource clusterCapacity) {
+    public void setClusterCapacity(Map<String, Resource> clusterCapacity) {
       this.clusterCapacity = clusterCapacity;
     }
 

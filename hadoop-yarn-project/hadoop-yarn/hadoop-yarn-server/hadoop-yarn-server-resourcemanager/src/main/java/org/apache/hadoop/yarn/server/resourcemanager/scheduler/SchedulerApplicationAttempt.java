@@ -427,8 +427,9 @@ public class SchedulerApplicationAttempt {
         Map<String, ResourceRequest> requests = getResourceRequests(priority);
         if (requests != null) {
           LOG.debug("showRequests:" + " application=" + getApplicationId() + 
-              " headRoom=" + getHeadroom() + 
-              " currentConsumption=" + currentConsumption.getMemory());
+              " headRoom=" + getHeadroom() +
+              // TODO now just NO_LABEL
+              " currentConsumption=" + currentConsumption.get("").getMemory());
           for (ResourceRequest request : requests.values()) {
             LOG.debug("showRequests:" + " application=" + getApplicationId()
                 + " request=" + request);
@@ -581,12 +582,13 @@ public class SchedulerApplicationAttempt {
     return new AggregateAppResourceUsage(lastMemorySeconds, lastVcoreSeconds, lastGcoreSeconds);
   }
 
+  //TODO NOW JUST NO_LABEL
   public synchronized ApplicationResourceUsageReport getResourceUsageReport() {
     AggregateAppResourceUsage resUsage = getRunningAggregateAppResourceUsage();
     return ApplicationResourceUsageReport.newInstance(liveContainers.size(),
-               reservedContainers.size(), Resources.clone(currentConsumption),
+               reservedContainers.size(), Resources.clone(currentConsumption.get("")),
                Resources.clone(currentReservation),
-               Resources.add(currentConsumption, currentReservation),
+               Resources.add(currentConsumption.get(""), currentReservation),
                resUsage.getMemorySeconds(), resUsage.getVcoreSeconds(), resUsage.getGcoreSeconds());
   }
 
@@ -648,7 +650,7 @@ public class SchedulerApplicationAttempt {
     LOG.info("SchedulerAttempt " + getApplicationAttemptId()
       + " is recovering container " + rmContainer.getContainerId());
     liveContainers.put(rmContainer.getContainerId(), rmContainer);
-    Resources.addTo(currentConsumption, rmContainer.getContainer()
+    Resources.addTo(currentConsumption.get(""), rmContainer.getContainer()
       .getResource());
     // resourceLimit: updated when LeafQueue#recoverContainer#allocateResource
     // is called.

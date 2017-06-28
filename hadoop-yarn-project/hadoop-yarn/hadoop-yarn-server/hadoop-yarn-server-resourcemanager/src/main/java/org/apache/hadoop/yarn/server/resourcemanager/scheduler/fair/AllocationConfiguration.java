@@ -36,14 +36,15 @@ import com.google.common.annotations.VisibleForTesting;
 public class AllocationConfiguration extends ReservationSchedulerConfiguration {
   private static final AccessControlList EVERYBODY_ACL = new AccessControlList("*");
   private static final AccessControlList NOBODY_ACL = new AccessControlList(" ");
-  
+
+  private final Map<String, Set<String>> queueAccessiableNodeLabel;
   // Minimum resource allocation for each queue
   private final Map<String, Map<String, Resource>> minQueueResources;
   // Maximum amount of resources per queue
   @VisibleForTesting
   final Map<String, Map<String, Resource>> maxQueueResources;
   // Sharing weights for each queue
-  private final Map<String, ResourceWeights> queueWeights;
+  private final Map<String, Map<String, ResourceWeights>> queueWeights;
   
   // Max concurrent running applications for each queue and for each user; in addition,
   // for users that have no max specified, we use the userMaxJobsDefault.
@@ -94,10 +95,11 @@ public class AllocationConfiguration extends ReservationSchedulerConfiguration {
   // Reservation system configuration
   private ReservationQueueConfiguration globalReservationQueueConfig;
 
-  public AllocationConfiguration(Map<String, Map<String, Resource>> minQueueResources,
+  public AllocationConfiguration(Map<String, Set<String>> queueAccessiableNodeLabel,
+      Map<String, Map<String, Resource>> minQueueResources,
       Map<String, Map<String, Resource>> maxQueueResources,
       Map<String, Integer> queueMaxApps, Map<String, Integer> userMaxApps,
-      Map<String, ResourceWeights> queueWeights,
+      Map<String, Map<String, ResourceWeights>> queueWeights,
       Map<String, Float> queueMaxAMShares, int userMaxAppsDefault,
       int queueMaxAppsDefault, float queueMaxAMShareDefault,
       Map<String, SchedulingPolicy> schedulingPolicies,
@@ -110,6 +112,7 @@ public class AllocationConfiguration extends ReservationSchedulerConfiguration {
       Map<FSQueueType, Set<String>> configuredQueues,
       ReservationQueueConfiguration globalReservationQueueConfig,
       Set<String> reservableQueues) {
+    this.queueAccessiableNodeLabel = queueAccessiableNodeLabel;
     this.minQueueResources = minQueueResources;
     this.maxQueueResources = maxQueueResources;
     this.queueMaxApps = queueMaxApps;
@@ -132,9 +135,10 @@ public class AllocationConfiguration extends ReservationSchedulerConfiguration {
   }
   
   public AllocationConfiguration(Configuration conf) {
+    queueAccessiableNodeLabel = new HashMap<String, Set<String>>();
     minQueueResources = new HashMap<String, Map<String, Resource>>();
     maxQueueResources = new HashMap<String, Map<String, Resource>>();
-    queueWeights = new HashMap<String, ResourceWeights>();
+    queueWeights = new HashMap<String, Map<String, ResourceWeights>>();
     queueMaxApps = new HashMap<String, Integer>();
     userMaxApps = new HashMap<String, Integer>();
     queueMaxAMShares = new HashMap<String, Float>();

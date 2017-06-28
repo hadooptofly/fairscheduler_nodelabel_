@@ -193,6 +193,7 @@ public class FSParentQueue extends FSQueue {
 
   @Override
   public Resource assignContainer(FSSchedulerNode node) {
+    final String nodeLabel = node.getLabels().iterator().next();
     Resource assigned = Resources.none();
 
     // If this queue is over its limit, reject
@@ -200,7 +201,13 @@ public class FSParentQueue extends FSQueue {
       return assigned;
     }
 
-    Collections.sort(childQueues, policy.getComparator());
+    Collections.sort(childQueues, new Comparator<FSQueue>() {
+      @Override
+      public int compare(FSQueue o1, FSQueue o2) {
+        MyComparator<Schedulable, String> myComparator = policy.getComparator();
+        return myComparator.compare(o1, o2, nodeLabel);
+      }
+    });
     for (FSQueue child : childQueues) {
       assigned = child.assignContainer(node);
       if (!Resources.equals(assigned, Resources.none())) {
@@ -211,22 +218,22 @@ public class FSParentQueue extends FSQueue {
   }
 
   @Override
-  public Resource assignGPUContainer(FSSchedulerNode node) {
+  public Resource assignGPUContainer(final FSSchedulerNode node) {
+    final String nodeLabel = node.getLabels().iterator().next();
     Resource assigned = Resources.none();
-
     // If this queue is over its limit, reject
     //TODO REGARD ResourceType(GPU...) WHEN CHECK THIS
     if (!assignContainerPreCheck(node)) {
       return assigned;
     }
-    Collections.sort(childQueues, SchedulingPolicy.GPU_POLICY.getComparator());
-    LOG.error("Nodeheartbeat:::");
+    Collections.sort(childQueues, new Comparator<FSQueue>() {
+      @Override
+      public int compare(FSQueue o1, FSQueue o2) {
+        MyComparator<Schedulable, String> myComparator = SchedulingPolicy.GPU_POLICY.getComparator();
+        return myComparator.compare(o1, o2, nodeLabel);
+      }
+    });
     for (FSQueue child : childQueues) {
-      LOG.error("Assgin Queue: " + child.getName() + " gpu usage: " + child
-          .getResourceUsage()
-          .get(node.getLabels()
-          .iterator().next())
-          .getGpuCores());
       assigned = child.assignGPUContainer(node);
       if (!Resources.equals(assigned, Resources.none())) {
         break;
@@ -236,23 +243,28 @@ public class FSParentQueue extends FSQueue {
   }
 
   @Override
-  public Set<RMContainer> preemptContainer() {
+  public RMContainer preemptContainer(String nodeLabel) {
     RMContainer toBePreempted = null;
 
     // Find the childQueue which is most over fair share
     FSQueue candidateQueue = null;
-    Comparator<Schedulable> comparator = policy.getComparator();
+    MyComparator<Schedulable, String> comparator = policy.getComparator();
+    if (demand.get(nodeLabel).getGpuCores() > 0) {
+      comparator = SchedulingPolicy.GPU_POLICY.getComparator();
+    }
+
     for (FSQueue queue : childQueues) {
       if (candidateQueue == null ||
-          comparator.compare(queue, candidateQueue) > 0) {
+          comparator.compare(queue, candidateQueue, nodeLabel) > 0) {
         candidateQueue = queue;
       }
     }
 
     // Let the selected queue choose which of its container to preempt
     if (candidateQueue != null) {
-      toBePreempted = candidateQueue.preemptContainer();
+      toBePreempted = candidateQueue.preemptContainer(nodeLabel);
     }
+
     return toBePreempted;
   }
 

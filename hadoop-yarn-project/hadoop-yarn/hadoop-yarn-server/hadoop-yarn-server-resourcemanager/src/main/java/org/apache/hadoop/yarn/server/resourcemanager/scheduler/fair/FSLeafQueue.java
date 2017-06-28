@@ -24,6 +24,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.sun.tools.corba.se.idl.StringGen;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
@@ -58,8 +59,8 @@ public class FSLeafQueue extends FSQueue {
   private Map<String, Resource> demand = Resources.createComposeResource();
   
   // Variables used for preemption
-  private long lastTimeAtMinShare;
-  private long lastTimeAtFairShareThreshold;
+  private Map<String, Long> lastTimeAtMinShare;
+  private Map<String, Long> lastTimeAtFairShareThreshold;
   
   // Track the AM resource usage for this queue
   private Resource amResourceUsage;
@@ -69,8 +70,15 @@ public class FSLeafQueue extends FSQueue {
   public FSLeafQueue(String name, FairScheduler scheduler,
       FSParentQueue parent) {
     super(name, scheduler, parent);
-    this.lastTimeAtMinShare = scheduler.getClock().getTime();
-    this.lastTimeAtFairShareThreshold = scheduler.getClock().getTime();
+
+    this.lastTimeAtMinShare = new HashMap<String, Long>();
+    this.lastTimeAtFairShareThreshold = new HashMap<String, Long>();
+    //initilize time
+    for (String nodeLabel : getAccessibleNodeLabels()) {
+      lastTimeAtMinShare.put(nodeLabel, scheduler.getClock().getTime());
+      lastTimeAtFairShareThreshold.put(nodeLabel, scheduler.getClock().getTime());
+    }
+
     activeUsersManager = new ActiveUsersManager(getMetrics());
     amResourceUsage = Resource.newInstance(0, 0, 0);
   }
@@ -324,10 +332,16 @@ public class FSLeafQueue extends FSQueue {
       return assigned;
     }
 
-    Comparator<Schedulable> comparator = policy.getComparator();
+    final MyComparator<Schedulable, String> comparator = policy.getComparator();
+    final String nodeLabel = node.getLabels().iterator().next();
     writeLock.lock();
     try {
-      Collections.sort(runnableApps, comparator);
+      Collections.sort(runnableApps, new Comparator<FSAppAttempt>() {
+        @Override
+        public int compare(FSAppAttempt o1, FSAppAttempt o2) {
+          return comparator.compare(o1, o2, nodeLabel);
+        }
+      });
     } finally {
       writeLock.unlock();
     }
@@ -364,10 +378,16 @@ public class FSLeafQueue extends FSQueue {
       return assigned;
     }
 
-    Comparator<Schedulable> comparator = SchedulingPolicy.FIFO_POLICY.getComparator();
+    final MyComparator<Schedulable, String> comparator = SchedulingPolicy.FIFO_POLICY.getComparator();
+    final String nodeLabel = node.getLabels().iterator().next();
     writeLock.lock();
     try {
-      Collections.sort(runnableApps, comparator);
+      Collections.sort(runnableApps, new Comparator<FSAppAttempt>() {
+        @Override
+        public int compare(FSAppAttempt o1, FSAppAttempt o2) {
+          return comparator.compare(o1, o2, nodeLabel);
+        }
+      });
     } finally {
       writeLock.unlock();
     }
@@ -398,45 +418,44 @@ public class FSLeafQueue extends FSQueue {
   }
 
   @Override
-  public Set<RMContainer> preemptContainer() {
-    Set<RMContainer> toBePreempted = new HashSet<RMContainer>();
+  public RMContainer preemptContainer(String nodeLabel) {
+    RMContainer toBePreempted = null;
 
     // If this queue is not over its fair share, reject
-    Map<String, Boolean> isOver = preemptContainerPreCheck();
-    for (String nodeLabel : isOver.keySet()) {
-      if (!isOver.get(nodeLabel))
-        continue;
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Queue " + getName() + " is going to preempt a container " +
-            "from its applications.");
-      }
-
-      // Choose the app that is most over fair share
-      Comparator<Schedulable> comparator = policy.getComparator();
-      if (demand.get(nodeLabel).getGpuCores() > 0) {
-        // Use gpu comparator.
-        comparator = SchedulingPolicy.GPU_POLICY.getComparator();
-      }
-
-      FSAppAttempt candidateSched = null;
-      readLock.lock();
-      try {
-        for (FSAppAttempt sched : runnableApps) {
-          if (candidateSched == null ||
-              comparator.compare(sched, candidateSched, nodeLabel) > 0) {
-            candidateSched = sched;
-          }
-        }
-      } finally {
-        readLock.unlock();
-      }
-
-      // Preempt from the selected app
-      if (candidateSched != null) {
-        toBePreempted = candidateSched.preemptContainer();
-      }
+    if (!preemptContainerPreCheck(nodeLabel))
       return toBePreempted;
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Queue " + getName() + " is going to preempt a container " +
+          "from its applications.");
     }
+
+    // Choose the app that is most over fair share
+    MyComparator<Schedulable, String> comparator = policy.getComparator();
+    if (demand.get(nodeLabel).getGpuCores() > 0) {
+      // Use gpu comparator.
+      comparator = SchedulingPolicy.GPU_POLICY.getComparator();
+    }
+
+    FSAppAttempt candidateSched = null;
+    readLock.lock();
+    try {
+      for (FSAppAttempt sched : runnableApps) {
+        if (candidateSched == null ||
+            comparator.compare(sched, candidateSched, nodeLabel) > 0) {
+          candidateSched = sched;
+        }
+      }
+    } finally {
+      readLock.unlock();
+    }
+
+    // Preempt from the selected app
+    if (candidateSched != null) {
+      toBePreempted = candidateSched.preemptContainer(nodeLabel);
+    }
+
+    return toBePreempted;
   }
 
   @Override
@@ -460,21 +479,23 @@ public class FSLeafQueue extends FSQueue {
     return Collections.singletonList(userAclInfo);
   }
   
-  public long getLastTimeAtMinShare() {
+  public Map<String, Long> getLastTimeAtMinShare() {
     return lastTimeAtMinShare;
   }
 
-  private void setLastTimeAtMinShare(long lastTimeAtMinShare) {
-    this.lastTimeAtMinShare = lastTimeAtMinShare;
+  private void setLastTimeAtMinShare(String nodeLabel) {
+    long now = scheduler.getClock().getTime();
+    this.lastTimeAtMinShare.put(nodeLabel, now);
   }
 
-  public long getLastTimeAtFairShareThreshold() {
+  public Map<String, Long> getLastTimeAtFairShareThreshold() {
     return lastTimeAtFairShareThreshold;
   }
 
   private void setLastTimeAtFairShareThreshold(
-      long lastTimeAtFairShareThreshold) {
-    this.lastTimeAtFairShareThreshold = lastTimeAtFairShareThreshold;
+      String nodeLabel) {
+    long now = scheduler.getClock().getTime();
+    this.lastTimeAtFairShareThreshold.put(nodeLabel, now);
   }
 
   @Override
@@ -549,7 +570,9 @@ public class FSLeafQueue extends FSQueue {
     if (Math.abs(maxAMShare - -1.0f) < 0.0001) {
       return true;
     }
-    Resource maxAMResource = Resources.multiply(getFairShare(), maxAMShare);
+    // Step one just consider NO_LABEL
+    // TODO MAKE MORE SANITY
+    Resource maxAMResource = Resources.multiply(getFairShare().get(""), maxAMShare);
     Resource ifRunAMResource = Resources.add(amResourceUsage, amResource);
     return !policy
         .checkIfAMResourceUsageOverLimit(ifRunAMResource, maxAMResource);
@@ -572,12 +595,13 @@ public class FSLeafQueue extends FSQueue {
    * at its guaranteed share and over its fair share threshold.
    */
   public void updateStarvationStats() {
-    long now = scheduler.getClock().getTime();
-    if (!isStarvedForMinShare()) {
-      setLastTimeAtMinShare(now);
-    }
-    if (!isStarvedForFairShare()) {
-      setLastTimeAtFairShareThreshold(now);
+    for (String nodeLabel : getAccessibleNodeLabels()) {
+      if (!isStarvedForMinShare(nodeLabel)) {
+        setLastTimeAtMinShare(nodeLabel);
+      }
+      if (!isStarvedForFairShare(nodeLabel)) {
+        setLastTimeAtFairShareThreshold(nodeLabel);
+      }
     }
   }
 
@@ -595,32 +619,38 @@ public class FSLeafQueue extends FSQueue {
    *
    * @return true if check passes (can preempt) or false otherwise
    */
-  private Map<String, Boolean> preemptContainerPreCheck() {
-    return parent.getPolicy().checkIfUsageOverFairShare(getResourceUsage(),
-        getFairShare());
+  private boolean preemptContainerPreCheck(String nodeLabel) {
+    return parent.getPolicy().checkIfUsageOverFairShare(getResourceUsage().get(nodeLabel),
+        getFairShare().get(nodeLabel));
   }
 
   /**
    * Is a queue being starved for its min share.
    */
   @VisibleForTesting
-  boolean isStarvedForMinShare() {
-    return isStarved(getMinShare());
+  boolean isStarvedForMinShare(String nodeLabel) {
+    return isStarved(nodeLabel);
   }
 
   /**
    * Is a queue being starved for its fair share threshold.
    */
   @VisibleForTesting
-  boolean isStarvedForFairShare() {
-    return isStarved(
-        Resources.multiply(getFairShare(), getFairSharePreemptionThreshold()));
+  boolean isStarvedForFairShare(String nodeLabel) {
+    Resource fairShare = Resources.min(scheduler.getResourceCalculator(),
+        scheduler.getClusterResource(), Resources.multiply(getFairShare().get(nodeLabel),
+            getFairSharePreemptionThreshold()), getDemand().get(nodeLabel));
+    return Resources.lessThan(scheduler.getResourceCalculator(),
+        scheduler.getClusterResource(), getResourceUsage().get(nodeLabel),
+        fairShare
+        );
   }
 
-  private boolean isStarved(Resource share) {
+  private boolean isStarved(String nodeLabel) {
+    Resource minShare = getMinShare().get(nodeLabel);
     Resource desiredShare = Resources.min(scheduler.getResourceCalculator(),
-        scheduler.getClusterResource(), share, getDemand());
+        scheduler.getClusterResource().get(nodeLabel), minShare, getDemand().get(nodeLabel));
     return Resources.lessThan(scheduler.getResourceCalculator(),
-        scheduler.getClusterResource(), getResourceUsage(), desiredShare);
+        scheduler.getClusterResource().get(nodeLabel), getResourceUsage().get(nodeLabel), desiredShare);
   }
 }

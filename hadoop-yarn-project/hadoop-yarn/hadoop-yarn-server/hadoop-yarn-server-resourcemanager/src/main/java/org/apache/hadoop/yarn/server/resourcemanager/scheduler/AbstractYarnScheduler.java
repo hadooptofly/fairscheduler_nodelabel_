@@ -84,7 +84,7 @@ public abstract class AbstractYarnScheduler
   protected Map<NodeId, N> nodes = new ConcurrentHashMap<NodeId, N>();
 
   // Whole capacity of the cluster
-  protected Resource clusterResource = Resource.newInstance(0, 0, 0);
+  protected Map<String, Resource> clusterResource = Resources.createComposeResource();
 
   protected Resource minimumAllocation;
   private Resource maximumAllocation;
@@ -167,7 +167,7 @@ public abstract class AbstractYarnScheduler
   }
 
   @Override
-  public Resource getClusterResource() {
+  public Map<String, Resource> getClusterResource() {
     return clusterResource;
   }
 
@@ -378,7 +378,7 @@ public abstract class AbstractYarnScheduler
 
       // recover queue: update headroom etc.
       Queue queue = schedulerAttempt.getQueue();
-      queue.recoverContainer(clusterResource, schedulerAttempt, rmContainer);
+      queue.recoverContainer(Resources.none(), schedulerAttempt, rmContainer);
 
       // recover scheduler attempt
       schedulerAttempt.recoverContainer(rmContainer);
@@ -583,8 +583,9 @@ public abstract class AbstractYarnScheduler
       updateMaximumAllocation(node, true);
 
       // update resource to clusterResource
-      Resources.subtractFrom(clusterResource, oldResource);
-      Resources.addTo(clusterResource, newResource);
+      String nodeLabel = node.getLabels().iterator().next();
+      Resources.subtractFrom(clusterResource.get(nodeLabel), oldResource);
+      Resources.addTo(clusterResource.get(nodeLabel), newResource);
     } else {
       // Log resource change
       LOG.warn("Update resource on node: " + node.getNodeName() 

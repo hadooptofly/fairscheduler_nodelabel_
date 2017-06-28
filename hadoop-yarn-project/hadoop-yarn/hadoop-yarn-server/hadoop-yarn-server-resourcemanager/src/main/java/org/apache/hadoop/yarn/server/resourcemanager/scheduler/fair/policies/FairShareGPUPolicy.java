@@ -74,7 +74,7 @@ public class FairShareGPUPolicy extends SchedulingPolicy {
 
   @Override
   public void computeSteadyShares(Collection<? extends FSQueue> queues,
-      Resource totalResources) {
+      Map<String, Resource> totalResources) {
     for (ResourceType type : ResourceType.values()) {
       ComputeFairShares.computeSteadyShares(queues, totalResources, type);
     }
@@ -91,6 +91,11 @@ public class FairShareGPUPolicy extends SchedulingPolicy {
       }
     }
     return isOver;
+  }
+
+  @Override
+  public boolean checkIfUsageOverFairShare(Resource usage, Resource fairShare) {
+    return Resources.fitsIn(usage, fairShare);
   }
 
   @Override

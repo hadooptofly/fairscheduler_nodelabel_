@@ -26,7 +26,6 @@ import org.apache.hadoop.yarn.util.Records;
 import org.apache.hadoop.yarn.util.resource.Resources;
 
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Dummy implementation of Schedulable for unit testing.
@@ -89,7 +88,7 @@ public class FakeSchedulable implements Schedulable {
   }
 
   @Override
-  public Set<RMContainer> preemptContainer() {
+  public RMContainer preemptContainer(String nodeLabel) {
     return null;
   }
 

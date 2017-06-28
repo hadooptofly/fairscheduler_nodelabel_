@@ -20,17 +20,15 @@ package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.security.InvalidParameterException;
+import java.util.*;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Public;
@@ -40,6 +38,7 @@ import org.apache.hadoop.security.authorize.AccessControlList;
 import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.yarn.api.records.QueueACL;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.RMNodeLabelsManager;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
 import org.apache.hadoop.yarn.util.Clock;
 import org.apache.hadoop.yarn.util.SystemClock;
@@ -209,12 +208,13 @@ public class AllocationFileLoaderService extends AbstractService {
     LOG.info("Loading allocation file " + allocFile);
     // Create some temporary hashmaps to hold the new allocs, and we only save
     // them in our fields if we have parsed the entire allocs file successfully.
-    Map<String, Resource> minQueueResources = new HashMap<String, Resource>();
-    Map<String, Resource> maxQueueResources = new HashMap<String, Resource>();
+    Map<String, Set<String>> queueAccessiableNodeLabel = new HashMap<String, Set<String>>();
+    Map<String, Map<String, Resource>> minQueueResources = new HashMap<String, Map<String, Resource>>();
+    Map<String, Map<String, Resource>> maxQueueResources = new HashMap<String, Map<String, Resource>>();
     Map<String, Integer> queueMaxApps = new HashMap<String, Integer>();
     Map<String, Integer> userMaxApps = new HashMap<String, Integer>();
     Map<String, Float> queueMaxAMShares = new HashMap<String, Float>();
-    Map<String, ResourceWeights> queueWeights = new HashMap<String, ResourceWeights>();
+    Map<String, Map<String, ResourceWeights>> queueWeights = new HashMap<String, Map<String, ResourceWeights>>();
     Map<String, SchedulingPolicy> queuePolicies = new HashMap<String, SchedulingPolicy>();
     Map<String, Long> minSharePreemptionTimeouts = new HashMap<String, Long>();
     Map<String, Long> fairSharePreemptionTimeouts = new HashMap<String, Long>();
@@ -349,7 +349,7 @@ public class AllocationFileLoaderService extends AbstractService {
         }
         parent = null;
       }
-      loadQueue(parent, element, minQueueResources, maxQueueResources,
+      loadQueue(parent, element, queueAccessiableNodeLabel, minQueueResources, maxQueueResources,
           queueMaxApps, userMaxApps, queueMaxAMShares, queueWeights,
           queuePolicies, minSharePreemptionTimeouts, fairSharePreemptionTimeouts,
           fairSharePreemptionThresholds, queueAcls, configuredQueues,
@@ -395,7 +395,8 @@ public class AllocationFileLoaderService extends AbstractService {
       globalReservationQueueConfig.setReservationAgent(reservationAgent);
     }
 
-    AllocationConfiguration info = new AllocationConfiguration(minQueueResources,
+    AllocationConfiguration info = new AllocationConfiguration(queueAccessiableNodeLabel,
+        minQueueResources,
         maxQueueResources, queueMaxApps, userMaxApps, queueWeights,
         queueMaxAMShares, userMaxAppsDefault, queueMaxAppsDefault,
         queueMaxAMShareDefault, queuePolicies, defaultSchedPolicy,
@@ -414,10 +415,11 @@ public class AllocationFileLoaderService extends AbstractService {
    * Loads a queue from a queue element in the configuration file
    */
   private void loadQueue(String parentName, Element element,
-      Map<String, Resource> minQueueResources,
-      Map<String, Resource> maxQueueResources, Map<String, Integer> queueMaxApps,
+      Map<String, Set<String>> queueAccessiableNodeLabel,
+      Map<String, Map<String, Resource>> minQueueResources,
+      Map<String, Map<String, Resource>> maxQueueResources, Map<String, Integer> queueMaxApps,
       Map<String, Integer> userMaxApps, Map<String, Float> queueMaxAMShares,
-      Map<String, ResourceWeights> queueWeights,
+      Map<String, Map<String, ResourceWeights>> queueWeights,
       Map<String, SchedulingPolicy> queuePolicies,
       Map<String, Long> minSharePreemptionTimeouts,
       Map<String, Long> fairSharePreemptionTimeouts,
@@ -441,19 +443,35 @@ public class AllocationFileLoaderService extends AbstractService {
     NodeList fields = element.getChildNodes();
     boolean isLeaf = true;
 
+    Set<String> accessiableNodeLabel = Sets.newHashSet();
     for (int j = 0; j < fields.getLength(); j++) {
       Node fieldNode = fields.item(j);
       if (!(fieldNode instanceof Element))
         continue;
       Element field = (Element) fieldNode;
-      if ("minResources".equals(field.getTagName())) {
+      if ("accessiableNodeLabel".equals(field.getTagName())) {
+        accessiableNodeLabel = ImmutableSet.copyOf(((Text)field.getFirstChild()).getData().trim().split(","));
+        queueAccessiableNodeLabel.put(queueName, accessiableNodeLabel);
+      } else if ("minResources".equals(field.getTagName())) {
+        String nodeLabel = field.getAttribute("label");
         String text = ((Text)field.getFirstChild()).getData().trim();
         Resource val = FairSchedulerConfiguration.parseResourceConfigValue(text);
-        minQueueResources.put(queueName, val);
+        if (minQueueResources.containsKey(queueName))
+          minQueueResources.get(queueName).put(nodeLabel, val);
+        else {
+          minQueueResources.put(queueName, new HashMap<String, Resource>());
+          minQueueResources.get(queueName).put(nodeLabel, val);
+        }
       } else if ("maxResources".equals(field.getTagName())) {
+        String nodeLabel = field.getAttribute("label");
         String text = ((Text)field.getFirstChild()).getData().trim();
         Resource val = FairSchedulerConfiguration.parseResourceConfigValue(text);
-        maxQueueResources.put(queueName, val);
+        if (maxQueueResources.containsKey(queueName))
+          maxQueueResources.get(queueName).put(nodeLabel, val);
+        else {
+          maxQueueResources.put(queueName, new HashMap<String, Resource>());
+          maxQueueResources.get(queueName).put(nodeLabel, val);
+        }
       } else if ("maxRunningApps".equals(field.getTagName())) {
         String text = ((Text)field.getFirstChild()).getData().trim();
         int val = Integer.parseInt(text);
@@ -464,9 +482,15 @@ public class AllocationFileLoaderService extends AbstractService {
         val = Math.min(val, 1.0f);
         queueMaxAMShares.put(queueName, val);
       } else if ("weight".equals(field.getTagName())) {
+        String nodeLabel = field.getAttribute("label");
         String text = ((Text)field.getFirstChild()).getData().trim();
         double val = Double.parseDouble(text);
-        queueWeights.put(queueName, new ResourceWeights((float)val));
+        if (queueWeights.containsKey(queueName))
+          queueWeights.get(queueName).put(nodeLabel, new ResourceWeights((float) val));
+        else {
+          queueWeights.put(queueName, new HashMap<String, ResourceWeights>());
+          queueWeights.get(queueName).put(nodeLabel, new ResourceWeights((float) val));
+        }
       } else if ("minSharePreemptionTimeout".equals(field.getTagName())) {
         String text = ((Text)field.getFirstChild()).getData().trim();
         long val = Long.parseLong(text) * 1000L;
@@ -497,7 +521,7 @@ public class AllocationFileLoaderService extends AbstractService {
         configuredQueues.get(FSQueueType.PARENT).add(queueName);
       } else if ("queue".endsWith(field.getTagName()) || 
           "pool".equals(field.getTagName())) {
-        loadQueue(queueName, field, minQueueResources, maxQueueResources,
+        loadQueue(queueName, field, queueAccessiableNodeLabel, minQueueResources, maxQueueResources,
             queueMaxApps, userMaxApps, queueMaxAMShares, queueWeights,
             queuePolicies, minSharePreemptionTimeouts,
             fairSharePreemptionTimeouts, fairSharePreemptionThresholds,
@@ -522,15 +546,28 @@ public class AllocationFileLoaderService extends AbstractService {
       configuredQueues.get(FSQueueType.PARENT).add(queueName);
     }
     queueAcls.put(queueName, acls);
-    if (maxQueueResources.containsKey(queueName) &&
-        minQueueResources.containsKey(queueName)
-        && !Resources.fitsIn(minQueueResources.get(queueName),
-            maxQueueResources.get(queueName))) {
-      LOG.warn(
-          String.format(
-              "Queue %s has max resources %s less than min resources %s",
-          queueName, maxQueueResources.get(queueName),
-              minQueueResources.get(queueName)));
+    Iterator<String> it = accessiableNodeLabel.iterator();
+    while (it.hasNext()) {
+      String nodeLabel = it.next();
+      if (!minQueueResources.containsKey(nodeLabel) || !maxQueueResources.containsKey(nodeLabel)) {
+        LOG.warn("Queue " + queueName
+            + "cluster partition: "
+            + nodeLabel
+            + " have not been set Min/Max share.");
+        throw new InvalidParameterException("Min/Max share not set error.");
+      }
+
+      if (maxQueueResources.containsKey(queueName) &&
+          minQueueResources.containsKey(queueName)
+          && !Resources.fitsIn(minQueueResources.get(queueName).get(nodeLabel),
+          maxQueueResources.get(queueName).get(nodeLabel))) {
+        LOG.warn(
+            String.format(
+                "Queue %s has max resources %s less than min resources %s",
+                queueName, maxQueueResources.get(queueName),
+                minQueueResources.get(queueName)));
+        throw new InvalidParameterException("minShare must not be greater than maxShare.");
+      }
     }
   }
   

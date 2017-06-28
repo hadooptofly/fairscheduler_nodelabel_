@@ -49,11 +49,11 @@ public class FifoPolicy extends SchedulingPolicy {
    * Compare Schedulables in order of priority and then submission time, as in
    * the default FIFO scheduler in Hadoop.
    */
-  static class FifoComparator implements Comparator<Schedulable>, Serializable {
+  static class FifoComparator implements MyComparator<Schedulable, String>, Serializable {
     private static final long serialVersionUID = -5905036205491177060L;
 
     @Override
-    public int compare(Schedulable s1, Schedulable s2) {
+    public int compare(Schedulable s1, Schedulable s2, String nodeLabel) {
       int res = s1.getPriority().compareTo(s2.getPriority());
       if (res == 0) {
         res = (int) Math.signum(s1.getStartTime() - s2.getStartTime());
@@ -87,12 +87,12 @@ public class FifoPolicy extends SchedulingPolicy {
         earliest = schedulable;
       }
     }
-    earliest.setFairShare(Resources.clone(totalResources));
+    earliest.setFairShare(totalResources);
   }
 
   @Override
   public void computeSteadyShares(Collection<? extends FSQueue> queues,
-      Resource totalResources) {
+      Map<String, Resource> totalResources) {
     // Nothing needs to do, as leaf queue doesn't have to calculate steady
     // fair shares for applications.
   }
@@ -102,6 +102,11 @@ public class FifoPolicy extends SchedulingPolicy {
     throw new UnsupportedOperationException(
         "FifoPolicy doesn't support checkIfUsageOverFairshare operation, " +
             "as FifoPolicy only works for FSLeafQueue.");
+  }
+
+  @Override
+  public boolean checkIfUsageOverFairShare(Resource usage, Resource fairShare) {
+    return Resources.fitsIn(usage, fairShare);
   }
 
   @Override
