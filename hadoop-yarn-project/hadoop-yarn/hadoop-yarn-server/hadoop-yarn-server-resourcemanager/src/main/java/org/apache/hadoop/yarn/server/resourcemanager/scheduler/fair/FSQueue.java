@@ -142,6 +142,7 @@ public abstract class FSQueue implements Queue, Schedulable {
         }
       }
     }
+
     queueInfo.setCapacity(capacity);
     queueInfo.setCurrentCapacity(currentCapacity);
 

@@ -638,10 +638,10 @@ public class FSLeafQueue extends FSQueue {
   @VisibleForTesting
   boolean isStarvedForFairShare(String nodeLabel) {
     Resource fairShare = Resources.min(scheduler.getResourceCalculator(),
-        scheduler.getClusterResource(), Resources.multiply(getFairShare().get(nodeLabel),
+        scheduler.getClusterResource().get(nodeLabel), Resources.multiply(getFairShare().get(nodeLabel),
             getFairSharePreemptionThreshold()), getDemand().get(nodeLabel));
     return Resources.lessThan(scheduler.getResourceCalculator(),
-        scheduler.getClusterResource(), getResourceUsage().get(nodeLabel),
+        scheduler.getClusterResource().get(nodeLabel), getResourceUsage().get(nodeLabel),
         fairShare
         );
   }

@@ -27,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.google.common.collect.Sets;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
@@ -600,7 +599,8 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
 
         return container.getResource();
       } else {
-        if (!FairScheduler.fitsInMaxShare(getQueue(), capability)) {
+        String nodeLabel = node.getLabels().iterator().next();
+        if (!FairScheduler.fitsInMaxShare(getQueue(), capability, nodeLabel)) {
           return Resources.none();
         }
 

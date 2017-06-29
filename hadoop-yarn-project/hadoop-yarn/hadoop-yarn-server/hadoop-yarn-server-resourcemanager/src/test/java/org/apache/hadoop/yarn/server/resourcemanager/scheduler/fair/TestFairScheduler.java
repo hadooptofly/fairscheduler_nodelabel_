@@ -74,7 +74,6 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.server.resourcemanager.ApplicationMasterService;
 import org.apache.hadoop.yarn.server.resourcemanager.MockNodes;
-import org.apache.hadoop.yarn.server.resourcemanager.MockRM;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceType;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.MockRMApp;
@@ -95,7 +94,6 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.TestSchedulerUtil
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.AppAddedSchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.AppAttemptAddedSchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.AppAttemptRemovedSchedulerEvent;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.ContainerExpiredSchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.ContainerRescheduledEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeAddedSchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeRemovedSchedulerEvent;
@@ -1635,7 +1633,7 @@ public class TestFairScheduler extends FairSchedulerTestBase {
     scheduler.update();
 
     // We should be able to claw back one container from queueA and queueB each.
-    scheduler.preemptResources(Resources.createResource(2 * 1024));
+    scheduler.preemptResources(, Resources.createResource(2 * 1024));
     assertEquals(2, scheduler.getSchedulerApp(app1).getLiveContainers().size());
     assertEquals(2, scheduler.getSchedulerApp(app3).getLiveContainers().size());
 
@@ -1655,7 +1653,7 @@ public class TestFairScheduler extends FairSchedulerTestBase {
     clock.tick(15);
 
     // Trigger a kill by insisting we want containers back
-    scheduler.preemptResources(Resources.createResource(2 * 1024));
+    scheduler.preemptResources(, Resources.createResource(2 * 1024));
 
     // At this point the containers should have been killed (since we are not simulating AM)
     assertEquals(1, scheduler.getSchedulerApp(app2).getLiveContainers().size());
@@ -1679,7 +1677,7 @@ public class TestFairScheduler extends FairSchedulerTestBase {
         "preempted.", set.isEmpty());
 
     // Trigger a kill by insisting we want containers back
-    scheduler.preemptResources(Resources.createResource(2 * 1024));
+    scheduler.preemptResources(, Resources.createResource(2 * 1024));
 
     // Pretend 15 seconds have passed
     clock.tick(15);
@@ -1688,7 +1686,7 @@ public class TestFairScheduler extends FairSchedulerTestBase {
     // For queueA (fifo), continue preempting from app2.
     // For queueB (fair), even app4 has a lowest priority container with p=4, it
     // still preempts from app3 as app3 is most over fair share.
-    scheduler.preemptResources(Resources.createResource(2 * 1024));
+    scheduler.preemptResources(, Resources.createResource(2 * 1024));
 
     assertEquals(2, scheduler.getSchedulerApp(app1).getLiveContainers().size());
     assertEquals(0, scheduler.getSchedulerApp(app2).getLiveContainers().size());
@@ -1696,7 +1694,7 @@ public class TestFairScheduler extends FairSchedulerTestBase {
     assertEquals(1, scheduler.getSchedulerApp(app4).getLiveContainers().size());
 
     // Now A and B are below fair share, so preemption shouldn't do anything
-    scheduler.preemptResources(Resources.createResource(2 * 1024));
+    scheduler.preemptResources(, Resources.createResource(2 * 1024));
     assertTrue("App1 should have no container to be preempted",
         scheduler.getSchedulerApp(app1).getPreemptionContainers().isEmpty());
     assertTrue("App2 should have no container to be preempted",
@@ -1776,7 +1774,7 @@ public class TestFairScheduler extends FairSchedulerTestBase {
 
     // verify if the 3 containers required by queueA2 are preempted in the same
     // round
-    scheduler.preemptResources(toPreempt);
+    scheduler.preemptResources(, toPreempt);
     assertEquals(3, scheduler.getSchedulerApp(app1).getPreemptionContainers()
         .size());
   }

@@ -49,7 +49,7 @@ public class TestFairSchedulerPreemption extends FairSchedulerTestBase {
     public int lastPreemptMemory = -1;
 
     @Override
-    protected void preemptResources(Resource toPreempt) {
+    protected void preemptResources(String nodeLabel, Resource toPreempt) {
       lastPreemptMemory = toPreempt.getMemory();
     }
 

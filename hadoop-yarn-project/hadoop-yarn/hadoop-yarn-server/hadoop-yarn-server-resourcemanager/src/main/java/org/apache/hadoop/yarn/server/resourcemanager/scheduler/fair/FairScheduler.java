@@ -149,7 +149,7 @@ public class FairScheduler extends
   protected long waitTimeBeforeKill; 
   
   // Containers whose AMs have been warned that they will be preempted soon.
-  private List<RMContainer> warnedContainers = new ArrayList<RMContainer>();
+  private Map<String, List<RMContainer>> warnedContainers = new HashMap<String, List<RMContainer>>();
   
   protected boolean sizeBasedWeight; // Give larger weights to larger jobs
   protected WeightAdjuster weightAdjuster; // Can be null for no weight adjuster
@@ -314,13 +314,17 @@ public class FairScheduler extends
     if (LOG.isDebugEnabled()) {
       if (--updatesToSkipForDebug < 0) {
         updatesToSkipForDebug = UPDATE_DEBUG_FREQUENCY;
-        LOG.debug("Cluster Capacity: " + clusterResource +
-            "  Allocations: " + rootMetrics.getAllocatedResources() +
-            "  Availability: " + Resource.newInstance(
-            rootMetrics.getAvailableMB(),
-            rootMetrics.getAvailableVirtualCores(),
-            rootMetrics.getAvailableGpuCores()) +
-            "  Demand: " + rootQueue.getDemand());
+        for (String nodeLabel : rootMetrics.getAllocatedResources().keySet()) {
+          LOG.debug("Cluster Capacity of "
+              + nodeLabel
+              + ": " + clusterResource.get(nodeLabel)
+              + "  Allocations: " + rootMetrics.getAllocatedResources().get(nodeLabel)
+              + "  Availability: " + Resource.newInstance(rootMetrics.getAvailableMB()
+                  .get(nodeLabel).value(), rootMetrics.getAvailableVirtualCores()
+                  .get(nodeLabel).value(), rootMetrics.getAvailableGpuCores()
+                  .get(nodeLabel).value())
+              + "  Demand: " + rootQueue.getDemand().get(nodeLabel));
+        }
       }
     }
 
@@ -405,13 +409,25 @@ public class FairScheduler extends
     }
     lastPreemptCheckTime = curTime;
 
-    Resource resToPreempt = Resources.clone(Resources.none());
+    Map<String, Resource> resToPreempt = Resources.createComposeResource();
     for (FSLeafQueue sched : queueMgr.getLeafQueues()) {
-      Resources.addTo(resToPreempt, resToPreempt(sched, curTime));
+      Map<String, Resource> preempt = resToPreempt(sched, curTime);
+      for (String nodeLabel : preempt.keySet()) {
+        if (resToPreempt.containsKey(nodeLabel)) {
+          Resources.addTo(resToPreempt.get(nodeLabel), preempt.get(nodeLabel));
+        } else {
+          resToPreempt.put(nodeLabel, Resources.none());
+          Resources.addTo(resToPreempt.get(nodeLabel), preempt.get(nodeLabel));
+        }
+      }
     }
-    if (Resources.greaterThan(RESOURCE_CALCULATOR, clusterResource, resToPreempt,
-        Resources.none())) {
-      preemptResources(resToPreempt);
+
+    for (String nodeLabel : resToPreempt.keySet()) {
+      if (Resources.greaterThan(RESOURCE_CALCULATOR, clusterResource
+              .get(nodeLabel), resToPreempt.get(nodeLabel),
+          Resources.none())) {
+        preemptResources(nodeLabel, resToPreempt.get(nodeLabel));
+      }
     }
   }
 
@@ -426,7 +442,7 @@ public class FairScheduler extends
    * containers with lowest priority to preempt.
    * We make sure that no queue is placed below its fair share in the process.
    */
-  protected void preemptResources(Resource toPreempt) {
+  protected void preemptResources(String nodeLabel, Resource toPreempt) {
     long start = getClock().getTime();
     if (Resources.equals(toPreempt, Resources.none())) {
       return;
@@ -435,12 +451,13 @@ public class FairScheduler extends
     // Scan down the list of containers we've already warned and kill them
     // if we need to.  Remove any containers from the list that we don't need
     // or that are no longer running.
+    ArrayList<RMContainer> warnedContainers = (ArrayList<RMContainer>) this.warnedContainers.get(nodeLabel);
     Iterator<RMContainer> warnedIter = warnedContainers.iterator();
     while (warnedIter.hasNext()) {
       RMContainer container = warnedIter.next();
       if ((container.getState() == RMContainerState.RUNNING ||
               container.getState() == RMContainerState.ALLOCATED) &&
-          Resources.greaterThan(RESOURCE_CALCULATOR, clusterResource,
+          Resources.greaterThan(RESOURCE_CALCULATOR, clusterResource.get(""),
               toPreempt, Resources.none())) {
         warnOrKillContainer(container);
         Resources.subtractFrom(toPreempt, container.getContainer().getResource());
@@ -451,14 +468,15 @@ public class FairScheduler extends
 
     try {
       // Reset preemptedResource for each app
+      // TODO SHOULD REGARD AS RESOURCE LABEL
       for (FSLeafQueue queue : getQueueManager().getLeafQueues()) {
         queue.resetPreemptedResources();
       }
 
-      while (Resources.greaterThan(RESOURCE_CALCULATOR, clusterResource,
+      while (Resources.greaterThan(RESOURCE_CALCULATOR, clusterResource.get(nodeLabel),
           toPreempt, Resources.none())) {
         RMContainer container =
-            getQueueManager().getRootQueue().preemptContainer();
+            getQueueManager().getRootQueue().preemptContainer(nodeLabel);
         if (container == null) {
           break;
         } else {
@@ -520,32 +538,38 @@ public class FairScheduler extends
    * max of the two amounts (this shouldn't happen unless someone sets the
    * timeouts to be identical for some reason).
    */
-  protected Resource resToPreempt(FSLeafQueue sched, long curTime) {
+  protected Map<String, Resource> resToPreempt(FSLeafQueue sched, long curTime) {
     long minShareTimeout = sched.getMinSharePreemptionTimeout();
     long fairShareTimeout = sched.getFairSharePreemptionTimeout();
-    Resource resDueToMinShare = Resources.none();
-    Resource resDueToFairShare = Resources.none();
-    if (curTime - sched.getLastTimeAtMinShare() > minShareTimeout) {
-      Resource target = Resources.min(RESOURCE_CALCULATOR, clusterResource,
-          sched.getMinShare(), sched.getDemand());
-      resDueToMinShare = Resources.max(RESOURCE_CALCULATOR, clusterResource,
-          Resources.none(), Resources.subtract(target, sched.getResourceUsage()));
+    Map<String, Resource> resToPreempt = new HashMap<String, Resource>(2);
+    for (String nodeLabel : sched.getAccessibleNodeLabels()) {
+      Resource resDueToMinShare = Resources.none();
+      Resource resDueToFairShare = Resources.none();
+      if (curTime - sched.getLastTimeAtMinShare().get(nodeLabel) > minShareTimeout) {
+        Resource target = Resources.min(RESOURCE_CALCULATOR, clusterResource.get(nodeLabel),
+            sched.getMinShare().get(nodeLabel), sched.getDemand().get(nodeLabel));
+        resDueToMinShare = Resources.max(RESOURCE_CALCULATOR, clusterResource.get(nodeLabel),
+            Resources.none(), Resources.subtract(target, sched.getResourceUsage().get(nodeLabel)));
+      }
+      if (curTime - sched.getLastTimeAtFairShareThreshold().get(nodeLabel) > fairShareTimeout) {
+        Resource target = Resources.min(RESOURCE_CALCULATOR, clusterResource.get(nodeLabel),
+            sched.getFairShare().get(nodeLabel), sched.getDemand().get(nodeLabel));
+        resDueToFairShare = Resources.max(RESOURCE_CALCULATOR, clusterResource.get(nodeLabel),
+            Resources.none(), Resources.subtract(target, sched.getResourceUsage().get(nodeLabel)));
+      }
+      Resource preempt = Resources.max(RESOURCE_CALCULATOR, clusterResource.get(nodeLabel),
+          resDueToMinShare, resDueToFairShare);
+      if (Resources.greaterThan(RESOURCE_CALCULATOR, clusterResource.get(nodeLabel),
+          preempt, Resources.none())) {
+        String message = "Should preempt " + preempt + " res for queue "
+            + sched.getName() + " of nodeLable " + nodeLabel
+            + ": resDueToMinShare = " + resDueToMinShare
+            + ", resDueToFairShare = " + resDueToFairShare;
+        LOG.info(message);
+      }
+      resToPreempt.put(nodeLabel, preempt);
     }
-    if (curTime - sched.getLastTimeAtFairShareThreshold() > fairShareTimeout) {
-      Resource target = Resources.min(RESOURCE_CALCULATOR, clusterResource,
-          sched.getFairShare(), sched.getDemand());
-      resDueToFairShare = Resources.max(RESOURCE_CALCULATOR, clusterResource,
-          Resources.none(), Resources.subtract(target, sched.getResourceUsage()));
-    }
-    Resource resToPreempt = Resources.max(RESOURCE_CALCULATOR, clusterResource,
-        resDueToMinShare, resDueToFairShare);
-    if (Resources.greaterThan(RESOURCE_CALCULATOR, clusterResource,
-        resToPreempt, Resources.none())) {
-      String message = "Should preempt " + resToPreempt + " res for queue "
-          + sched.getName() + ": resDueToMinShare = " + resDueToMinShare
-          + ", resDueToFairShare = " + resDueToFairShare;
-      LOG.info(message);
-    }
+
     return resToPreempt;
   }
 
@@ -900,7 +924,8 @@ public class FairScheduler extends
   private synchronized void addNode(RMNode node) {
     FSSchedulerNode schedulerNode = new FSSchedulerNode(node, usePortForNodeName, node.getNodeLabels());
     nodes.put(node.getNodeID(), schedulerNode);
-    Resources.addTo(clusterResource, schedulerNode.getTotalResource());
+    String nodeLabel = node.getNodeLabels().iterator().next();
+    Resources.addTo(clusterResource.get(nodeLabel), schedulerNode.getTotalResource());
     updateRootQueueMetrics();
     updateMaximumAllocation(schedulerNode, true);
 
@@ -929,7 +954,8 @@ public class FairScheduler extends
       labelsManager.deactivateNode(rmNode.getNodeID());
     }
 
-    Resources.subtractFrom(clusterResource, node.getTotalResource());
+    String nodeLabel = node.getLabels().iterator().next();
+    Resources.subtractFrom(clusterResource.get(nodeLabel), node.getTotalResource());
     updateRootQueueMetrics();
 
     // Remove running containers
@@ -975,7 +1001,7 @@ public class FairScheduler extends
 
     // Sanity check
     SchedulerUtils.normalizeRequests(ask, DOMINANT_RESOURCE_CALCULATOR,
-        clusterResource, minimumAllocation, getMaximumResourceCapability(),
+        clusterResource.get(""), minimumAllocation, getMaximumResourceCapability(),
         incrAllocation);
 
     // Set amResource for this app
@@ -1117,7 +1143,7 @@ public class FairScheduler extends
       if (!nodes.containsKey(n2)) {
         return -1;
       }
-      return RESOURCE_CALCULATOR.compare(clusterResource,
+      return RESOURCE_CALCULATOR.compare(clusterResource.get(""),
               nodes.get(n2).getAvailableResource(),
               nodes.get(n1).getAvailableResource());
     }
@@ -1147,10 +1173,10 @@ public class FairScheduler extends
     if (reservedAppSchedulable != null) {
       Priority reservedPriority = node.getReservedContainer().getReservedPriority();
       FSQueue queue = reservedAppSchedulable.getQueue();
-
+      String nodeLabel = node.getReservedContainer().getNodeLabel();
       if (!reservedAppSchedulable.hasContainerForNode(reservedPriority, node)
           || !fitsInMaxShare(queue,
-          node.getReservedContainer().getReservedResource())) {
+          node.getReservedContainer().getReservedResource(), nodeLabel)) {
         // Don't hold the reservation if app can no longer use it
         LOG.info("Releasing reservation that cannot be satisfied for application "
             + reservedAppSchedulable.getApplicationAttemptId()
@@ -1242,17 +1268,17 @@ public class FairScheduler extends
   }
 
   static boolean fitsInMaxShare(FSQueue queue, Resource
-      additionalResource) {
+      additionalResource, String nodeLabel) {
     Resource usagePlusAddition =
-        Resources.add(queue.getResourceUsage(), additionalResource);
+        Resources.add(queue.getResourceUsage().get(nodeLabel), additionalResource);
 
-    if (!Resources.fitsIn(usagePlusAddition, queue.getMaxShare())) {
+    if (!Resources.fitsIn(usagePlusAddition, queue.getMaxShare().get(nodeLabel))) {
       return false;
     }
     
     FSQueue parentQueue = queue.getParent();
     if (parentQueue != null) {
-      return fitsInMaxShare(parentQueue, additionalResource);
+      return fitsInMaxShare(parentQueue, additionalResource, nodeLabel);
     }
     return true;
   }
@@ -1273,9 +1299,11 @@ public class FairScheduler extends
    * metrics will be consistent.
    */
   private void updateRootQueueMetrics() {
-    rootMetrics.setAvailableResourcesToQueue(
-        Resources.subtract(
-            clusterResource, rootMetrics.getAllocatedResources()));
+    for (String nodeLabel : clusterResource.keySet()) {
+      rootMetrics.setAvailableResourcesToQueue(
+          Resources.subtract(
+              clusterResource.get(nodeLabel), rootMetrics.getAllocatedResources().get(nodeLabel)));
+    }
   }
 
   /**
@@ -1285,14 +1313,17 @@ public class FairScheduler extends
    * @return true if preemption should be attempted, false otherwise.
    */
   private boolean shouldAttemptPreemption() {
+    boolean should = false;
     if (preemptionEnabled) {
-      return (preemptionUtilizationThreshold < Math.max(
-          (float) rootMetrics.getAllocatedMB() / clusterResource.getMemory(),
-              Math.max((float) rootMetrics.getAllocatedVirtualCores() /
-                              clusterResource.getVirtualCores(),
-                      (float) rootMetrics.getAllocatedGpuCores() / clusterResource.getGpuCores())));
+      for (String nodeLabel : rootMetrics.getAllocatedResources().keySet()) {
+        should |= (preemptionUtilizationThreshold < Math.max(
+            (float) rootMetrics.getAllocatedMB().get(nodeLabel).value() / clusterResource.get(nodeLabel).getMemory(),
+            Math.max((float) rootMetrics.getAllocatedVirtualCores().get(nodeLabel).value() /
+                    clusterResource.get(nodeLabel).getVirtualCores(),
+                (float) rootMetrics.getAllocatedGpuCores().get(nodeLabel).value() / clusterResource.get(nodeLabel).getGpuCores())));
+      }
     }
-    return false;
+    return should;
   }
 
   @Override
@@ -1693,10 +1724,21 @@ public class FairScheduler extends
       FSLeafQueue oldQueue = (FSLeafQueue) app.getQueue();
       String destQueueName = handleMoveToPlanQueue(queueName);
       FSLeafQueue targetQueue = queueMgr.getLeafQueue(destQueueName, false);
+      // check the dest queue is have access to these nodeLabels
+      if (!targetQueue.getAccessibleNodeLabels()
+          .containsAll(oldQueue.getAccessibleNodeLabels())
+          && !targetQueue.getAccessibleNodeLabels()
+                .contains("*")) {
+        throw new YarnException("Target queue " + queueName
+            + " dont have access of these nodeLabels "
+            + oldQueue.getAccessibleNodeLabels());
+      }
+
       if (targetQueue == null) {
         throw new YarnException("Target queue " + queueName
             + " not found or is not a leaf queue.");
       }
+
       if (targetQueue == oldQueue) {
         return oldQueue.getQueueName();
       }
@@ -1719,7 +1761,7 @@ public class FairScheduler extends
     // total running apps in queues above will not be changed.
     FSQueue lowestCommonAncestor = findLowestCommonAncestorQueue(oldQueue,
         targetQueue);
-    Resource consumption = app.getCurrentConsumption();
+    Map<String, Resource> consumption = app.getCurrentConsumption();
     
     // Check whether the move would go over maxRunningApps or maxShare
     FSQueue cur = targetQueue;
@@ -1730,15 +1772,19 @@ public class FairScheduler extends
             + queueName + " would violate queue maxRunningApps constraints on"
             + " queue " + cur.getQueueName());
       }
-      
-      // maxShare
-      if (!Resources.fitsIn(Resources.add(cur.getResourceUsage(), consumption),
-          cur.getMaxShare())) {
-        throw new YarnException("Moving app attempt " + appAttId + " to queue "
-            + queueName + " would violate queue maxShare constraints on"
-            + " queue " + cur.getQueueName());
+
+      for (String nodeLabel : consumption.keySet()) {
+        // maxShare
+        if (!Resources.fitsIn(Resources.add(cur.getResourceUsage()
+                .get(nodeLabel), consumption.get(nodeLabel)),
+            cur.getMaxShare().get(nodeLabel))) {
+          throw new YarnException("Moving app attempt " + appAttId + " to queue "
+              + queueName + " would violate queue maxShare constraints on"
+              + " queue " + cur.getQueueName()
+              + " of nodeLabel "
+              + nodeLabel);
+        }
       }
-      
       cur = cur.getParent();
     }
   }
