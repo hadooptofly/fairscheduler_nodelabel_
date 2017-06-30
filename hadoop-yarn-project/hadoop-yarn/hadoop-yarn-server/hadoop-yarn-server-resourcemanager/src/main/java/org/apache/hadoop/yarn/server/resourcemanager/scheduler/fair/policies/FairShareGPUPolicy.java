@@ -135,8 +135,8 @@ public class FairShareGPUPolicy extends SchedulingPolicy {
       double minshareRatio1 = (double) s1.getResourceUsage().get(nodeLabel).getGpuCores()/minShare1.getGpuCores();
       double minshareRatio2 = (double) s2.getResourceUsage().get(nodeLabel).getGpuCores()/ minShare2.getGpuCores();
 
-      double useToWeightRatio1 = s1.getResourceUsage().get(nodeLabel).getGpuCores()/s1.getWeights().getWeight(GPU);
-      double useToWeightRatio2 = s2.getResourceUsage().get(nodeLabel).getGpuCores()/s2.getWeights().getWeight(GPU);
+      double useToWeightRatio1 = s1.getResourceUsage().get(nodeLabel).getGpuCores()/s1.getWeights().get(nodeLabel).getWeight(GPU);
+      double useToWeightRatio2 = s2.getResourceUsage().get(nodeLabel).getGpuCores()/s2.getWeights().get(nodeLabel).getWeight(GPU);
 
       // A queue is needy for its min share if its dominant resource
       // (with respect to the cluster capacity) is below its configured min share

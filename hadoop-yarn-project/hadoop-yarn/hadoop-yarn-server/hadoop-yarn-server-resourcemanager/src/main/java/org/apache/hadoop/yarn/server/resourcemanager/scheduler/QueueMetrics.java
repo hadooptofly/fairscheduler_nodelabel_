@@ -324,12 +324,16 @@ public class QueueMetrics implements MetricsSource {
   /**
    * Set available resources. To be called by scheduler periodically as
    * resources become available.
-   * @param limit resource limit
+   * @param clusterResource resource limit
    */
-  public void setAvailableResourcesToQueue(Resource limit) {
-    availableMB.set(limit.getMemory());
-    availableVCores.set(limit.getVirtualCores());
-    availableGCores.set(limit.getGpuCores());
+  public void setAvailableResourcesToQueue(Map<String, Resource> clusterResource) {
+    for (String nodeLabel : clusterResource.keySet()) {
+      Resource limit = Resources.subtract(
+          clusterResource.get(nodeLabel), getAllocatedResources().get(nodeLabel));
+      availableMB.get(nodeLabel).set(limit.getMemory());
+      availableVCores.get(nodeLabel).set(limit.getVirtualCores());
+      availableGCores.get(nodeLabel).set(limit.getGpuCores());
+    }
   }
 
   /**
@@ -341,7 +345,7 @@ public class QueueMetrics implements MetricsSource {
   public void setAvailableResourcesToUser(String user, Resource limit) {
     QueueMetrics userMetrics = getUserMetrics(user);
     if (userMetrics != null) {
-      userMetrics.setAvailableResourcesToQueue(limit);
+      userMetrics.setAvailableResourcesToQueue(Resources.createComposeResource());
     }
   }
 
@@ -352,40 +356,40 @@ public class QueueMetrics implements MetricsSource {
    * @param res the TOTAL delta of resources note this is different from
    *            the other APIs which use per container resource
    */
-  public void incrPendingResources(String user, int containers, Resource res) {
-    _incrPendingResources(containers, res);
+  public void incrPendingResources(String user, int containers, Resource res, String nodeLabel) {
+    _incrPendingResources(containers, res, nodeLabel);
     QueueMetrics userMetrics = getUserMetrics(user);
     if (userMetrics != null) {
-      userMetrics.incrPendingResources(user, containers, res);
+      userMetrics.incrPendingResources(user, containers, res, nodeLabel);
     }
     if (parent != null) {
-      parent.incrPendingResources(user, containers, res);
+      parent.incrPendingResources(user, containers, res, nodeLabel);
     }
   }
 
-  private void _incrPendingResources(int containers, Resource res) {
-    pendingContainers.incr(containers);
-    pendingMB.incr(res.getMemory() * containers);
-    pendingVCores.incr(res.getVirtualCores() * containers);
-    pendingGCores.incr(res.getGpuCores() * containers);
+  private void _incrPendingResources(int containers, Resource res, String nodeLabel) {
+    pendingContainers.get(nodeLabel).incr(containers);
+    pendingMB.get(nodeLabel).incr(res.getMemory() * containers);
+    pendingVCores.get(nodeLabel).incr(res.getVirtualCores() * containers);
+    pendingGCores.get(nodeLabel).incr(res.getGpuCores() * containers);
   }
 
-  public void decrPendingResources(String user, int containers, Resource res) {
-    _decrPendingResources(containers, res);
+  public void decrPendingResources(String user, int containers, Resource res, String nodeLabel) {
+    _decrPendingResources(containers, res, nodeLabel);
     QueueMetrics userMetrics = getUserMetrics(user);
     if (userMetrics != null) {
-      userMetrics.decrPendingResources(user, containers, res);
+      userMetrics.decrPendingResources(user, containers, res, nodeLabel);
     }
     if (parent != null) {
-      parent.decrPendingResources(user, containers, res);
+      parent.decrPendingResources(user, containers, res, nodeLabel);
     }
   }
 
-  private void _decrPendingResources(int containers, Resource res) {
-    pendingContainers.decr(containers);
-    pendingMB.decr(res.getMemory() * containers);
-    pendingVCores.decr(res.getVirtualCores() * containers);
-    pendingGCores.decr(res.getGpuCores() * containers);
+  private void _decrPendingResources(int containers, Resource res, String nodeLabel) {
+    pendingContainers.get(nodeLabel).decr(containers);
+    pendingMB.get(nodeLabel).decr(res.getMemory() * containers);
+    pendingVCores.get(nodeLabel).decr(res.getVirtualCores() * containers);
+    pendingGCores.get(nodeLabel).decr(res.getGpuCores() * containers);
   }
 
   public void incrNodeTypeAggregations(String user, NodeType type) {
@@ -408,64 +412,64 @@ public class QueueMetrics implements MetricsSource {
   }
 
   public void allocateResources(String user, int containers, Resource res,
-      boolean decrPending) {
-    allocatedContainers.incr(containers);
-    aggregateContainersAllocated.incr(containers);
-    allocatedMB.incr(res.getMemory() * containers);
-    allocatedVCores.incr(res.getVirtualCores() * containers);
-    allocatedGCores.incr(res.getGpuCores() * containers);
+      boolean decrPending, String nodeLabel) {
+    allocatedContainers.get(nodeLabel).incr(containers);
+    aggregateContainersAllocated.get(nodeLabel).incr(containers);
+    allocatedMB.get(nodeLabel).incr(res.getMemory() * containers);
+    allocatedVCores.get(nodeLabel).incr(res.getVirtualCores() * containers);
+    allocatedGCores.get(nodeLabel).incr(res.getGpuCores() * containers);
     if (decrPending) {
-      _decrPendingResources(containers, res);
+      _decrPendingResources(containers, res, nodeLabel);
     }
     QueueMetrics userMetrics = getUserMetrics(user);
     if (userMetrics != null) {
-      userMetrics.allocateResources(user, containers, res, decrPending);
+      userMetrics.allocateResources(user, containers, res, decrPending, nodeLabel);
     }
     if (parent != null) {
-      parent.allocateResources(user, containers, res, decrPending);
+      parent.allocateResources(user, containers, res, decrPending, nodeLabel);
     }
   }
 
-  public void releaseResources(String user, int containers, Resource res) {
-    allocatedContainers.decr(containers);
-    aggregateContainersReleased.incr(containers);
-    allocatedMB.decr(res.getMemory() * containers);
-    allocatedVCores.decr(res.getVirtualCores() * containers);
-    allocatedGCores.decr(res.getGpuCores() * containers);
+  public void releaseResources(String user, int containers, Resource res, String nodeLabel) {
+    allocatedContainers.get(nodeLabel).decr(containers);
+    aggregateContainersReleased.get(nodeLabel).incr(containers);
+    allocatedMB.get(nodeLabel).decr(res.getMemory() * containers);
+    allocatedVCores.get(nodeLabel).decr(res.getVirtualCores() * containers);
+    allocatedGCores.get(nodeLabel).decr(res.getGpuCores() * containers);
     QueueMetrics userMetrics = getUserMetrics(user);
     if (userMetrics != null) {
-      userMetrics.releaseResources(user, containers, res);
+      userMetrics.releaseResources(user, containers, res, nodeLabel);
     }
     if (parent != null) {
-      parent.releaseResources(user, containers, res);
+      parent.releaseResources(user, containers, res, nodeLabel);
     }
   }
 
-  public void reserveResource(String user, Resource res) {
-    reservedContainers.incr();
-    reservedMB.incr(res.getMemory());
-    reservedVCores.incr(res.getVirtualCores());
-    reservedGCores.incr(res.getGpuCores());
+  public void reserveResource(String user, Resource res, String nodeLabel) {
+    reservedContainers.get(nodeLabel).incr();
+    reservedMB.get(nodeLabel).incr(res.getMemory());
+    reservedVCores.get(nodeLabel).incr(res.getVirtualCores());
+    reservedGCores.get(nodeLabel).incr(res.getGpuCores());
     QueueMetrics userMetrics = getUserMetrics(user);
     if (userMetrics != null) {
-      userMetrics.reserveResource(user, res);
+      userMetrics.reserveResource(user, res, nodeLabel);
     }
     if (parent != null) {
-      parent.reserveResource(user, res);
+      parent.reserveResource(user, res, nodeLabel);
     }
   }
 
-  public void unreserveResource(String user, Resource res) {
-    reservedContainers.decr();
-    reservedMB.decr(res.getMemory());
-    reservedVCores.decr(res.getVirtualCores());
-    reservedGCores.decr(res.getGpuCores());
+  public void unreserveResource(String user, Resource res, String nodeLabel) {
+    reservedContainers.get(nodeLabel).decr();
+    reservedMB.get(nodeLabel).decr(res.getMemory());
+    reservedVCores.get(nodeLabel).decr(res.getVirtualCores());
+    reservedGCores.get(nodeLabel).decr(res.getGpuCores());
     QueueMetrics userMetrics = getUserMetrics(user);
     if (userMetrics != null) {
-      userMetrics.unreserveResource(user, res);
+      userMetrics.unreserveResource(user, res, nodeLabel);
     }
     if (parent != null) {
-      parent.unreserveResource(user, res);
+      parent.unreserveResource(user, res, nodeLabel);
     }
   }
 

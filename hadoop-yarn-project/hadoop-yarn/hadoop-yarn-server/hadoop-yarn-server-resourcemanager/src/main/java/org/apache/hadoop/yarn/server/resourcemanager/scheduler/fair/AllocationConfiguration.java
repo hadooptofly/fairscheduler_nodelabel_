@@ -207,9 +207,9 @@ public class AllocationConfiguration extends ReservationSchedulerConfiguration {
         -1f : fairSharePreemptionThreshold;
   }
 
-  public ResourceWeights getQueueWeight(String queue) {
-    ResourceWeights weight = queueWeights.get(queue);
-    return (weight == null) ? ResourceWeights.NEUTRAL : weight;
+  public Map<String, ResourceWeights> getQueueWeight(String queue) {
+    Map<String, ResourceWeights> weights = queueWeights.get(queue);
+    return weights;
   }
 
   public void setQueueWeight(String queue, ResourceWeights weight) {

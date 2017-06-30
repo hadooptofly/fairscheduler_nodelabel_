@@ -402,7 +402,7 @@ public class RMAppManager implements EventHandler<RMAppManagerEvent>,
       }
 
       SchedulerUtils.normalizeRequest(amReq, scheduler.getResourceCalculator(),
-          scheduler.getClusterResource(),
+          scheduler.getClusterResource().get(amReq.getNodeLabelExpression()),
           scheduler.getMinimumResourceCapability(),
           scheduler.getMaximumResourceCapability(),
           scheduler.getMinimumResourceCapability());

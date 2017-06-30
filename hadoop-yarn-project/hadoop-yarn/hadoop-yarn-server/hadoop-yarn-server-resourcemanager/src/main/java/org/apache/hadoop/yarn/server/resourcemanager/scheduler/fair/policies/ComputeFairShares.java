@@ -191,7 +191,7 @@ public class ComputeFairShares {
    */
   private static int computeShare(Schedulable sched, double w2rRatio,
       ResourceType type, String label) {
-    double share = sched.getWeights().getWeight(type) * w2rRatio;
+    double share = sched.getWeights().get(label).getWeight(type) * w2rRatio;
     share = Math.max(share, getResourceValue(sched.getMinShare().get(label), type));
     share = Math.min(share, getResourceValue(sched.getMaxShare().get(label), type));
     return (int) share;
@@ -243,7 +243,7 @@ public class ComputeFairShares {
       if (!queue.getAccessibleNodeLabels().contains(label)) {
         return 0;
       } else {
-        if (sched.getWeights().getWeight(type) <= 0) {
+        if (sched.getWeights().get(label).getWeight(type) <= 0) {
           return 0;
         } else {
           return -1;
@@ -263,7 +263,7 @@ public class ComputeFairShares {
     }
 
     // Check if weight is 0
-    if (sched.getWeights().getWeight(type) <= 0) {
+    if (sched.getWeights().get(label).getWeight(type) <= 0) {
       int minShare = getResourceValue(sched.getMinShare().get(label), type);
       return (minShare <= 0) ? 0 : minShare;
     }

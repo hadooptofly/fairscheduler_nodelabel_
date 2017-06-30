@@ -88,9 +88,9 @@ public class FairSharePolicy extends SchedulingPolicy {
       minShareRatio2 = (double) s2.getResourceUsage().get(nodeLabel).getMemory()
           / Resources.max(RESOURCE_CALCULATOR, null, minShare2, ONE).getMemory();
       useToWeightRatio1 = s1.getResourceUsage().get(nodeLabel).getMemory() /
-          s1.getWeights().getWeight(ResourceType.MEMORY);
+          s1.getWeights().get(nodeLabel).getWeight(ResourceType.MEMORY);
       useToWeightRatio2 = s2.getResourceUsage().get(nodeLabel).getMemory() /
-          s2.getWeights().getWeight(ResourceType.MEMORY);
+          s2.getWeights().get(nodeLabel).getWeight(ResourceType.MEMORY);
       int res = 0;
       if (s1Needy && !s2Needy)
         res = -1;

@@ -624,14 +624,14 @@ public class SchedulerApplicationAttempt {
     String user = getUser();
     for (RMContainer liveContainer : liveContainers.values()) {
       Resource resource = liveContainer.getContainer().getResource();
-      oldMetrics.releaseResources(user, 1, resource);
-      newMetrics.allocateResources(user, 1, resource, false);
+      oldMetrics.releaseResources(user, 1, resource, liveContainer.getNodeLabel());
+      newMetrics.allocateResources(user, 1, resource, false, liveContainer.getNodeLabel());
     }
     for (Map<NodeId, RMContainer> map : reservedContainers.values()) {
       for (RMContainer reservedContainer : map.values()) {
         Resource resource = reservedContainer.getReservedResource();
-        oldMetrics.unreserveResource(user, resource);
-        newMetrics.reserveResource(user, resource);
+        oldMetrics.unreserveResource(user, resource, reservedContainer.getNodeLabel());
+        newMetrics.reserveResource(user, resource, reservedContainer.getNodeLabel());
       }
     }
 

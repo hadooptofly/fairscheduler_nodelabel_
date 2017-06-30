@@ -73,7 +73,7 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
 
   private long startTime;
   private Priority priority;
-  private ResourceWeights resourceWeights;
+  private Map<String, ResourceWeights> resourceWeights;
   private Map<String, Resource> demand = new HashMap<String, Resource>();
   private FairScheduler scheduler;
   private Map<String, Resource> fairShare = new HashMap<String, Resource>();
@@ -102,10 +102,10 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
     this.scheduler = scheduler;
     this.startTime = scheduler.getClock().getTime();
     this.priority = Priority.newInstance(1);
-    this.resourceWeights = new ResourceWeights();
+    this.resourceWeights = new HashMap<String, ResourceWeights>();
   }
 
-  public ResourceWeights getResourceWeights() {
+  public Map<String, ResourceWeights> getResourceWeights() {
     return resourceWeights;
   }
 
@@ -149,7 +149,7 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
     
     // Update usage metrics 
     Resource containerResource = rmContainer.getContainer().getResource();
-    queue.getMetrics().releaseResources(getUser(), 1, containerResource);
+    queue.getMetrics().releaseResources(getUser(), 1, containerResource, rmContainer.getNodeLabel());
 
     //Diff usage count
     if (currentConsumption.get(nodeLabel) != null) {
@@ -494,7 +494,7 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
         : (String) node.getLabels().iterator().next();
 
     if (!alreadyReserved) {
-      getMetrics().reserveResource(getUser(), container.getResource());
+      getMetrics().reserveResource(getUser(), container.getResource(), node.getLabels().iterator().next());
       RMContainer rmContainer =
           super.reserve(node, priority, null, container, nodeLabel);
       node.reserveResource(this, priority, rmContainer);
@@ -514,7 +514,7 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
     unreserveInternal(priority, node);
     node.unreserveResource(this);
     getMetrics().unreserveResource(
-        getUser(), rmContainer.getContainer().getResource());
+        getUser(), rmContainer.getContainer().getResource(), node.getLabels().iterator().next());
   }
 
   /**
@@ -850,7 +850,7 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
   }
 
   @Override
-  public ResourceWeights getWeights() {
+  public Map<String, ResourceWeights> getWeights() {
     return scheduler.getAppWeight(this);
   }
 

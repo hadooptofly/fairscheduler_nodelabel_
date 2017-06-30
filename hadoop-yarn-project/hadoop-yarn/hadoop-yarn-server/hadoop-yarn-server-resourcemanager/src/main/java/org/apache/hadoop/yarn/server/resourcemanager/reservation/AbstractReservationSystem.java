@@ -325,12 +325,7 @@ public abstract class AbstractReservationSystem extends AbstractService
    * @param scheduler the scheduler for which the reservation system is required
    */
   public static String getDefaultReservationSystem(ResourceScheduler scheduler) {
-    if (scheduler instanceof CapacityScheduler) {
-      return CapacityReservationSystem.class.getName();
-    } else if (scheduler instanceof FairScheduler) {
       return FairReservationSystem.class.getName();
-    }
-    return null;
   }
 
   protected Plan initializePlan(String planQueueName) throws YarnException {

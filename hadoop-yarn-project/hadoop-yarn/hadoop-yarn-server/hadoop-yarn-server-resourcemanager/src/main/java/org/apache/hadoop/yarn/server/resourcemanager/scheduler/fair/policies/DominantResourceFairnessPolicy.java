@@ -147,11 +147,11 @@ public class DominantResourceFairnessPolicy extends SchedulingPolicy {
       
       // Calculate shares of the cluster for each resource both schedulables.
       calculateShares(s1.getResourceUsage().get(nodeLabel),
-          clusterCapacity, sharesOfCluster1, resourceOrder1, s1.getWeights());
+          clusterCapacity.get(nodeLabel), sharesOfCluster1, resourceOrder1, s1.getWeights().get(nodeLabel));
       calculateShares(s1.getResourceUsage().get(nodeLabel),
           s1.getMinShare().get(nodeLabel), sharesOfMinShare1, null, ResourceWeights.NEUTRAL);
       calculateShares(s2.getResourceUsage().get(nodeLabel),
-          clusterCapacity, sharesOfCluster2, resourceOrder2, s2.getWeights());
+          clusterCapacity.get(nodeLabel), sharesOfCluster2, resourceOrder2, s2.getWeights().get(nodeLabel));
       calculateShares(s2.getResourceUsage().get(nodeLabel),
           s2.getMinShare().get(nodeLabel), sharesOfMinShare2, null, ResourceWeights.NEUTRAL);
       

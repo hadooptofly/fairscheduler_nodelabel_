@@ -188,9 +188,9 @@ public class AppSchedulingInfo {
         Resource lastRequestCapability = lastRequest != null ? lastRequest
             .getCapability() : Resources.none();
         metrics.incrPendingResources(user, request.getNumContainers(),
-            request.getCapability());
+            request.getCapability(), request.getNodeLabelExpression());
         metrics.decrPendingResources(user, lastRequestContainers,
-            lastRequestCapability);
+            lastRequestCapability, request.getNodeLabelExpression());
       }
     }
   }
@@ -289,7 +289,7 @@ public class AppSchedulingInfo {
           + " resource=" + request.getCapability()
           + " type=" + type);
     }
-    metrics.allocateResources(user, 1, request.getCapability(), true);
+    metrics.allocateResources(user, 1, request.getCapability(), true, request.getNodeLabelExpression());
     metrics.incrNodeTypeAggregations(user, type);
     return resourceRequests;
   }
@@ -298,7 +298,7 @@ public class AppSchedulingInfo {
    * The {@link ResourceScheduler} is allocating data-local resources to the
    * application.
    * 
-   * @param allocatedContainers
+   * @param container
    *          resources allocated to the application
    */
   synchronized private void allocateNodeLocal(SchedulerNode node,
@@ -333,7 +333,7 @@ public class AppSchedulingInfo {
    * The {@link ResourceScheduler} is allocating data-local resources to the
    * application.
    * 
-   * @param allocatedContainers
+   * @param container
    *          resources allocated to the application
    */
   synchronized private void allocateRackLocal(SchedulerNode node,
@@ -355,7 +355,7 @@ public class AppSchedulingInfo {
    * The {@link ResourceScheduler} is allocating data-local resources to the
    * application.
    * 
-   * @param allocatedContainers
+   * @param container
    *          resources allocated to the application
    */
   synchronized private void allocateOffSwitch(SchedulerNode node,
@@ -404,9 +404,9 @@ public class AppSchedulingInfo {
       ResourceRequest request = asks.get(ResourceRequest.ANY);
       if (request != null) {
         oldMetrics.decrPendingResources(user, request.getNumContainers(),
-            request.getCapability());
+            request.getCapability(), request.getNodeLabelExpression());
         newMetrics.incrPendingResources(user, request.getNumContainers(),
-            request.getCapability());
+            request.getCapability(), request.getNodeLabelExpression());
       }
     }
     oldMetrics.moveAppFrom(this);
@@ -425,7 +425,7 @@ public class AppSchedulingInfo {
       ResourceRequest request = asks.get(ResourceRequest.ANY);
       if (request != null) {
         metrics.decrPendingResources(user, request.getNumContainers(),
-            request.getCapability());
+            request.getCapability(), request.getNodeLabelExpression());
       }
     }
     metrics.finishAppAttempt(applicationId, pending, user);
@@ -468,7 +468,7 @@ public class AppSchedulingInfo {
     }
 
     metrics.allocateResources(user, 1, rmContainer.getAllocatedResource(),
-      false);
+      false, rmContainer.getNodeLabel());
   }
   
   public ResourceRequest cloneResourceRequest(ResourceRequest request) {

@@ -23,18 +23,22 @@ import java.util.*;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.yarn.api.protocolrecords.KV;
+import org.apache.hadoop.yarn.api.protocolrecords.MockMap;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.QueueACL;
 import org.apache.hadoop.yarn.api.records.QueueInfo;
 import org.apache.hadoop.yarn.api.records.QueueState;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.impl.pb.KVPBImpl;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.nodelabels.NodeLabel;
 import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.RMNodeLabelsManager;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.Queue;
+import org.apache.hadoop.yarn.util.Records;
 import org.apache.hadoop.yarn.util.resource.Resources;
 
 @Private
@@ -92,7 +96,7 @@ public abstract class FSQueue implements Queue, Schedulable {
       throws AllocationConfigurationException;
 
   @Override
-  public ResourceWeights getWeights() {
+  public Map<String, ResourceWeights> getWeights() {
     return scheduler.getAllocationConfiguration().getQueueWeight(getName());
   }
 
@@ -106,8 +110,8 @@ public abstract class FSQueue implements Queue, Schedulable {
     QueueInfo queueInfo = recordFactory.newRecordInstance(QueueInfo.class);
     queueInfo.setQueueName(getQueueName());
     // Modify refrence to labels.
-    Map<String, Float> capacity = new HashMap<String, Float>();
-    Map<String, Float> currentCapacity = new HashMap<String, Float>();
+    List<KV> capacity = new ArrayList<KV>();
+    List<KV> currentCapacity = new ArrayList<KV>();
     Set<String> labels = queueInfo.getAccessibleNodeLabels();
     Iterator<String> it = labels.iterator();
     while(it.hasNext()) {
@@ -117,34 +121,59 @@ public abstract class FSQueue implements Queue, Schedulable {
           .getResourceByLabel(label, null);
       if (resource.getGpuCores() > 0) {
         // Gpu condition use gpu measure.
-        capacity.put(label, (float) getFairShare().get(label).getGpuCores() /
+        KV kv = Records.newRecord(KV.class);
+        kv.setKey(label);
+        kv.setValue((float) getFairShare().get(label).getGpuCores() /
             resource.getGpuCores());
+        capacity.add(kv);
 
         if (getFairShare().get(label).getGpuCores() == 0) {
-          currentCapacity.put(label, 0.0f);
+          kv = Records.newRecord(KV.class);
+          kv.setKey(label);
+          kv.setValue(0.0f);
+          currentCapacity.add(kv);
         } else {
-          currentCapacity.put(label, (float) getResourceUsage().get(label).getGpuCores() /
+          kv = Records.newRecord(KV.class);
+          kv.setKey(label);
+          kv.setValue((float) getResourceUsage().get(label).getGpuCores() /
               getFairShare().get(label).getGpuCores());
+          currentCapacity.add(kv);
         }
       } else {
         if (resource.getMemory() == 0) {
-          capacity.put(label, 0.0f);
+          KV kv = Records.newRecord(KV.class);
+          kv.setKey(label);
+          kv.setValue(0.0f);
+          capacity.add(kv);
         } else {
-          capacity.put(label, (float) getFairShare().get(label).getMemory() /
+          KV kv = Records.newRecord(KV.class);
+          kv.setKey(label);
+          kv.setValue((float) getFairShare().get(label).getMemory() /
               resource.getMemory());
+          capacity.add(kv);
         }
 
         if (getFairShare().get(label).getMemory() == 0) {
-          currentCapacity.put(label, 0.0f);
+          KV kv = Records.newRecord(KV.class);
+          kv.setKey(label);
+          kv.setValue(0.0f);
+          currentCapacity.add(kv);
         } else {
-          currentCapacity.put(label, (float) getResourceUsage().get(label).getMemory() /
+          KV kv = Records.newRecord(KV.class);
+          kv.setKey(label);
+          kv.setValue((float) getResourceUsage().get(label).getMemory() /
               getFairShare().get(label).getMemory());
+          currentCapacity.add(kv);
         }
       }
     }
 
-    queueInfo.setCapacity(capacity);
-    queueInfo.setCurrentCapacity(currentCapacity);
+    MockMap map = Records.newRecord(MockMap.class);
+    map.setEntrys(capacity);
+    queueInfo.setCapacity(map);
+    map = Records.newRecord(MockMap.class);
+    map.setEntrys(currentCapacity);
+    queueInfo.setCurrentCapacity(map);
 
     ArrayList<QueueInfo> childQueueInfos = new ArrayList<QueueInfo>();
     if (includeChildQueues) {

@@ -76,7 +76,7 @@ public interface Schedulable {
   public Map<String, Resource> getMaxShare();
 
   /** Job/queue weight in fair sharing. */
-  public ResourceWeights getWeights();
+  public Map<String, ResourceWeights> getWeights();
 
   /** Start time for jobs in FIFO queues; meaningless for QueueSchedulables.*/
   public long getStartTime();

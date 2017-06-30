@@ -579,24 +579,27 @@ public class FairScheduler extends
   }
 
   // synchronized for sizeBasedWeight
-  public synchronized ResourceWeights getAppWeight(FSAppAttempt app) {
-    double weight = 1.0;
-    if (sizeBasedWeight) {
-      // Set weight based on current memory demand
-      // Simplelify logic regard *NO_LABEL* to compute
-      // weight,and just regard MEMORY
-      // TODO IMPELEMENT LABEL to RESOURCETYPE(MEMORY,CPU,GPU)
-      // more elaboration.
-      weight = Math.log1p(app.getDemand().get(RMNodeLabelsManager.NO_LABEL)
-          .getMemory()) / Math.log(2);
+  public synchronized Map<String, ResourceWeights> getAppWeight(FSAppAttempt app) {
+    Map<String, ResourceWeights> resourceWeights = app.getResourceWeights();
+    for (String nodeLabel : app.getDemand().keySet()) {
+      double weight = 1.0;
+      if (sizeBasedWeight) {
+        if (app.getDemand().get(nodeLabel).getGpuCores() > 0) {
+          weight = Math.log1p(app.getDemand().get(nodeLabel)
+              .getGpuCores()) / Math.log(2);
+        } else {
+          weight = Math.log1p((app.getDemand().get(nodeLabel)
+              .getMemory()) / Math.log(2));
+        }
+      }
+      weight *= app.getPriority().getPriority();
+      if (weightAdjuster != null) {
+        // Run weight through the user-supplied weightAdjuster
+        weight = weightAdjuster.adjustWeight(app, weight);
+      }
+      resourceWeights.get(nodeLabel).setWeight((float)weight);
     }
-    weight *= app.getPriority().getPriority();
-    if (weightAdjuster != null) {
-      // Run weight through the user-supplied weightAdjuster
-      weight = weightAdjuster.adjustWeight(app, weight);
-    }
-    ResourceWeights resourceWeights = app.getResourceWeights();
-    resourceWeights.setWeight((float)weight);
+
     return resourceWeights;
   }
 
@@ -1299,11 +1302,7 @@ public class FairScheduler extends
    * metrics will be consistent.
    */
   private void updateRootQueueMetrics() {
-    for (String nodeLabel : clusterResource.keySet()) {
-      rootMetrics.setAvailableResourcesToQueue(
-          Resources.subtract(
-              clusterResource.get(nodeLabel), rootMetrics.getAllocatedResources().get(nodeLabel)));
-    }
+    rootMetrics.setAvailableResourcesToQueue(clusterResource);
   }
 
   /**
