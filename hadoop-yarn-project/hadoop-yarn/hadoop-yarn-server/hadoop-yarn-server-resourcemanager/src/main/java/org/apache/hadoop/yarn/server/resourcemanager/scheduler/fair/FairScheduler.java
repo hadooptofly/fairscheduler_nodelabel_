@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.google.common.collect.Sets;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
@@ -581,7 +582,14 @@ public class FairScheduler extends
   // synchronized for sizeBasedWeight
   public synchronized Map<String, ResourceWeights> getAppWeight(FSAppAttempt app) {
     Map<String, ResourceWeights> resourceWeights = app.getResourceWeights();
-    for (String nodeLabel : app.getDemand().keySet()) {
+    // Clean old weight because demand is
+    // changed
+    // TODO MAKE SURE APP DEMAND(queue, app) CHANGE MECHANISM IN RM
+    resourceWeights.clear();
+    Set<String> nodeLabels = Sets.intersection(
+        app.getQueue().getAccessibleNodeLabels(),
+        app.getDemand().keySet());
+    for (String nodeLabel : nodeLabels) {
       double weight = 1.0;
       if (sizeBasedWeight) {
         if (app.getDemand().get(nodeLabel).getGpuCores() > 0) {
@@ -597,7 +605,7 @@ public class FairScheduler extends
         // Run weight through the user-supplied weightAdjuster
         weight = weightAdjuster.adjustWeight(app, weight);
       }
-      resourceWeights.get(nodeLabel).setWeight((float)weight);
+      resourceWeights.put(nodeLabel, new ResourceWeights((float)weight));
     }
 
     return resourceWeights;

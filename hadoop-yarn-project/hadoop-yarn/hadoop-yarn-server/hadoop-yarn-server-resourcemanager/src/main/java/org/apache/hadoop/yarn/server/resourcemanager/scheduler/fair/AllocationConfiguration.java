@@ -159,6 +159,10 @@ public class AllocationConfiguration extends ReservationSchedulerConfiguration {
     placementPolicy = QueuePlacementPolicy.fromConfiguration(conf,
         configuredQueues);
   }
+
+  public Set<String> getAccessNodeLabels(String queueName) {
+    return queueAccessiableNodeLabel.get(queueName);
+  }
   
   /**
    * Get the ACLs associated with this queue. If a given ACL is not explicitly

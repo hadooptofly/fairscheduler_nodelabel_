@@ -26,6 +26,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceType;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSAppAttempt;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSQueue;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.Schedulable;
+import org.apache.hadoop.yarn.util.resource.Resources;
 
 /**
  * Contains logic for computing the fair shares. A {@link Schedulable}'s fair
@@ -113,6 +114,11 @@ public class ComputeFairShares {
     Collection<Schedulable> schedulables = new ArrayList<Schedulable>();
     for (Map.Entry<String, Resource> labelRes : totalResources.entrySet()) {
       String label = labelRes.getKey();
+
+      // handle gpu scenario
+      if (totalResources.get(label).getGpuCores() > 0) {
+        type = ResourceType.GPU;
+      }
 
       int takenResources = handleFixedFairShares(
           allSchedulables, schedulables, isSteadyShare, type, label);
@@ -235,15 +241,18 @@ public class ComputeFairShares {
       boolean isSteadyShare, ResourceType type, String label) {
     //check if have access of this label
     if (sched instanceof FSQueue) {
-      if (!((FSQueue) sched).getAccessibleNodeLabels().contains(label)) {
+      if (!((FSQueue) sched).getAccessibleNodeLabels().contains(label)
+          || !((FSQueue) sched).getAccessibleNodeLabels().contains("*")) {
         return 0;
       }
     } else {
       FSQueue queue = ((FSAppAttempt)sched).getQueue();
-      if (!queue.getAccessibleNodeLabels().contains(label)) {
+      if (!queue.getAccessibleNodeLabels().contains(label)
+          || !queue.getAccessibleNodeLabels().contains("*")) {
         return 0;
       } else {
-        if (sched.getWeights().get(label).getWeight(type) <= 0) {
+        if ( sched.getWeights().get(label) == null
+            || sched.getWeights().get(label).getWeight(type) <= 0) {
           return 0;
         } else {
           return -1;
@@ -252,18 +261,26 @@ public class ComputeFairShares {
     }
 
     // Check if maxShare is 0
-    if (getResourceValue(sched.getMaxShare().get(label), type) <= 0) {
+    if ( sched.getMaxShare().get(label) == null
+        || getResourceValue(sched.getMaxShare().get(label), type) <= 0) {
       return 0;
     }
 
     // For instantaneous fairshares, check if queue is active
-    if (!isSteadyShare &&
-        (sched instanceof FSQueue) && !((FSQueue)sched).isActive()) {
+    if (!isSteadyShare && (((FSQueue) sched).getDemand()
+              .get(label) == null
+            || Resources.equals(
+        ((FSQueue) sched).getDemand().get(label),
+        Resources.none()))) {
       return 0;
     }
 
     // Check if weight is 0
-    if (sched.getWeights().get(label).getWeight(type) <= 0) {
+    if (sched.getWeights().get(label) == null
+        || sched.getWeights().get(label).getWeight(type) <= 0) {
+      if (sched.getMinShare().get(label) == null) {
+        return 0;
+      }
       int minShare = getResourceValue(sched.getMinShare().get(label), type);
       return (minShare <= 0) ? 0 : minShare;
     }

@@ -450,9 +450,16 @@ public class AllocationFileLoaderService extends AbstractService {
         continue;
       Element field = (Element) fieldNode;
       if ("accessiableNodeLabel".equals(field.getTagName())) {
-        accessiableNodeLabel = ImmutableSet.copyOf(((Text)field.getFirstChild()).getData().trim().split(","));
+        accessiableNodeLabel = ImmutableSet.copyOf(((Text)field.getFirstChild())
+            .getData().trim().split(","));
         queueAccessiableNodeLabel.put(queueName, accessiableNodeLabel);
       } else if ("minResources".equals(field.getTagName())) {
+        // Format check
+        if (!field.hasAttribute("label")) {
+          throw new IllegalArgumentException("Min/Max share configs" +
+              "must specify node label." +
+              "exmaple: \\\"\\\" mean NO_LABEL");
+        }
         String nodeLabel = field.getAttribute("label");
         String text = ((Text)field.getFirstChild()).getData().trim();
         Resource val = FairSchedulerConfiguration.parseResourceConfigValue(text);
@@ -463,6 +470,12 @@ public class AllocationFileLoaderService extends AbstractService {
           minQueueResources.get(queueName).put(nodeLabel, val);
         }
       } else if ("maxResources".equals(field.getTagName())) {
+        // Format check
+        if (!field.hasAttribute("label")) {
+          throw new IllegalArgumentException("Min/Max share configs" +
+              "must specify node label." +
+              "exmaple: \\\"\\\" mean NO_LABEL");
+        }
         String nodeLabel = field.getAttribute("label");
         String text = ((Text)field.getFirstChild()).getData().trim();
         Resource val = FairSchedulerConfiguration.parseResourceConfigValue(text);
@@ -482,6 +495,11 @@ public class AllocationFileLoaderService extends AbstractService {
         val = Math.min(val, 1.0f);
         queueMaxAMShares.put(queueName, val);
       } else if ("weight".equals(field.getTagName())) {
+        if (!field.hasAttribute("label")) {
+          throw new IllegalArgumentException("weight configs" +
+              "must specify node label." +
+              "exmaple: \\\"\\\" mean NO_LABEL");
+        }
         String nodeLabel = field.getAttribute("label");
         String text = ((Text)field.getFirstChild()).getData().trim();
         double val = Double.parseDouble(text);
@@ -549,25 +567,35 @@ public class AllocationFileLoaderService extends AbstractService {
     Iterator<String> it = accessiableNodeLabel.iterator();
     while (it.hasNext()) {
       String nodeLabel = it.next();
-      if (!minQueueResources.containsKey(nodeLabel) || !maxQueueResources.containsKey(nodeLabel)) {
+      if (!minQueueResources.get(queueName)
+          .containsKey(nodeLabel)
+          || !maxQueueResources.get(queueName)
+          .containsKey(nodeLabel)
+          || !queueWeights.get(queueName)
+          .containsKey(nodeLabel)) {
         LOG.warn("Queue " + queueName
             + "cluster partition: "
             + nodeLabel
-            + " have not been set Min/Max share.");
-        throw new InvalidParameterException("Min/Max share not set error.");
+            + " have not been set Min/Max share or weight.");
+        throw new IllegalArgumentException("Min/Max share or weight not set.");
       }
 
-      if (maxQueueResources.containsKey(queueName) &&
-          minQueueResources.containsKey(queueName)
-          && !Resources.fitsIn(minQueueResources.get(queueName).get(nodeLabel),
+      if (!Resources.fitsIn(minQueueResources.get(queueName).get(nodeLabel),
           maxQueueResources.get(queueName).get(nodeLabel))) {
         LOG.warn(
             String.format(
                 "Queue %s has max resources %s less than min resources %s",
                 queueName, maxQueueResources.get(queueName),
                 minQueueResources.get(queueName)));
-        throw new InvalidParameterException("minShare must not be greater than maxShare.");
+        throw new IllegalArgumentException("minShare must not be greater than maxShare.");
       }
+    }
+
+    if ("root".equals(queueName)) {
+      // Root queue can access all labels by default
+      // so set root accessiableNodeLabel to *
+      accessiableNodeLabel.clear();
+      accessiableNodeLabel.add("*");
     }
   }
   
