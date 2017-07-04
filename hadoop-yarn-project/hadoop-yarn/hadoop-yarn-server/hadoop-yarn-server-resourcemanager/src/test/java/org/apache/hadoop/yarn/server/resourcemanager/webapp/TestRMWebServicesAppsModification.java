@@ -778,8 +778,8 @@ public class TestRMWebServicesAppsModification extends JerseyTestBase {
     appInfo.getContainerLaunchContextInfo().getAuxillaryServiceData()
       .put("test", Base64.encodeBase64URLSafeString("value12".getBytes("UTF8")));
     appInfo.getContainerLaunchContextInfo().setCredentials(credentials);
-    appInfo.getResource().setMemory(1024);
-    appInfo.getResource().setvCores(1);
+    appInfo.getResource().setMemory(1024, );
+    appInfo.getResource().setvCores(1, );
     appInfo.setApplicationTags(tags);
 
     ClientResponse response =
@@ -876,8 +876,8 @@ public class TestRMWebServicesAppsModification extends JerseyTestBase {
     appInfo.getResource().setMemory(
       rm.getConfig().getInt(
         YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_MB,
-        YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_MB) + 1);
-    appInfo.getResource().setvCores(1);
+        YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_MB) + 1, );
+    appInfo.getResource().setvCores(1, );
     response =
         this.constructWebResource(urlPath).accept(acceptMedia)
           .entity(appInfo, contentMedia).post(ClientResponse.class);
@@ -887,8 +887,8 @@ public class TestRMWebServicesAppsModification extends JerseyTestBase {
     appInfo.getResource().setvCores(
       rm.getConfig().getInt(
         YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES,
-        YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES) + 1);
-    appInfo.getResource().setMemory(CONTAINER_MB);
+        YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES) + 1, );
+    appInfo.getResource().setMemory(CONTAINER_MB, );
     response =
         this.constructWebResource(urlPath).accept(acceptMedia)
           .entity(appInfo, contentMedia).post(ClientResponse.class);
@@ -921,8 +921,8 @@ public class TestRMWebServicesAppsModification extends JerseyTestBase {
     y.setVisibility(LocalResourceVisibility.APPLICATION);
     lr.put("example", y);
     appInfo.getContainerLaunchContextInfo().setResources(lr);
-    appInfo.getResource().setMemory(1024);
-    appInfo.getResource().setvCores(1);
+    appInfo.getResource().setMemory(1024, );
+    appInfo.getResource().setvCores(1, );
 
     String body =
         "<?xml version=\"1.0\" encoding=\"UTF-8\" "

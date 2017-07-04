@@ -94,11 +94,6 @@ public interface Schedulable {
   public Resource assignContainer(FSSchedulerNode node);
 
   /**
-   * aspect of scheduling other dimensions(disk,io,gpu...)
-   */
-  public Resource assignGPUContainer(FSSchedulerNode node);
-
-  /**
    * Preempt a container from this Schedulable if possible.
    * @param nodeLabel
    */

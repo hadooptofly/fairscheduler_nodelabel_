@@ -21,6 +21,8 @@ package org.apache.hadoop.yarn.server.resourcemanager.webapp.dao;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
@@ -28,6 +30,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlSeeAlso;
 import javax.xml.bind.annotation.XmlTransient;
 
+import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.AllocationConfiguration;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSLeafQueue;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSQueue;
@@ -82,9 +85,19 @@ public class FairSchedulerQueueInfo {
     fairResources = new ResourceInfo(queue.getFairShare());
     minResources = new ResourceInfo(queue.getMinShare());
     maxResources = new ResourceInfo(queue.getMaxShare());
-    maxResources = new ResourceInfo(
-        Resources.componentwiseMin(queue.getMaxShare(),
-            scheduler.getClusterResource()));
+    Map<String, Resource> resource = new HashMap<String, Resource>();
+    for (String nodeLabel : queue.getMaxShare().keySet()) {
+      Resource resource1 = scheduler.getClusterResource().get(nodeLabel);
+      if (resource1 == null) {
+        resource.put(nodeLabel, Resources.componentwiseMin(
+            queue.getMaxShare().get(nodeLabel),
+            Resources.none()));
+      } else {
+        resource.put(nodeLabel, scheduler
+            .getClusterResource().get(nodeLabel));
+      }
+    }
+    maxResources = new ResourceInfo(resource);
 
     fractionMemSteadyFairShare =
         (float)steadyFairResources.getMemory() / clusterResources.getMemory();

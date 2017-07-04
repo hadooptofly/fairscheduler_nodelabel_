@@ -28,7 +28,7 @@ import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceType;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSQueue;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.MyComparator;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.ComparatorWrapper;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.Schedulable;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.SchedulingPolicy;
 import org.apache.hadoop.yarn.util.resource.Resources;
@@ -60,7 +60,7 @@ public class DominantResourceFairnessPolicy extends SchedulingPolicy {
   }
 
   @Override
-  public MyComparator<Schedulable, String> getComparator() {
+  public ComparatorWrapper<Schedulable, String> getComparator() {
     return comparator;
   }
   
@@ -127,7 +127,7 @@ public class DominantResourceFairnessPolicy extends SchedulingPolicy {
     comparator.setClusterCapacity(clusterCapacity);
   }
 
-  public static class DominantResourceFairnessComparator implements MyComparator<Schedulable, String> {
+  public static class DominantResourceFairnessComparator implements ComparatorWrapper<Schedulable, String> {
     private static final int NUM_RESOURCES = ResourceType.values().length;
     
     private Map<String, Resource> clusterCapacity;

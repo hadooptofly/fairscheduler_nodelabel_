@@ -201,40 +201,21 @@ public class FSParentQueue extends FSQueue {
       return assigned;
     }
 
+    final ComparatorWrapper<Schedulable, String> comparatorWrapper;
+    if (node.getAvailableResource().getGpuCores() > 0) {
+      comparatorWrapper = SchedulingPolicy.GPU_POLICY.getComparator();
+    } else {
+      comparatorWrapper = policy.getComparator();
+    }
     Collections.sort(childQueues, new Comparator<FSQueue>() {
       @Override
       public int compare(FSQueue o1, FSQueue o2) {
-        MyComparator<Schedulable, String> myComparator = policy.getComparator();
-        return myComparator.compare(o1, o2, nodeLabel);
+        return comparatorWrapper.compare(o1, o2, nodeLabel);
       }
     });
+
     for (FSQueue child : childQueues) {
       assigned = child.assignContainer(node);
-      if (!Resources.equals(assigned, Resources.none())) {
-        break;
-      }
-    }
-    return assigned;
-  }
-
-  @Override
-  public Resource assignGPUContainer(final FSSchedulerNode node) {
-    final String nodeLabel = node.getLabels().iterator().next();
-    Resource assigned = Resources.none();
-    // If this queue is over its limit, reject
-    //TODO REGARD ResourceType(GPU...) WHEN CHECK THIS
-    if (!assignContainerPreCheck(node)) {
-      return assigned;
-    }
-    Collections.sort(childQueues, new Comparator<FSQueue>() {
-      @Override
-      public int compare(FSQueue o1, FSQueue o2) {
-        MyComparator<Schedulable, String> myComparator = SchedulingPolicy.GPU_POLICY.getComparator();
-        return myComparator.compare(o1, o2, nodeLabel);
-      }
-    });
-    for (FSQueue child : childQueues) {
-      assigned = child.assignGPUContainer(node);
       if (!Resources.equals(assigned, Resources.none())) {
         break;
       }
@@ -248,7 +229,7 @@ public class FSParentQueue extends FSQueue {
 
     // Find the childQueue which is most over fair share
     FSQueue candidateQueue = null;
-    MyComparator<Schedulable, String> comparator = policy.getComparator();
+    ComparatorWrapper<Schedulable, String> comparator = policy.getComparator();
     if (demand.get(nodeLabel).getGpuCores() > 0) {
       comparator = SchedulingPolicy.GPU_POLICY.getComparator();
     }

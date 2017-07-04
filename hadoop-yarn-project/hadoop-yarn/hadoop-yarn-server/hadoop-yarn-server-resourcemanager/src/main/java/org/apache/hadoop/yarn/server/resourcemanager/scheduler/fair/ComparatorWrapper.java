@@ -18,6 +18,6 @@
  */
 package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair;
 
-public interface MyComparator<T, D> {
+public interface ComparatorWrapper<T, D> {
   public int compare(T o1, T o2, D d);
 }

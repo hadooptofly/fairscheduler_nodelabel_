@@ -19,7 +19,6 @@ package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies;
 
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -28,7 +27,7 @@ import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceType;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSQueue;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.MyComparator;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.ComparatorWrapper;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.Schedulable;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.SchedulingPolicy;
 import org.apache.hadoop.yarn.util.resource.DefaultResourceCalculator;
@@ -66,7 +65,7 @@ public class FairSharePolicy extends SchedulingPolicy {
    * If all weights are equal, slots are given to the job with the fewest tasks;
    * otherwise, jobs with more weight get proportionally more slots.
    */
-  private static class FairShareComparator implements MyComparator<Schedulable, String>,
+  private static class FairShareComparator implements ComparatorWrapper<Schedulable, String>,
       Serializable {
     private static final long serialVersionUID = 5564969375856699313L;
     private static final Resource ONE = Resources.createResource(1);
@@ -113,7 +112,7 @@ public class FairSharePolicy extends SchedulingPolicy {
   }
 
   @Override
-  public MyComparator<Schedulable, String> getComparator() {
+  public ComparatorWrapper<Schedulable, String> getComparator() {
     return comparator;
   }
 

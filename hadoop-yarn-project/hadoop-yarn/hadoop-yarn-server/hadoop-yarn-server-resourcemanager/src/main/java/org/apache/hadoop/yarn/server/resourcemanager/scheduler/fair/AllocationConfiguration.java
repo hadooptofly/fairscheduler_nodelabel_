@@ -216,9 +216,9 @@ public class AllocationConfiguration extends ReservationSchedulerConfiguration {
     return weights;
   }
 
-  public void setQueueWeight(String queue, ResourceWeights weight) {
-    queueWeights.put(queue, weight);
-  }
+//  public void setQueueWeight(String queue, ResourceWeights weight) {
+//    queueWeights.put(queue, weight);
+//  }
   
   public int getUserMaxApps(String user) {
     Integer maxApps = userMaxApps.get(user);

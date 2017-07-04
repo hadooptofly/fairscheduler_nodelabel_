@@ -136,7 +136,7 @@ public abstract class SchedulingPolicy {
    * 
    * @return the comparator to sort by
    */
-  public abstract MyComparator<Schedulable, String> getComparator();
+  public abstract ComparatorWrapper<Schedulable, String> getComparator();
 
   /**
    * Computes and updates the shares of {@link Schedulable}s as per

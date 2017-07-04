@@ -23,13 +23,12 @@ import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceType;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSQueue;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.MyComparator;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.ComparatorWrapper;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.Schedulable;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.SchedulingPolicy;
 import org.apache.hadoop.yarn.util.resource.Resources;
 
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -60,7 +59,7 @@ public class FairShareGPUPolicy extends SchedulingPolicy {
   }
 
   @Override
-  public MyComparator<Schedulable, String> getComparator() {
+  public ComparatorWrapper<Schedulable, String> getComparator() {
     return comparator;
   }
   
@@ -122,21 +121,25 @@ public class FairShareGPUPolicy extends SchedulingPolicy {
   }
 
 
-  public static class FairShareGPUComparator implements MyComparator<Schedulable, String> {
+  public static class FairShareGPUComparator implements ComparatorWrapper<Schedulable, String> {
     // Original compare will not support mutilple labels cluster
     // So use this from now.
     @Override
     public int compare(Schedulable s1, Schedulable s2, String nodeLabel) {
       Resource minShare1 = s1.getMinShare().equals(Resources.none()) ? s1.getDemand().get(nodeLabel) :
-          s1.getDemand().get(nodeLabel).getGpuCores() > s1.getMinShare().get(nodeLabel).getGpuCores() ? s1.getMinShare().get(nodeLabel) : s1.getDemand().get(nodeLabel);
+          s1.getDemand().get(nodeLabel).getGpuCores() > s1.getMinShare().get(nodeLabel).getGpuCores()
+              ? s1.getMinShare().get(nodeLabel) : s1.getDemand().get(nodeLabel);
       Resource minShare2 = s2.getMinShare().equals(Resources.none()) ? s2.getDemand().get(nodeLabel) :
-          s2.getDemand().get(nodeLabel).getGpuCores() > s2.getMinShare().get(nodeLabel).getGpuCores() ? s2.getMinShare().get(nodeLabel) : s2.getDemand().get(nodeLabel);
+          s2.getDemand().get(nodeLabel).getGpuCores() > s2.getMinShare().get(nodeLabel).getGpuCores()
+              ? s2.getMinShare().get(nodeLabel) : s2.getDemand().get(nodeLabel);
 
       double minshareRatio1 = (double) s1.getResourceUsage().get(nodeLabel).getGpuCores()/minShare1.getGpuCores();
       double minshareRatio2 = (double) s2.getResourceUsage().get(nodeLabel).getGpuCores()/ minShare2.getGpuCores();
 
-      double useToWeightRatio1 = s1.getResourceUsage().get(nodeLabel).getGpuCores()/s1.getWeights().get(nodeLabel).getWeight(GPU);
-      double useToWeightRatio2 = s2.getResourceUsage().get(nodeLabel).getGpuCores()/s2.getWeights().get(nodeLabel).getWeight(GPU);
+      double useToWeightRatio1 = s1.getResourceUsage().get(nodeLabel).getGpuCores()
+          /s1.getWeights().get(nodeLabel).getWeight(GPU);
+      double useToWeightRatio2 = s2.getResourceUsage().get(nodeLabel).getGpuCores()
+          /s2.getWeights().get(nodeLabel).getWeight(GPU);
 
       // A queue is needy for its min share if its dominant resource
       // (with respect to the cluster capacity) is below its configured min share

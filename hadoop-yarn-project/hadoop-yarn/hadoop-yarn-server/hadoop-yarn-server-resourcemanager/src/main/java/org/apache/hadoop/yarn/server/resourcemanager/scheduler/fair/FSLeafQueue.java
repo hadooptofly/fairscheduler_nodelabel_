@@ -24,7 +24,6 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.sun.tools.corba.se.idl.StringGen;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
@@ -332,7 +331,12 @@ public class FSLeafQueue extends FSQueue {
       return assigned;
     }
 
-    final MyComparator<Schedulable, String> comparator = policy.getComparator();
+    final ComparatorWrapper<Schedulable, String> comparator;
+    if (node.getAvailableResource().getGpuCores() > 0) {
+      comparator = SchedulingPolicy.GPU_POLICY.getComparator();
+    } else {
+      comparator = policy.getComparator();
+    }
     final String nodeLabel = node.getLabels().iterator().next();
     writeLock.lock();
     try {
@@ -355,57 +359,6 @@ public class FSLeafQueue extends FSQueue {
           continue;
         }
 
-        assigned = sched.assignContainer(node);
-        if (!assigned.equals(Resources.none())) {
-          break;
-        }
-      }
-    } finally {
-      readLock.unlock();
-    }
-    return assigned;
-  }
-
-  @Override
-  public Resource assignGPUContainer(FSSchedulerNode node) {
-    Resource assigned = Resources.none();
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("Node " + node.getNodeName() + " offered to queue: " +
-          getName());
-    }
-
-    if (!assignContainerPreCheck(node)) {
-      return assigned;
-    }
-
-    final MyComparator<Schedulable, String> comparator = SchedulingPolicy.FIFO_POLICY.getComparator();
-    final String nodeLabel = node.getLabels().iterator().next();
-    writeLock.lock();
-    try {
-      Collections.sort(runnableApps, new Comparator<FSAppAttempt>() {
-        @Override
-        public int compare(FSAppAttempt o1, FSAppAttempt o2) {
-          return comparator.compare(o1, o2, nodeLabel);
-        }
-      });
-    } finally {
-      writeLock.unlock();
-    }
-    // Release write lock here for better performance and avoiding deadlocks.
-    // runnableApps can be in unsorted state because of this section,
-    // but we can accept it in practice since the probability is low.
-    readLock.lock();
-    for (FSAppAttempt sched : runnableApps){
-      LOG.info("App order: " + sched.getName() + " with priorty: " + sched.getPriority() + " startTime: " +
-            sched.getStartTime());
-    }
-    try {
-      for (FSAppAttempt sched : runnableApps) {
-        if (SchedulerAppUtils.isBlacklisted(sched, node, LOG)) {
-          continue;
-        }
-
-        LOG.info("Try to assign app: " + sched);
         assigned = sched.assignContainer(node);
         if (!assigned.equals(Resources.none())) {
           break;
@@ -431,7 +384,7 @@ public class FSLeafQueue extends FSQueue {
     }
 
     // Choose the app that is most over fair share
-    MyComparator<Schedulable, String> comparator = policy.getComparator();
+    ComparatorWrapper<Schedulable, String> comparator = policy.getComparator();
     if (demand.get(nodeLabel).getGpuCores() > 0) {
       // Use gpu comparator.
       comparator = SchedulingPolicy.GPU_POLICY.getComparator();
@@ -605,14 +558,14 @@ public class FSLeafQueue extends FSQueue {
     }
   }
 
-  /** Allows setting weight for a dynamically created queue
-   * Currently only used for reservation based queues
-   * @param weight queue weight
-   */
-  public void setWeights(float weight) {
-    scheduler.getAllocationConfiguration().setQueueWeight(getName(),
-        new ResourceWeights(weight));
-  }
+//  /** Allows setting weight for a dynamically created queue
+//   * Currently only used for reservation based queues
+//   * @param weight queue weight
+//   */
+//  public void setWeights(float weight) {
+//    scheduler.getAllocationConfiguration().setQueueWeight(getName(),
+//        new ResourceWeights(weight));
+//  }
 
   /**
    * Helper method to check if the queue should preempt containers

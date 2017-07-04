@@ -458,7 +458,7 @@ public class FairScheduler extends
       RMContainer container = warnedIter.next();
       if ((container.getState() == RMContainerState.RUNNING ||
               container.getState() == RMContainerState.ALLOCATED) &&
-          Resources.greaterThan(RESOURCE_CALCULATOR, clusterResource.get(""),
+          Resources.greaterThan(RESOURCE_CALCULATOR, clusterResource.get(nodeLabel),
               toPreempt, Resources.none())) {
         warnOrKillContainer(container);
         Resources.subtractFrom(toPreempt, container.getContainer().getResource());
@@ -469,7 +469,6 @@ public class FairScheduler extends
 
     try {
       // Reset preemptedResource for each app
-      // TODO SHOULD REGARD AS RESOURCE LABEL
       for (FSLeafQueue queue : getQueueManager().getLeafQueues()) {
         queue.resetPreemptedResources();
       }
@@ -520,7 +519,7 @@ public class FairScheduler extends
         // containers on the RMNode (see SchedulerNode.releaseContainer()).
         completedContainer(container, status, RMContainerEventType.KILL);
         LOG.info("Killing container" + container +
-            " (after waiting for premption for " +
+            " (after waiting for preemption for " +
             (getClock().getTime() - time) + "ms)");
       }
     } else {
@@ -781,25 +780,8 @@ public class FairScheduler extends
 
     try {
       QueuePlacementPolicy placementPolicy = allocConf.getPlacementPolicy();
-      //get application node-label
-      String label = rmApp.getApplicationSubmissionContext().getNodeLabelExpression();
-      if (!StringUtils.isBlank(label)) {
-        //Label acls is group level
-        FSParentQueue groupQueue;
-        queueName = placementPolicy.assignAppToGroupQueue(user);
-        queueName = "root." + label + "." + queueName.split("root\\.", 2)[1];
-        groupQueue = queueMgr.getParentQueue(queueName, false);
-        if (groupQueue == null) {
-          appRejectMsg = queueName + " is not exist,make sure your group is accessable to label \""
-              + label + "\".";
-        } else {
-          queueName = queueName + "." + StringUtils.trim(user);
-          queue = queueMgr.getLeafQueue(queueName, true);
-        }
-      } else {
-        queueName = placementPolicy.assignAppToGroupUserQueue(user);
-        queue = queueMgr.getLeafQueue(queueName, true);
-      }
+      queueName = placementPolicy.assignAppToGroupUserQueue(user);
+      queue = queueMgr.getLeafQueue(queueName, true);
     } catch (IOException ioe) {
       appRejectMsg = "Error assigning app to queue " + queueName;
     }
@@ -1154,7 +1136,7 @@ public class FairScheduler extends
       if (!nodes.containsKey(n2)) {
         return -1;
       }
-      return RESOURCE_CALCULATOR.compare(clusterResource.get(""),
+      return RESOURCE_CALCULATOR.compare(clusterResource.get(RMNodeLabelsManager.NO_LABEL),
               nodes.get(n2).getAvailableResource(),
               nodes.get(n1).getAvailableResource());
     }
@@ -1179,7 +1161,6 @@ public class FairScheduler extends
     // Assign new containers...
     // 1. Check for reserved applications
     // 2. Schedule if there are no reservations
-
     FSAppAttempt reservedAppSchedulable = node.getReservedAppSchedulable();
     if (reservedAppSchedulable != null) {
       Priority reservedPriority = node.getReservedContainer().getReservedPriority();
@@ -1209,64 +1190,8 @@ public class FairScheduler extends
       int assignedContainers = 0;
       while (node.getReservedContainer() == null) {
         boolean assignedContainer = false;
-        //get node label
-        if (!CollectionUtils.isEmpty(node.getLabels())){
-          String nodeLabel = (String) node.getLabels().iterator().next();
-
-          //check node label
-          if (StringUtils.isBlank(nodeLabel)){
-            //TODO EMAIL?
-            LOG.error("Alerting Node<" + node.getNodeName() + ">'s nodelabel is blank.");
-            break;
-          }
-
-          //get label-queue
-          FSParentQueue begin = queueMgr.getLabelQueue(nodeLabel);
-
-          //check label-queue existing
-          if (begin == null) {
-            //TODO EMAIL?
-            LOG.error("Alerting label-queue<root." + nodeLabel + " is not existing...");
-            break;
-          }
-
-          if (node.getAvailableResource().getGpuCores() > 0){
-            LOG.info("Assign to queue" + begin.getName() + ", label<" + nodeLabel + "> demand: " + begin.getDemand() + "\n"
-                + "Runnable apps: " + begin.getNumRunnableApps());
-            Resource gpu = begin.assignGPUContainer(node);
-            if (!gpu.equals(Resources.none())) {
-              LOG.info("Assign container: " + gpu + " to label queue: " + begin.getName() + " from node: "
-                  + node.getNodeName() + " with node label: " + nodeLabel + " availiable:" + node.getAvailableResource());
-              assignedContainers++;
-              if (!assignMultiple) { break; }
-              if ((assignedContainers >= maxAssign) && (maxAssign > 0)) { break; }
-              continue;
-            }
-
-            //no assign exit.
-            break;
-          } else {
-            LOG.info("Assign to queue" + begin.getName() + ", label<" + nodeLabel + "> demand: " + begin.getDemand() + "\n"
-                + "Runnable apps: " + begin.getNumRunnableApps());
-            Resource noGpu = begin.assignContainer(node);
-            if (!noGpu.equals(Resources.none())) {
-              LOG.info("Assign container: " + noGpu + " to label queue: " + begin.getName() + " from node: "
-                  + node.getNodeName() + " with node label: " + nodeLabel + " availiable:" + node.getAvailableResource());
-              assignedContainers++;
-              if (!assignMultiple) { break; }
-              if ((assignedContainers >= maxAssign) && (maxAssign > 0)) { break; }
-              continue;
-            }
-
-            //no assign exit.
-            break;
-          }
-        }
-
-        //no label schedule
         Resource res = queueMgr.getRootQueue().assignContainer(node);
         if (!res.equals(Resources.none())) {
-          LOG.info("Assign container: " + res + " to no label request.");
           assignedContainers++;
           assignedContainer = true;
         }

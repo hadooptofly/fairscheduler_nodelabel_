@@ -19,14 +19,13 @@ package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies;
 
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.Map;
 
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSQueue;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.MyComparator;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.ComparatorWrapper;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.Schedulable;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.SchedulingPolicy;
 import org.apache.hadoop.yarn.util.resource.Resources;
@@ -49,7 +48,7 @@ public class FifoPolicy extends SchedulingPolicy {
    * Compare Schedulables in order of priority and then submission time, as in
    * the default FIFO scheduler in Hadoop.
    */
-  static class FifoComparator implements MyComparator<Schedulable, String>, Serializable {
+  static class FifoComparator implements ComparatorWrapper<Schedulable, String>, Serializable {
     private static final long serialVersionUID = -5905036205491177060L;
 
     @Override
@@ -69,7 +68,7 @@ public class FifoPolicy extends SchedulingPolicy {
   }
 
   @Override
-  public MyComparator<Schedulable, String> getComparator() {
+  public ComparatorWrapper<Schedulable, String> getComparator() {
     return comparator;
   }
 

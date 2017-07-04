@@ -65,10 +65,6 @@ public class QueueManager {
     return rootQueue;
   }
 
-  public FSParentQueue getLabelQueue(String label) {
-    return (FSParentQueue) queues.get("root." + StringUtils.trim(label));
-  }
-
   public void initialize(Configuration conf) throws IOException,
       SAXException, AllocationConfigurationException, ParserConfigurationException {
     rootQueue = new FSParentQueue("root", scheduler, null);

@@ -24,48 +24,54 @@ import javax.xml.bind.annotation.XmlRootElement;
 
 import org.apache.hadoop.yarn.api.records.Resource;
 
+import java.util.Map;
+
 @XmlRootElement
 @XmlAccessorType(XmlAccessType.FIELD)
 public class ResourceInfo {
-  int memory;
-  int vCores;
-  int gCores;
+  Map<String, Resource> resource;
 
   public ResourceInfo() {
   }
 
-  public ResourceInfo(Resource res) {
-    memory = res.getMemory();
-    vCores = res.getVirtualCores();
-    gCores = res.getGpuCores();
+  public ResourceInfo(Map<String, Resource> res) {
+    this.resource = res;
   }
 
-  public int getMemory() {
-    return memory;
+  public int getMemory(String nodeLabel) {
+    return resource.get(nodeLabel).getMemory();
   }
 
-  public int getvCores() {
-    return vCores;
+  public int getvCores(String nodeLabel) {
+    return resource.get(nodeLabel).getVirtualCores();
   }
 
-  public int getgCores() {
-    return gCores;
+  public int getgCores(String nodeLabel) {
+    return resource.get(nodeLabel).getGpuCores();
   }
   
   @Override
   public String toString() {
-    return "<memory:" + memory + ", vCores:" + vCores + ", gCores:" + gCores + ">";
+    StringBuilder sb = new StringBuilder();
+    for (String nodeLabel : resource.keySet()) {
+      sb.append("<Label> " + nodeLabel);
+      sb.append("<memory:" + resource.get(nodeLabel).getMemory()
+          + ", vCores:" + resource.get(nodeLabel).getVirtualCores()
+          + ", gCores:" + resource.get(nodeLabel).getGpuCores() + ">");
+      sb.append("\n");
+    }
+    return sb.toString();
   }
 
-  public void setMemory(int memory) {
-    this.memory = memory;
+  public void setMemory(int memory, String nodeLabel) {
+    resource.get(nodeLabel).setMemory(memory);
   }
 
-  public void setvCores(int vCores) {
-    this.vCores = vCores;
+  public void setvCores(int vCores, String nodeLabel) {
+    resource.get(nodeLabel).setVirtualCores(vCores);
   }
 
-  public void setgCores(int gCores) {
-    this.gCores = gCores;
+  public void setgCores(int gCores, String nodeLabel) {
+    resource.get(nodeLabel).setGpuCores(gCores);
   }
 }
