@@ -583,7 +583,9 @@ public abstract class AbstractYarnScheduler
       updateMaximumAllocation(node, true);
 
       // update resource to clusterResource
-      String nodeLabel = node.getLabels().iterator().next();
+      String nodeLabel = CollectionUtils.isEmpty(node.getLabels()) ?
+          RMNodeLabelsManager.NO_LABEL
+          : node.getLabels().iterator().next();
       Resources.subtractFrom(clusterResource.get(nodeLabel), oldResource);
       Resources.addTo(clusterResource.get(nodeLabel), newResource);
     } else {

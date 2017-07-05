@@ -19,8 +19,11 @@
 package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import org.apache.hadoop.yarn.api.records.Resource;
 import org.junit.Assert;
 
 import org.apache.hadoop.yarn.util.resource.Resources;
@@ -51,8 +54,10 @@ public class TestComputeFairShares {
     scheds.add(new FakeSchedulable());
     scheds.add(new FakeSchedulable());
     scheds.add(new FakeSchedulable());
+    Map<String, Resource> clusterResource = new HashMap<String, Resource>();
+    clusterResource.put("", Resources.createResource(40, 0));
     ComputeFairShares.computeShares(scheds,
-        Resources.createResource(40), ResourceType.MEMORY);
+        clusterResource, ResourceType.MEMORY);
     verifyMemoryShares(10, 10, 10, 10);
   }
   
@@ -69,8 +74,10 @@ public class TestComputeFairShares {
     scheds.add(new FakeSchedulable(0, 50));
     scheds.add(new FakeSchedulable(0, 11));
     scheds.add(new FakeSchedulable(0, 3));
+    Map<String, Resource> clusterResource = new HashMap<String, Resource>();
+    clusterResource.put("", Resources.createResource(40, 0));
     ComputeFairShares.computeShares(scheds,
-        Resources.createResource(40), ResourceType.MEMORY);
+        clusterResource, ResourceType.MEMORY);
     verifyMemoryShares(13, 13, 11, 3);
   }
 
@@ -89,8 +96,10 @@ public class TestComputeFairShares {
     scheds.add(new FakeSchedulable(18));
     scheds.add(new FakeSchedulable(0));
     scheds.add(new FakeSchedulable(2));
+    Map<String, Resource> clusterResource = new HashMap<String, Resource>();
+    clusterResource.put("", Resources.createResource(40, 0));
     ComputeFairShares.computeShares(scheds,
-        Resources.createResource(40), ResourceType.MEMORY);
+        clusterResource, ResourceType.MEMORY);
     verifyMemoryShares(20, 18, 0, 2);
   }
   
@@ -104,8 +113,10 @@ public class TestComputeFairShares {
     scheds.add(new FakeSchedulable(0, 1.0));
     scheds.add(new FakeSchedulable(0, 1.0));
     scheds.add(new FakeSchedulable(0, 0.5));
+    Map<String, Resource> clusterResource = new HashMap<String, Resource>();
+    clusterResource.put("", Resources.createResource(45, 0));
     ComputeFairShares.computeShares(scheds,
-        Resources.createResource(45), ResourceType.MEMORY);
+        clusterResource, ResourceType.MEMORY);
     verifyMemoryShares(20, 10, 10, 5);
   }
   
@@ -122,8 +133,10 @@ public class TestComputeFairShares {
     scheds.add(new FakeSchedulable(0, 11, 1.0));
     scheds.add(new FakeSchedulable(0, 30, 1.0));
     scheds.add(new FakeSchedulable(0, 20, 0.5));
+    Map<String, Resource> clusterResource = new HashMap<String, Resource>();
+    clusterResource.put("", Resources.createResource(45, 0));
     ComputeFairShares.computeShares(scheds,
-        Resources.createResource(45), ResourceType.MEMORY);
+        clusterResource, ResourceType.MEMORY);
     verifyMemoryShares(10, 11, 16, 8);
   }
 
@@ -141,8 +154,10 @@ public class TestComputeFairShares {
     scheds.add(new FakeSchedulable(0, 1.0));
     scheds.add(new FakeSchedulable(5, 1.0));
     scheds.add(new FakeSchedulable(15, 0.5));
+    Map<String, Resource> clusterResource = new HashMap<String, Resource>();
+    clusterResource.put("", Resources.createResource(45, 0));
     ComputeFairShares.computeShares(scheds,
-        Resources.createResource(45), ResourceType.MEMORY);
+        clusterResource, ResourceType.MEMORY);
     verifyMemoryShares(20, 5, 5, 15);
   }
 
@@ -157,8 +172,10 @@ public class TestComputeFairShares {
     scheds.add(new FakeSchedulable());
     scheds.add(new FakeSchedulable());
     scheds.add(new FakeSchedulable());
+    Map<String, Resource> clusterResource = new HashMap<String, Resource>();
+    clusterResource.put("", Resources.createResource(40 * million, 0));
     ComputeFairShares.computeShares(scheds,
-        Resources.createResource(40 * million), ResourceType.MEMORY);
+        clusterResource, ResourceType.MEMORY);
     verifyMemoryShares(10 * million, 10 * million, 10 * million, 10 * million);
   }
   
@@ -167,8 +184,10 @@ public class TestComputeFairShares {
    */
   @Test
   public void testEmptyList() {
+    Map<String, Resource> clusterResource = new HashMap<String, Resource>();
+    clusterResource.put("", Resources.createResource(40, 0));
     ComputeFairShares.computeShares(scheds,
-        Resources.createResource(40), ResourceType.MEMORY);
+        clusterResource, ResourceType.MEMORY);
     verifyMemoryShares();
   }
   
@@ -185,8 +204,10 @@ public class TestComputeFairShares {
         new ResourceWeights(1.0f)));
     scheds.add(new FakeSchedulable(Resources.createResource(0, 15),
         new ResourceWeights(0.5f)));
+    Map<String, Resource> clusterResource = new HashMap<String, Resource>();
+    clusterResource.put("", Resources.createResource(0, 45));
     ComputeFairShares.computeShares(scheds,
-        Resources.createResource(0, 45), ResourceType.CPU);
+        clusterResource, ResourceType.CPU);
     verifyCPUShares(20, 5, 5, 15);
   }
   
@@ -196,7 +217,7 @@ public class TestComputeFairShares {
   private void verifyMemoryShares(int... shares) {
     Assert.assertEquals(scheds.size(), shares.length);
     for (int i = 0; i < shares.length; i++) {
-      Assert.assertEquals(shares[i], scheds.get(i).getFairShare().getMemory());
+      Assert.assertEquals(shares[i], scheds.get(i).getFairShare().get("").getMemory());
     }
   }
   
@@ -206,7 +227,7 @@ public class TestComputeFairShares {
   private void verifyCPUShares(int... shares) {
     Assert.assertEquals(scheds.size(), shares.length);
     for (int i = 0; i < shares.length; i++) {
-      Assert.assertEquals(shares[i], scheds.get(i).getFairShare().getVirtualCores());
+      Assert.assertEquals(shares[i], scheds.get(i).getFairShare().get("").getVirtualCores());
     }
   }
 }

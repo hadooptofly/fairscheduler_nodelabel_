@@ -111,6 +111,7 @@ public class FairSchedulerTestBase {
     prio.setPriority(priority);
     request.setPriority(prio);
     request.setRelaxLocality(relaxLocality);
+    request.setNodeLabelExpression("");
     return request;
   }
 

@@ -20,6 +20,7 @@ package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair;
 
 import java.util.*;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
@@ -29,6 +30,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.QueueACL;
 import org.apache.hadoop.yarn.api.records.QueueUserACLInfo;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.RMNodeLabelsManager;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
 import org.apache.hadoop.yarn.util.resource.Resources;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ActiveUsersManager;
@@ -193,7 +195,9 @@ public class FSParentQueue extends FSQueue {
 
   @Override
   public Resource assignContainer(FSSchedulerNode node) {
-    final String nodeLabel = node.getLabels().iterator().next();
+    final String nodeLabel = CollectionUtils.isEmpty(node.getLabels()) ?
+        RMNodeLabelsManager.NO_LABEL
+        : node.getLabels().iterator().next();
     Resource assigned = Resources.none();
 
     // If this queue is over its limit, reject

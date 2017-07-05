@@ -23,6 +23,7 @@ import java.util.Map;
 
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceType;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplicationAttempt;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSAppAttempt;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSQueue;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.Schedulable;
@@ -245,7 +246,7 @@ public class ComputeFairShares {
           || !((FSQueue) sched).getAccessibleNodeLabels().contains("*")) {
         return 0;
       }
-    } else {
+    } else if (sched instanceof SchedulerApplicationAttempt){
       FSQueue queue = ((FSAppAttempt)sched).getQueue();
       if (!queue.getAccessibleNodeLabels().contains(label)
           || !queue.getAccessibleNodeLabels().contains("*")) {
@@ -267,8 +268,10 @@ public class ComputeFairShares {
     }
 
     // For instantaneous fairshares, check if queue is active
-    if (!isSteadyShare && (((FSQueue) sched).getDemand()
-              .get(label) == null
+    if (!isSteadyShare
+            && sched instanceof FSQueue
+            && (((FSQueue) sched).getDemand()
+               .get(label) == null
             || Resources.equals(
         ((FSQueue) sched).getDemand().get(label),
         Resources.none()))) {

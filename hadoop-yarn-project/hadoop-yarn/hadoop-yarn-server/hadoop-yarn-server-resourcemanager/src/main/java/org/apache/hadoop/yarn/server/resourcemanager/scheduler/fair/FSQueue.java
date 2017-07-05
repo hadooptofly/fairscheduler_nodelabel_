@@ -341,7 +341,7 @@ public abstract class FSQueue implements Queue, Schedulable {
   @Override
   public Set<String> getAccessibleNodeLabels() {
     Set<String> labels = scheduler.getAllocationConfiguration().getAccessNodeLabels(name);
-    if ( labels.size() == 1 && labels.contains("")) {
+    if ( labels.size() == 0 ) {
       return getParent().getAccessibleNodeLabels();
     }
 

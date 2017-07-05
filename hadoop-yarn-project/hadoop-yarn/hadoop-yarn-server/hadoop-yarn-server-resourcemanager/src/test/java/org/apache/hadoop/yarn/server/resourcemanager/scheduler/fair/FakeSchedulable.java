@@ -20,25 +20,39 @@ package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair;
 
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceType;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
 import org.apache.hadoop.yarn.util.Records;
 import org.apache.hadoop.yarn.util.resource.Resources;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
  * Dummy implementation of Schedulable for unit testing.
  */
 public class FakeSchedulable implements Schedulable {
-  private Resource usage;
-  private Resource minShare;
-  private Resource maxShare;
-  private Resource fairShare;
-  private ResourceWeights weights;
+  private Map<String, Resource> usage;
+  private Map<String, Resource> minShare;
+  private Map<String, Resource> maxShare;
+  private Map<String, Resource> fairShare;
+  private Map<String, ResourceWeights> weights;
   private Priority priority;
   private long startTime;
-  
+
+  static private Map<String, Resource> getResource(int size, String nodeLabel) {
+    Map<String, Resource> resourceMap = new HashMap<String, Resource>();
+    resourceMap.put(nodeLabel, Resources.createResource(size, 0));
+    return resourceMap;
+  }
+
+  static private Map<String, ResourceWeights> getResourceWeights(double size, String nodeLabel) {
+    Map<String, ResourceWeights> resourceMap = new HashMap<String, ResourceWeights>();
+    resourceMap.put(nodeLabel, new ResourceWeights((float) size));
+    return resourceMap;
+  }
+
   public FakeSchedulable() {
     this(0, Integer.MAX_VALUE, 1, 0, 0, 0);
   }
@@ -61,18 +75,23 @@ public class FakeSchedulable implements Schedulable {
   
   public FakeSchedulable(int minShare, int maxShare, double weight, int fairShare, int usage,
       long startTime) {
-    this(Resources.createResource(minShare, 0), Resources.createResource(maxShare, 0),
-        new ResourceWeights((float)weight), Resources.createResource(fairShare, 0),
-        Resources.createResource(usage, 0), startTime);
+    this(getResource(minShare, ""), getResource(maxShare, ""),
+        getResourceWeights(weight, ""), getResource(fairShare, ""),
+        getResource(usage, ""), startTime);
   }
   
   public FakeSchedulable(Resource minShare, ResourceWeights weights) {
-    this(minShare, Resources.createResource(Integer.MAX_VALUE, Integer.MAX_VALUE),
-        weights, Resources.createResource(0, 0), Resources.createResource(0, 0), 0);
+    this(getResource(minShare.getMemory(), ""),
+        getResource(Integer.MAX_VALUE, ""),
+        getResourceWeights(weights.getWeight(ResourceType.MEMORY), ""),
+        getResource(0, ""),
+        getResource(0, ""),
+        0);
   }
   
-  public FakeSchedulable(Resource minShare, Resource maxShare,
-      ResourceWeights weight, Resource fairShare, Resource usage, long startTime) {
+  public FakeSchedulable(Map<String, Resource> minShare, Map<String, Resource> maxShare,
+                         Map<String, ResourceWeights> weight, Map<String, Resource> fairShare,
+                         Map<String, Resource> usage, long startTime) {
     this.minShare = minShare;
     this.maxShare = maxShare;
     this.weights = weight;
@@ -98,7 +117,7 @@ public class FakeSchedulable implements Schedulable {
   }
 
   @Override
-  public void setFairShare(Resource fairShare) {
+  public void setFairShare(Map<String, Resource> fairShare) {
     this.fairShare = fairShare;
   }
 
@@ -118,9 +137,6 @@ public class FakeSchedulable implements Schedulable {
   }
 
   @Override
-  public Resource assignGPUContainer(FSSchedulerNode node) { return null; }
-
-  @Override
   public Map<String, Resource> getResourceUsage() {
     return usage;
   }
@@ -131,7 +147,7 @@ public class FakeSchedulable implements Schedulable {
   }
   
   @Override
-  public ResourceWeights getWeights() {
+  public Map<String, ResourceWeights> getWeights() {
     return weights;
   }
   

@@ -21,6 +21,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceType;
@@ -39,9 +41,17 @@ public class TestDominantResourceFairnessPolicy {
 
   private Comparator<Schedulable> createComparator(int clusterMem,
       int clusterCpu) {
-    DominantResourceFairnessPolicy policy = new DominantResourceFairnessPolicy();
-    policy.initialize(BuilderUtils.newResource(clusterMem, clusterCpu));
-    return policy.getComparator();
+    final DominantResourceFairnessPolicy policy = new DominantResourceFairnessPolicy();
+
+    Map<String, Resource> resourceMap = new HashMap<String, Resource>();
+    resourceMap.put("", BuilderUtils.newResource(clusterMem, clusterCpu));
+    policy.initialize(resourceMap);
+    return new Comparator<Schedulable>() {
+      @Override
+      public int compare(Schedulable o1, Schedulable o2) {
+        return policy.getComparator().compare(o1, o2, "");
+      }
+    };
   }
   
   private Schedulable createSchedulable(int memUsage, int cpuUsage) {

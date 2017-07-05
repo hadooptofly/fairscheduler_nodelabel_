@@ -84,12 +84,12 @@ public class TestFSLeafQueue extends FairSchedulerTestBase {
     scheduler.allocConf = mock(AllocationConfiguration.class);
 
     String queueName = "root.queue1";
-    when(scheduler.allocConf.getMaxResources(queueName)).thenReturn(maxResource);
-    when(scheduler.allocConf.getMinResources(queueName)).thenReturn(Resources.none());
+    when(scheduler.allocConf.getMaxResources(queueName)).thenReturn(Resources.createComposeResource());
+    when(scheduler.allocConf.getMinResources(queueName)).thenReturn(Resources.createComposeResource());
     FSLeafQueue schedulable = new FSLeafQueue(queueName, scheduler, null);
 
     FSAppAttempt app = mock(FSAppAttempt.class);
-    Mockito.when(app.getDemand()).thenReturn(maxResource);
+    Mockito.when(app.getDemand()).thenReturn(Resources.createComposeResource());
 
     schedulable.addAppSchedulable(app);
     schedulable.addAppSchedulable(app);
@@ -97,7 +97,7 @@ public class TestFSLeafQueue extends FairSchedulerTestBase {
     schedulable.updateDemand();
 
     assertTrue("Demand is greater than max allowed ",
-        Resources.equals(schedulable.getDemand(), maxResource));
+        Resources.equals(schedulable.getDemand().get(""), maxResource));
   }
 
   @Test (timeout = 5000)
@@ -145,13 +145,13 @@ public class TestFSLeafQueue extends FairSchedulerTestBase {
         scheduler.getQueueManager().getLeafQueue("queueA", false);
     FSLeafQueue queueB =
         scheduler.getQueueManager().getLeafQueue("queueB", false);
-    assertFalse(queueA.isStarvedForMinShare());
-    assertTrue(queueB.isStarvedForMinShare());
+    assertFalse(queueA.isStarvedForMinShare(""));
+    assertTrue(queueB.isStarvedForMinShare(""));
 
     // Node checks in again, should allocate for B
     scheduler.handle(nodeEvent2);
     // Now B should have min share ( = demand here)
-    assertFalse(queueB.isStarvedForMinShare());
+    assertFalse(queueB.isStarvedForMinShare(""));
   }
 
   @Test (timeout = 5000)
@@ -199,7 +199,7 @@ public class TestFSLeafQueue extends FairSchedulerTestBase {
 
     QueueManager queueMgr = scheduler.getQueueManager();
     FSLeafQueue queueA = queueMgr.getLeafQueue("queueA", false);
-    assertEquals(4 * 1024, queueA.getResourceUsage().getMemory());
+    assertEquals(4 * 1024, queueA.getResourceUsage().get("").getMemory());
 
     // Both queue B1 and queue B2 want 3 * 1024
     createSchedulingRequest(1 * 1024, "queueB.queueB1", "user1", 3);
@@ -211,26 +211,26 @@ public class TestFSLeafQueue extends FairSchedulerTestBase {
 
     FSLeafQueue queueB1 = queueMgr.getLeafQueue("queueB.queueB1", false);
     FSLeafQueue queueB2 = queueMgr.getLeafQueue("queueB.queueB2", false);
-    assertEquals(2 * 1024, queueB1.getResourceUsage().getMemory());
-    assertEquals(2 * 1024, queueB2.getResourceUsage().getMemory());
+    assertEquals(2 * 1024, queueB1.getResourceUsage().get("").getMemory());
+    assertEquals(2 * 1024, queueB2.getResourceUsage().get("").getMemory());
 
     // For queue B1, the fairSharePreemptionThreshold is 0.4, and the fair share
     // threshold is 1.6 * 1024
-    assertFalse(queueB1.isStarvedForFairShare());
+    assertFalse(queueB1.isStarvedForFairShare(""));
 
     // For queue B2, the fairSharePreemptionThreshold is 0.6, and the fair share
     // threshold is 2.4 * 1024
-    assertTrue(queueB2.isStarvedForFairShare());
+    assertTrue(queueB2.isStarvedForFairShare(""));
 
     // Node checks in again
     scheduler.handle(nodeEvent2);
     scheduler.handle(nodeEvent2);
-    assertEquals(3 * 1024, queueB1.getResourceUsage().getMemory());
-    assertEquals(3 * 1024, queueB2.getResourceUsage().getMemory());
+    assertEquals(3 * 1024, queueB1.getResourceUsage().get("").getMemory());
+    assertEquals(3 * 1024, queueB2.getResourceUsage().get("").getMemory());
 
     // Both queue B1 and queue B2 usages go to 3 * 1024
-    assertFalse(queueB1.isStarvedForFairShare());
-    assertFalse(queueB2.isStarvedForFairShare());
+    assertFalse(queueB1.isStarvedForFairShare(""));
+    assertFalse(queueB2.isStarvedForFairShare(""));
   }
 
   @Test

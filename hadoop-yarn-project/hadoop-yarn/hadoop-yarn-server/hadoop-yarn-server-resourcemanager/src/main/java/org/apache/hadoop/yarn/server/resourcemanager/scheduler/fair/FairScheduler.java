@@ -917,8 +917,20 @@ public class FairScheduler extends
   private synchronized void addNode(RMNode node) {
     FSSchedulerNode schedulerNode = new FSSchedulerNode(node, usePortForNodeName, node.getNodeLabels());
     nodes.put(node.getNodeID(), schedulerNode);
-    String nodeLabel = node.getNodeLabels().iterator().next();
-    Resources.addTo(clusterResource.get(nodeLabel), schedulerNode.getTotalResource());
+
+    String nodeLabel;
+    if (CollectionUtils.isEmpty(node.getNodeLabels())) {
+      nodeLabel = "";
+    } else {
+      nodeLabel = node.getNodeLabels().iterator().next();
+    }
+
+    if (!clusterResource.containsKey(nodeLabel)) {
+      clusterResource.put(nodeLabel, Resources.clone(schedulerNode.getTotalResource()));
+    } else {
+      Resources.addTo(clusterResource.get(nodeLabel), schedulerNode.getTotalResource());
+    }
+
     updateRootQueueMetrics();
     updateMaximumAllocation(schedulerNode, true);
 
@@ -947,7 +959,9 @@ public class FairScheduler extends
       labelsManager.deactivateNode(rmNode.getNodeID());
     }
 
-    String nodeLabel = node.getLabels().iterator().next();
+    String nodeLabel = CollectionUtils.isEmpty(node.getLabels()) ?
+        RMNodeLabelsManager.NO_LABEL
+            : node.getLabels().iterator().next();
     Resources.subtractFrom(clusterResource.get(nodeLabel), node.getTotalResource());
     updateRootQueueMetrics();
 
@@ -1811,15 +1825,15 @@ public class FairScheduler extends
   public void setEntitlement(String queueName,
       QueueEntitlement entitlement) throws YarnException {
 
-    FSLeafQueue reservationQueue = queueMgr.getLeafQueue(queueName, false);
-    if (reservationQueue == null) {
-      throw new YarnException("Target queue " + queueName
-          + " not found or is not a leaf queue.");
-    }
-
-    reservationQueue.setWeights(entitlement.getCapacity());
-
-    // TODO Does MaxCapacity need to be set for fairScheduler ?
+//    FSLeafQueue reservationQueue = queueMgr.getLeafQueue(queueName, false);
+//    if (reservationQueue == null) {
+//      throw new YarnException("Target queue " + queueName
+//          + " not found or is not a leaf queue.");
+//    }
+//
+//    reservationQueue.setWeights(entitlement.getCapacity());
+//
+//    // TODO Does MaxCapacity need to be set for fairScheduler ?
   }
 
   /**

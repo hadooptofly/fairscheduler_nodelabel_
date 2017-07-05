@@ -34,18 +34,18 @@ import java.util.Map;
 @Metrics(context="yarn")
 public class FSQueueMetrics extends QueueMetrics {
 
-  @Metric("Fair share of memory in MB") MutableGaugeInt fairShareMB;
-  @Metric("Fair share of CPU in vcores") MutableGaugeInt fairShareVCores;
-  @Metric("Fair share of GPU in gcores") MutableGaugeInt fairShareGCores;
-  @Metric("Steady fair share of memory in MB") MutableGaugeInt steadyFairShareMB;
-  @Metric("Steady fair share of CPU in vcores") MutableGaugeInt steadyFairShareVCores;
-  @Metric("Steady fair share of GPU in gcores") MutableGaugeInt steadyFairShareGCores;
-  @Metric("Minimum share of memory in MB") MutableGaugeInt minShareMB;
-  @Metric("Minimum share of CPU in vcores") MutableGaugeInt minShareVCores;
-  @Metric("Minimum share of GPU in gcores") MutableGaugeInt minShareGCores;
-  @Metric("Maximum share of memory in MB") MutableGaugeInt maxShareMB;
-  @Metric("Maximum share of CPU in vcores") MutableGaugeInt maxShareVCores;
-  @Metric("Maximum share of GPU in gcores") MutableGaugeInt maxShareGCores;
+  @Metric("Fair share of memory in MB") Map<String, MutableGaugeInt> fairShareMB;
+  @Metric("Fair share of CPU in vcores") Map<String, MutableGaugeInt> fairShareVCores;
+  @Metric("Fair share of GPU in gcores") Map<String, MutableGaugeInt> fairShareGCores;
+  @Metric("Steady fair share of memory in MB") Map<String, MutableGaugeInt> steadyFairShareMB;
+  @Metric("Steady fair share of CPU in vcores") Map<String, MutableGaugeInt> steadyFairShareVCores;
+  @Metric("Steady fair share of GPU in gcores") Map<String, MutableGaugeInt> steadyFairShareGCores;
+  @Metric("Minimum share of memory in MB") Map<String, MutableGaugeInt> minShareMB;
+  @Metric("Minimum share of CPU in vcores") Map<String, MutableGaugeInt> minShareVCores;
+  @Metric("Minimum share of GPU in gcores") Map<String, MutableGaugeInt> minShareGCores;
+  @Metric("Maximum share of memory in MB") Map<String, MutableGaugeInt> maxShareMB;
+  @Metric("Maximum share of CPU in vcores") Map<String, MutableGaugeInt> maxShareVCores;
+  @Metric("Maximum share of GPU in gcores") Map<String, MutableGaugeInt> maxShareGCores;
 
   Map<String, Resource> fairShare = new HashMap<String, Resource>();
   Map<String, Resource> steadFairShare = new HashMap<String, Resource>();
@@ -61,64 +61,64 @@ public class FSQueueMetrics extends QueueMetrics {
     this.fairShare = resource;
   }
   
-  public int getFairShareMB() {
-    return fairShareMB.value();
+  public int getFairShareMB(String nodeLabel) {
+    return fairShareMB.get(nodeLabel).value();
   }
   
-  public int getFairShareVirtualCores() {
-    return fairShareVCores.value();
+  public int getFairShareVirtualCores(String nodeLabel) {
+    return fairShareVCores.get(nodeLabel).value();
   }
 
-  public int getFairShareGpuCores() {
-    return fairShareGCores.value();
+  public int getFairShareGpuCores(String nodeLabel) {
+    return fairShareGCores.get(nodeLabel).value();
   }
 
   public void setSteadyFairShare(Map<String, Resource> resource) {
     this.steadFairShare = resource;
   }
 
-  public int getSteadyFairShareMB() {
-    return steadyFairShareMB.value();
+  public int getSteadyFairShareMB(String nodeLabel) {
+    return steadyFairShareMB.get(nodeLabel).value();
   }
 
-  public int getSteadyFairShareVCores() {
-    return steadyFairShareVCores.value();
+  public int getSteadyFairShareVCores(String nodeLabel) {
+    return steadyFairShareVCores.get(nodeLabel).value();
   }
 
-  public int getSteadyFairShareGCores() {
-    return steadyFairShareGCores.value();
+  public int getSteadyFairShareGCores(String nodeLabel) {
+    return steadyFairShareGCores.get(nodeLabel).value();
   }
 
   public void setMinShare(Map<String, Resource> resource) {
     this.minShare = resource;
   }
   
-  public int getMinShareMB() {
-    return minShareMB.value();
+  public int getMinShareMB(String nodeLabel) {
+    return minShareMB.get(nodeLabel).value();
   }
   
-  public int getMinShareVirtualCores() {
-    return minShareVCores.value();
+  public int getMinShareVirtualCores(String nodeLabel) {
+    return minShareVCores.get(nodeLabel).value();
   }
 
-  public int getMinShareGpuCores() {
-    return minShareGCores.value();
+  public int getMinShareGpuCores(String nodeLabel) {
+    return minShareGCores.get(nodeLabel).value();
   }
   
   public void setMaxShare(Map<String, Resource> resource) {
     this.maxShare = resource;
   }
   
-  public int getMaxShareMB() {
-    return maxShareMB.value();
+  public int getMaxShareMB(String nodeLabel) {
+    return maxShareMB.get(nodeLabel).value();
   }
   
-  public int getMaxShareVirtualCores() {
-    return maxShareVCores.value();
+  public int getMaxShareVirtualCores(String nodeLabel) {
+    return maxShareVCores.get(nodeLabel).value();
   }
 
-  public int getMaxShareGpuCores() {
-    return maxShareGCores.value();
+  public int getMaxShareGpuCores(String nodeLabel) {
+    return maxShareGCores.get(nodeLabel).value();
   }
   
   public synchronized 

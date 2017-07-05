@@ -494,7 +494,7 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
         : (String) node.getLabels().iterator().next();
 
     if (!alreadyReserved) {
-      getMetrics().reserveResource(getUser(), container.getResource(), node.getLabels().iterator().next());
+      getMetrics().reserveResource(getUser(), container.getResource(), nodeLabel);
       RMContainer rmContainer =
           super.reserve(node, priority, null, container, nodeLabel);
       node.reserveResource(this, priority, rmContainer);
@@ -513,8 +513,11 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
     RMContainer rmContainer = node.getReservedContainer();
     unreserveInternal(priority, node);
     node.unreserveResource(this);
+    String nodeLabel = CollectionUtils.isEmpty(node.getLabels()) ?
+        RMNodeLabelsManager.NO_LABEL
+        : node.getLabels().iterator().next();
     getMetrics().unreserveResource(
-        getUser(), rmContainer.getContainer().getResource(), node.getLabels().iterator().next());
+        getUser(), rmContainer.getContainer().getResource(), nodeLabel);
   }
 
   /**
@@ -599,7 +602,9 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
 
         return container.getResource();
       } else {
-        String nodeLabel = node.getLabels().iterator().next();
+        String nodeLabel = CollectionUtils.isEmpty(node.getLabels()) ?
+            RMNodeLabelsManager.NO_LABEL
+            : node.getLabels().iterator().next();
         if (!FairScheduler.fitsInMaxShare(getQueue(), capability, nodeLabel)) {
           return Resources.none();
         }
