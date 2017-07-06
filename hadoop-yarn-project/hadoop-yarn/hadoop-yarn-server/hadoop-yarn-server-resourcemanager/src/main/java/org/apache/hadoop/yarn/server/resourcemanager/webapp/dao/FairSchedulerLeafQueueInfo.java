@@ -31,7 +31,8 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSLeafQueue;
 public class FairSchedulerLeafQueueInfo extends FairSchedulerQueueInfo {
   private int numPendingApps;
   private int numActiveApps;
-  
+  private String queuePath;
+
   public FairSchedulerLeafQueueInfo() {
   }
   
@@ -39,6 +40,7 @@ public class FairSchedulerLeafQueueInfo extends FairSchedulerQueueInfo {
     super(queue, scheduler);
     numPendingApps = queue.getNumPendingApps();
     numActiveApps = queue.getNumActiveApps();
+    queuePath = queue.getQueueName();
   }
   
   public int getNumActiveApplications() {
@@ -48,4 +50,6 @@ public class FairSchedulerLeafQueueInfo extends FairSchedulerQueueInfo {
   public int getNumPendingApplications() {
     return numPendingApps;
   }
+
+  public String getQueuePath() { return queuePath; }
 }

@@ -241,7 +241,7 @@ public class AllocationConfiguration extends ReservationSchedulerConfiguration {
    */
   public Map<String, Resource> getMinResources(String queue) {
     Map<String, Resource> minQueueResource = minQueueResources.get(queue);
-    return (minQueueResource == null) ? null : minQueueResource;
+    return (minQueueResource == null) ? Resources.createComposeResource() : minQueueResource;
   }
 
   /**
@@ -250,7 +250,7 @@ public class AllocationConfiguration extends ReservationSchedulerConfiguration {
    */
   public Map<String, Resource> getMaxResources(String queueName) {
     Map<String, Resource> maxQueueResource = maxQueueResources.get(queueName);
-    return (maxQueueResource == null) ? null : maxQueueResource;
+    return (maxQueueResource == null) ? Resources.createComposeResource() : maxQueueResource;
   }
   
   public boolean hasAccess(String queueName, QueueACL acl,

@@ -21,8 +21,11 @@ package org.apache.hadoop.yarn.server.resourcemanager.webapp;
 import static org.apache.hadoop.yarn.util.StringHelper.join;
 
 import java.util.Collection;
+import java.util.List;
 
+import org.apache.hadoop.yarn.nodelabels.NodeLabel;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
+import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.RMNodeLabelsManager;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.FairSchedulerInfo;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.FairSchedulerLeafQueueInfo;
@@ -54,34 +57,73 @@ public class FairSchedulerPage extends RmView {
   @RequestScoped
   static class FSQInfo {
     FairSchedulerQueueInfo qinfo;
+    String label;
   }
   
   static class LeafQueueBlock extends HtmlBlock {
+    final FSQInfo fsqinfo;
     final FairSchedulerLeafQueueInfo qinfo;
+    final String label;
+
+
 
     @Inject LeafQueueBlock(ViewContext ctx, FSQInfo info) {
       super(ctx);
+      fsqinfo = info;
       qinfo = (FairSchedulerLeafQueueInfo)info.qinfo;
+      label = info.label;
     }
 
     @Override
     protected void render(Block html) {
-      ResponseInfo ri = info("\'" + qinfo.getQueueName() + "\' Queue Status").
-          _("Used Resources:", qinfo.getUsedResources().toString()).
+      if ( label == null) {
+        renderLeafQueueInfoWithoutParition(html);
+      } else {
+        renderLeafQueueInfoWithPartition(html);
+      }
+    }
+
+    /*
+     * @param html block to be rendered
+     */
+    private void renderLeafQueueInfoWithPartition(final Block html) {
+      // first display the queue's label specific details :
+      ResponseInfo ri =
+          info("\'" + qinfo.getQueuePath().substring(5)
+              + "\' Queue Status for Partition \'"
+              + (label.length() == 0 ? "<DEFAULT_PARTITION>" : label) + "\'");
+      commonRender(ri);
+      html._(InfoBlock.class);
+      // clear the info contents so this queue's info doesn't accumulate into
+      // another queue's info
+      ri.clear();
+    }
+
+    /**
+     * @param html block to be rendered
+     */
+    private void renderLeafQueueInfoWithoutParition(final Block html) {
+      ResponseInfo ri =
+          info("\'" + qinfo.getQueuePath().substring(5) + "\' Queue Status");
+      commonRender(ri);
+      html._(InfoBlock.class);
+      // clear the info contents so this queue's info doesn't accumulate into
+      // another queue's info
+      ri.clear();
+    }
+
+    private void commonRender(final ResponseInfo ri) {
+       ri._("Used Resources:", qinfo.getUsedResources().toString()).
           _("Num Active Applications:", qinfo.getNumActiveApplications()).
           _("Num Pending Applications:", qinfo.getNumPendingApplications()).
           _("Min Resources:", qinfo.getMinResources().toString()).
           _("Max Resources:", qinfo.getMaxResources().toString());
       int maxApps = qinfo.getMaxApplications();
       if (maxApps < Integer.MAX_VALUE) {
-          ri._("Max Running Applications:", qinfo.getMaxApplications());
+        ri._("Max Running Applications:", qinfo.getMaxApplications());
       }
       ri._(STEADY_FAIR_SHARE + ":", qinfo.getSteadyFairShare().toString());
       ri._(INSTANTANEOUS_FAIR_SHARE + ":", qinfo.getFairShare().toString());
-      html._(InfoBlock.class);
-
-      // clear the info contents so this queue's info doesn't accumulate into another queue's info
-      ri.clear();
     }
   }
   
@@ -97,27 +139,27 @@ public class FairSchedulerPage extends RmView {
       Collection<FairSchedulerQueueInfo> subQueues = fsqinfo.qinfo.getChildQueues();
       UL<Hamlet> ul = html.ul("#pq");
       for (FairSchedulerQueueInfo info : subQueues) {
-        float capacity = info.getMaxResourcesFraction();
-        float steadyFairShare = info.getSteadyFairShareMemoryFraction();
-        float instantaneousFairShare = info.getFairShareMemoryFraction();
-        float used = info.getUsedMemoryFraction();
-        LI<UL<Hamlet>> li = ul.
-          li().
-            a(_Q).$style(width(capacity * Q_MAX_WIDTH)).
+        LI<UL<Hamlet>> li = null;
+          float capacity = info.getMaxResourcesFraction(fsqinfo.label);
+          float steadyFairShare = info.getSteadyFairShareMemoryFraction(fsqinfo.label);
+          float instantaneousFairShare = info.getFairShareMemoryFraction(fsqinfo.label);
+          float used = info.getUsedMemoryFraction(fsqinfo.label);
+          li = ul.
+              li().
+              a(_Q).$style(width(capacity * Q_MAX_WIDTH)).
               $title(join(join(STEADY_FAIR_SHARE + ":", percent(steadyFairShare)),
-                  join(" " + INSTANTANEOUS_FAIR_SHARE + ":", percent(instantaneousFairShare)))).
+                  join(INSTANTANEOUS_FAIR_SHARE + ":", percent(instantaneousFairShare)))).
               span().$style(join(Q_GIVEN, ";font-size:1px;", width(steadyFairShare / capacity))).
-                _('.')._().
+              _('.')._().
               span().$style(join(Q_INSTANTANEOUS_FS, ";font-size:1px;",
-                  width(instantaneousFairShare/capacity))).
-                _('.')._().
+              width(instantaneousFairShare/capacity))).
+              _('.')._().
               span().$style(join(width(used/capacity),
-                ";font-size:1px;left:0%;", used > instantaneousFairShare ? Q_OVER : Q_UNDER)).
-                _('.')._().
+              ";font-size:1px;left:0%;", used > instantaneousFairShare ? Q_OVER : Q_UNDER)).
+              _('.')._().
               span(".q", info.getQueueName())._().
-            span().$class("qstats").$style(left(Q_STATS_POS)).
+              span().$class("qstats").$style(left(Q_STATS_POS)).
               _(join(percent(used), " used"))._();
-
         fsqinfo.qinfo = info;
         if (info instanceof FairSchedulerLeafQueueInfo) {
           li.ul("#lq").li()._(LeafQueueBlock.class)._()._();
@@ -126,7 +168,6 @@ public class FairSchedulerPage extends RmView {
         }
         li._();
       }
-
       ul._();
     }
   }
@@ -134,9 +175,12 @@ public class FairSchedulerPage extends RmView {
   static class QueuesBlock extends HtmlBlock {
     final FairScheduler fs;
     final FSQInfo fsqinfo;
+    final List<NodeLabel> nodeLabels;
     
     @Inject QueuesBlock(ResourceManager rm, FSQInfo info) {
       fs = (FairScheduler)rm.getResourceScheduler();
+      RMNodeLabelsManager rlm = fs.getRMContext().getNodeLabelManager();
+      nodeLabels = rlm.pullRMNodeLabelsInfo();
       fsqinfo = info;
     }
 
@@ -158,8 +202,6 @@ public class FairSchedulerPage extends RmView {
       } else {
         FairSchedulerInfo sinfo = new FairSchedulerInfo(fs);
         fsqinfo.qinfo = sinfo.getRootQueueInfo();
-        float used = fsqinfo.qinfo.getUsedMemoryFraction();
-
         ul.
           li().$style("margin-bottom: 1em").
             span().$style("font-weight: bold")._("Legend:")._().
@@ -176,16 +218,47 @@ public class FairSchedulerPage extends RmView {
             span().$class("qlegend ui-corner-all").$style(Q_OVER).
               _("Used (over fair share)")._().
             span().$class("qlegend ui-corner-all ui-state-default").
-              _("Max Capacity")._().
-        _().
-          li().
-            a(_Q).$style(width(Q_MAX_WIDTH)).
+              _("Max Capacity")._()._();
+        if (nodeLabels == null
+            || (nodeLabels.size() == 1
+                  && nodeLabels.get(0).getLabelName().isEmpty()))  {
+          float used = fsqinfo.qinfo.getUsedMemoryFraction(RMNodeLabelsManager.NO_LABEL);
+          fsqinfo.label = RMNodeLabelsManager.NO_LABEL;
+          ul.li().
+              a(_Q).$style(width(Q_MAX_WIDTH)).
               span().$style(join(width(used), ";left:0%;",
-                  used > 1 ? Q_OVER : Q_UNDER))._(".")._().
+              used > 1 ? Q_OVER : Q_UNDER))._(".")._().
               span(".q", "root")._().
-            span().$class("qstats").$style(left(Q_STATS_POS)).
+              span().$class("qstats").$style(left(Q_STATS_POS)).
               _(join(percent(used), " used"))._().
-            _(QueueBlock.class)._();
+              _(QueueBlock.class)._();
+        } else {
+          for (NodeLabel nodeLabel : nodeLabels) {
+            fsqinfo.label = nodeLabel.getLabelName();
+            float used = fsqinfo.qinfo.getUsedMemoryFraction(nodeLabel.getLabelName());
+            String partitionUiTag = "Partition: "
+                + (fsqinfo.label.equals("") ? "<default_partition>"
+                : fsqinfo.label);
+            ul.li().
+                a(_Q).$style(width(Q_MAX_WIDTH)).
+                span().$style(join(width(used), ";left:0%;",
+                used > 1 ? Q_OVER : Q_UNDER))._(".")._().
+                span(".q", partitionUiTag)._().
+                span().$class("qstats").$style(left(Q_STATS_POS)).
+                _(join(percent(used), " used"))._();
+
+            //for the queue hierarchy under label
+            UL<Hamlet> underLabel = html.ul("#pq");
+            underLabel.li().
+                a(_Q).$style(width(Q_MAX_WIDTH)).
+                span().$style(join(width(used), ";left:0%;",
+                used > 1 ? Q_OVER : Q_UNDER))._(".")._().
+                span(".q", "Queue: root")._().
+                span().$class("qstats").$style(left(Q_STATS_POS)).
+                _(join(percent(used), " used"))._().
+                _(FairSchedulerPage.QueueBlock.class)._()._();
+          }
+        }
       }
       ul._()._().
       script().$type("text/javascript").
