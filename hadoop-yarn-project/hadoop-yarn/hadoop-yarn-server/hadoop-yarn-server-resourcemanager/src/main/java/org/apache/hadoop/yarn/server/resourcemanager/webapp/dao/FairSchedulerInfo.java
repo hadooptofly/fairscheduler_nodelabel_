@@ -25,8 +25,11 @@ import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
 
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
+import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSAppAttempt;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler;
+
+import java.util.Map;
 
 @XmlRootElement(name = "fairScheduler")
 @XmlType(name = "fairScheduler")
@@ -54,10 +57,10 @@ public class FairSchedulerInfo extends SchedulerInfo {
    * <code>FairSchedulerInfo#INVALID_FAIR_SHARE</code> if the scheduler does
    * not know about this application attempt.
    */
-  public int getAppFairShare(ApplicationAttemptId appAttemptId, String nodeLabel) {
+  public Map<String, Resource> getAppFairShare(ApplicationAttemptId appAttemptId) {
     FSAppAttempt fsAppAttempt = scheduler.getSchedulerApp(appAttemptId);
     return fsAppAttempt == null ?
-        INVALID_FAIR_SHARE :  fsAppAttempt.getFairShare().get(nodeLabel).getMemory();
+        null :  fsAppAttempt.getFairShare();
   }
   
   public FairSchedulerQueueInfo getRootQueueInfo() {

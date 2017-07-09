@@ -22,7 +22,6 @@ import java.util.*;
 
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
-import org.apache.hadoop.yarn.api.protocolrecords.MockMap;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.QueueInfo;
 import org.apache.hadoop.yarn.api.records.QueueState;
@@ -45,9 +44,9 @@ public class QueueInfoPBImpl extends QueueInfo {
   List<ApplicationReport> applicationsList;
   List<QueueInfo> childQueuesList;
   Set<String> accessibleNodeLabels;
-  MockMap capacity;
-  MockMap currentCapacity;
-  MockMap maximumCapacity;
+  Map<String, Float> capacity;
+  Map<String, Float> currentCapacity;
+  Map<String, Float> maximumCapacity;
   
   public QueueInfoPBImpl() {
     builder = QueueInfoProto.newBuilder();
@@ -65,12 +64,9 @@ public class QueueInfoPBImpl extends QueueInfo {
   }
 
   @Override
-  public MockMap getCapacity() {
-    QueueInfoProtoOrBuilder p = viaProto ? proto : builder;
-    if (!p.hasCapacity()) {
-      return null;
-    }
-    return new MockMapPBImpl(p.getCapacity());
+  public Map<String, Float> getCapacity() {
+    initCapacity();
+    return capacity;
   }
 
   @Override
@@ -80,21 +76,15 @@ public class QueueInfoPBImpl extends QueueInfo {
   }
 
   @Override
-  public MockMap getCurrentCapacity() {
-    QueueInfoProtoOrBuilder p = viaProto ? proto : builder;
-    if (!p.hasCurrentCapacity()) {
-      return null;
-    }
-    return new MockMapPBImpl(p.getCurrentCapacity());
+  public Map<String, Float> getCurrentCapacity() {
+    initCurrentCapacity();
+    return currentCapacity;
   }
 
   @Override
-  public MockMap getMaximumCapacity() {
-    QueueInfoProtoOrBuilder p = viaProto ? proto : builder;
-    if (!p.hasMaximumCapacity()) {
-      return null;
-    }
-    return new MockMapPBImpl(p.getMaximumCapacity());
+  public Map<String, Float> getMaximumCapacity() {
+    initMaxCapacity();
+    return maximumCapacity;
   }
 
   @Override
@@ -121,13 +111,12 @@ public class QueueInfoPBImpl extends QueueInfo {
   }
 
   @Override
-  public void setCapacity(MockMap capacity) {
-    maybeInitBuilder();
-    if (capacity == null) {
-      builder.clearCapacity();
+  public void setCapacity(Map<String, Float> capacity) {
+    if (capacity == null)
       return;
-    }
-    this.capacity = capacity;
+    initCapacity();
+    this.capacity.clear();
+    this.capacity.putAll(capacity);
   }
 
   @Override
@@ -139,23 +128,21 @@ public class QueueInfoPBImpl extends QueueInfo {
   }
 
   @Override
-  public void setCurrentCapacity(MockMap currentCapacity) {
-    maybeInitBuilder();
-    if (currentCapacity == null) {
-      builder.clearCurrentCapacity();
+  public void setCurrentCapacity(Map<String, Float> currentCapacity) {
+    if (currentCapacity == null)
       return;
-    }
-    this.currentCapacity = currentCapacity;
+    initCurrentCapacity();
+    currentCapacity.clear();
+    this.currentCapacity.putAll(currentCapacity);
   }
 
   @Override
-  public void setMaximumCapacity(MockMap maximumCapacity) {
-    maybeInitBuilder();
-    if (maximumCapacity == null) {
-      builder.clearMaximumCapacity();
+  public void setMaximumCapacity(Map<String, Float> maximumCapacity) {
+    if (maximumCapacity == null)
       return;
-    }
-    this.maximumCapacity = maximumCapacity;
+    initMaxCapacity();
+    this.maximumCapacity.clear();
+    this.maximumCapacity.putAll(maximumCapacity);
   }
 
   @Override
@@ -299,7 +286,159 @@ public class QueueInfoPBImpl extends QueueInfo {
     builder.addAllChildQueues(iterable);
   }
 
+
+  private void initCapacity() {
+    if (capacity != null) {
+      return;
+    }
+    QueueInfoProtoOrBuilder p = viaProto ? proto : builder;
+    capacity = new HashMap<String, Float>();
+    List<YarnProtos.StringFloatMapProto> protos = p.getCapacityList();
+    for (YarnProtos.StringFloatMapProto sfp : protos) {
+      capacity.put(sfp.getK(), sfp.getV());
+    }
+  }
+
+  private void addCapacityToProto() {
+    maybeInitBuilder();
+    builder.clearCapacity();
+    if (capacity == null)
+      return;
+    Iterable<YarnProtos.StringFloatMapProto> iterable =
+        new Iterable<YarnProtos.StringFloatMapProto>() {
+          @Override
+          public Iterator<YarnProtos.StringFloatMapProto> iterator() {
+            return new Iterator<YarnProtos.StringFloatMapProto>() {
+
+              Iterator<String> iterator = capacity.keySet().iterator();
+
+              @Override
+              public boolean hasNext() {
+                return iterator.hasNext();
+              }
+
+              @Override
+              public YarnProtos.StringFloatMapProto next() {
+                String key = iterator.next();
+                return YarnProtos.StringFloatMapProto.newBuilder().setK(key)
+                    .setV(capacity.get(key)).build();
+              }
+
+              @Override
+              public void remove() {
+                throw new UnsupportedOperationException();
+              }
+            };
+          }
+        };
+    builder.addAllCapacity(iterable);
+  }
+
+
+  private void initCurrentCapacity() {
+    if (capacity != null) {
+      return;
+    }
+    QueueInfoProtoOrBuilder p = viaProto ? proto : builder;
+    currentCapacity = new HashMap<String, Float>();
+    List<YarnProtos.StringFloatMapProto> protos = p.getCurrentCapacityList();
+    for (YarnProtos.StringFloatMapProto sfp : protos) {
+      currentCapacity.put(sfp.getK(), sfp.getV());
+    }
+  }
+
+  private void addCurrentCapacityToProto() {
+    maybeInitBuilder();
+    builder.clearCapacity();
+    if (currentCapacity == null)
+      return;
+    Iterable<YarnProtos.StringFloatMapProto> iterable =
+        new Iterable<YarnProtos.StringFloatMapProto>() {
+          @Override
+          public Iterator<YarnProtos.StringFloatMapProto> iterator() {
+            return new Iterator<YarnProtos.StringFloatMapProto>() {
+
+              Iterator<String> iterator = currentCapacity.keySet().iterator();
+
+              @Override
+              public boolean hasNext() {
+                return iterator.hasNext();
+              }
+
+              @Override
+              public YarnProtos.StringFloatMapProto next() {
+                String key = iterator.next();
+                return YarnProtos.StringFloatMapProto.newBuilder().setK(key)
+                    .setV(currentCapacity.get(key)).build();
+              }
+
+              @Override
+              public void remove() {
+                throw new UnsupportedOperationException();
+              }
+            };
+          }
+        };
+    builder.addAllCurrentCapacity(iterable);
+  }
+
+  private void initMaxCapacity() {
+    if (maximumCapacity != null) {
+      return;
+    }
+    QueueInfoProtoOrBuilder p = viaProto ? proto : builder;
+    maximumCapacity = new HashMap<String, Float>();
+    List<YarnProtos.StringFloatMapProto> protos = p.getMaximumCapacityList();
+    for (YarnProtos.StringFloatMapProto sfp : protos) {
+      maximumCapacity.put(sfp.getK(), sfp.getV());
+    }
+  }
+
+  private void addMaxCapacityToProto() {
+    maybeInitBuilder();
+    builder.clearCapacity();
+    if (maximumCapacity == null)
+      return;
+    Iterable<YarnProtos.StringFloatMapProto> iterable =
+        new Iterable<YarnProtos.StringFloatMapProto>() {
+          @Override
+          public Iterator<YarnProtos.StringFloatMapProto> iterator() {
+            return new Iterator<YarnProtos.StringFloatMapProto>() {
+
+              Iterator<String> iterator = maximumCapacity.keySet().iterator();
+
+              @Override
+              public boolean hasNext() {
+                return iterator.hasNext();
+              }
+
+              @Override
+              public YarnProtos.StringFloatMapProto next() {
+                String key = iterator.next();
+                return YarnProtos.StringFloatMapProto.newBuilder().setK(key)
+                    .setV(maximumCapacity.get(key)).build();
+              }
+
+              @Override
+              public void remove() {
+                throw new UnsupportedOperationException();
+              }
+            };
+          }
+        };
+    builder.addAllMaximumCapacity(iterable);
+  }
+
   private void mergeLocalToBuilder() {
+    if (capacity != null) {
+      addCapacityToProto();
+    }
+    if (currentCapacity != null) {
+      addCurrentCapacityToProto();
+    }
+    if (maximumCapacity != null) {
+      addMaxCapacityToProto();
+    }
     if (this.childQueuesList != null) {
       addChildQueuesInfoToProto();
     }
@@ -336,10 +475,10 @@ public class QueueInfoPBImpl extends QueueInfo {
     return ((ApplicationReportPBImpl)t).getProto();
   }
 
-  private QueueInfoPBImpl convertFromProtoFormat(QueueInfoProto a) {
-    return new QueueInfoPBImpl(a);
+  private QueueInfoPBImpl convertFromProtoFormat(QueueInfoProto q) {
+    return new QueueInfoPBImpl(q);
   }
-  
+
   private QueueInfoProto convertToProtoFormat(QueueInfo q) {
     return ((QueueInfoPBImpl)q).getProto();
   }

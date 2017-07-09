@@ -33,6 +33,7 @@ import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
@@ -111,11 +112,20 @@ public class FairSchedulerAppsBlock extends HtmlBlock {
       AppInfo appInfo = new AppInfo(rm, app, true, WebAppUtils.getHttpSchemePrefix(conf));
       String percent = String.format("%.1f", appInfo.getProgress());
       ApplicationAttemptId attemptId = app.getCurrentAppAttempt().getAppAttemptId();
-      int fairShare = fsinfo.getAppFairShare(attemptId);
-      if (fairShare == FairSchedulerInfo.INVALID_FAIR_SHARE) {
+      Map<String, Resource> fairShare = fsinfo.getAppFairShare(attemptId);
+      if (fairShare == null) {
         // FairScheduler#applications don't have the entry. Skip it.
         continue;
       }
+
+      StringBuilder fair = new StringBuilder();
+      for (String nodeLabel : fairShare.keySet()) {
+        String share = fairShare.get(nodeLabel).getGpuCores() > 0 ?
+            fairShare.get(nodeLabel).getGpuCores() + "GCores" : fairShare
+                .get(nodeLabel).getMemory() + "MB";
+        fair.append(nodeLabel + ": " + share + "\n");
+      }
+
       appsTableData.append("[\"<a href='")
       .append(url("app", appInfo.getAppId())).append("'>")
       .append(appInfo.getAppId()).append("</a>\",\"")
@@ -127,7 +137,7 @@ public class FairSchedulerAppsBlock extends HtmlBlock {
         appInfo.getApplicationType()))).append("\",\"")
       .append(StringEscapeUtils.escapeJavaScript(StringEscapeUtils.escapeHtml(
         appInfo.getQueue()))).append("\",\"")
-      .append(fairShare).append("\",\"")
+      .append(fair.toString()).append("\",\"")
       .append(appInfo.getStartTime()).append("\",\"")
       .append(appInfo.getFinishTime()).append("\",\"")
       .append(appInfo.getState()).append("\",\"")

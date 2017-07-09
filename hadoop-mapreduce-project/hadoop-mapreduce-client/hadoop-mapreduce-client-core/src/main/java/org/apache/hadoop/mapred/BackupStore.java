@@ -143,9 +143,9 @@ public class BackupStore<K,V> {
 
   public void mark() throws IOException {
 
-    // We read one KV pair in advance in hasNext. 
-    // If hasNext has read the next KV pair from a new segment, but the
-    // user has not called next() for that KV, then reset the readSegmentIndex
+    // We read one StringFloatTuple pair in advance in hasNext.
+    // If hasNext has read the next StringFloatTuple pair from a new segment, but the
+    // user has not called next() for that StringFloatTuple, then reset the readSegmentIndex
     // to the previous segment
 
     if (nextKVOffset == 0) {
@@ -225,7 +225,7 @@ public class BackupStore<K,V> {
       return false;
     }
     
-    // We read the next KV from the cache to decide if there is any left.
+    // We read the next StringFloatTuple from the cache to decide if there is any left.
     // Since hasNext can be called several times before the actual call to 
     // next(), we use hasMore to avoid extra reads. hasMore is set to false
     // when the user actually consumes this record in next()

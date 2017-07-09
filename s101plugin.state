@@ -1,13 +1,5 @@
 <?xml version="1.0"?>
-<<<<<<< Updated upstream
-<structure101-builder version="1.0" format="state" vendor="headway" generated-at="Thu May 25 14:40:53 CST 2017">
-=======
-<<<<<<< Updated upstream
-<structure101-builder version="1.0" format="state" vendor="headway" generated-at="Thu Jun 08 18:12:27 CST 2017">
-=======
-<structure101-builder version="1.0" format="state" vendor="headway" generated-at="Thu Jun 01 14:01:40 CST 2017">
->>>>>>> Stashed changes
->>>>>>> Stashed changes
+<structure101-builder version="1.0" format="state" vendor="headway" generated-at="Sun Jul 09 18:06:22 CST 2017">
   <builder-settings includeExternals="true" diagramsTimeStamp="0" actionsTimeStamp="0" settingsCheckInterval="5000" classPath="" compilationPath="">
     <s101plugin-properties>
       <isEnabled value="false"/>

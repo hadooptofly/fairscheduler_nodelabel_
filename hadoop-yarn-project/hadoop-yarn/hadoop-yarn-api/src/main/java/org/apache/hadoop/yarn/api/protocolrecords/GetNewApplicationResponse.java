@@ -27,6 +27,9 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.util.Records;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * <p>The response sent by the <code>ResourceManager</code> to the client for 
  * a request to get a new {@link ApplicationId} for submitting applications.</p>
@@ -44,7 +47,7 @@ public abstract class GetNewApplicationResponse {
   @Unstable
   public static GetNewApplicationResponse newInstance(
       ApplicationId applicationId, Resource minCapability,
-      Resource maxCapability) {
+      Map<String, Resource> maxCapability) {
     GetNewApplicationResponse response =
         Records.newRecord(GetNewApplicationResponse.class);
     response.setApplicationId(applicationId);
@@ -73,9 +76,9 @@ public abstract class GetNewApplicationResponse {
    */
   @Public
   @Stable
-  public abstract Resource getMaximumResourceCapability();
+  public abstract Map<String, Resource> getMaximumResourceCapability();
   
   @Private
   @Unstable
-  public abstract void setMaximumResourceCapability(Resource capability); 
+  public abstract void setMaximumResourceCapability(Map<String, Resource> capability);
 }

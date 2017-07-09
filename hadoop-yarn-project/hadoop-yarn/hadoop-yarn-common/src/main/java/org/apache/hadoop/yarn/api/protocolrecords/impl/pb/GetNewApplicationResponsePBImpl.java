@@ -26,12 +26,18 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.impl.pb.ApplicationIdPBImpl;
 import org.apache.hadoop.yarn.api.records.impl.pb.ResourcePBImpl;
+import org.apache.hadoop.yarn.proto.YarnProtos;
 import org.apache.hadoop.yarn.proto.YarnProtos.ApplicationIdProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.ResourceProto;
 import org.apache.hadoop.yarn.proto.YarnServiceProtos.GetNewApplicationResponseProto;
 import org.apache.hadoop.yarn.proto.YarnServiceProtos.GetNewApplicationResponseProtoOrBuilder;
 
 import com.google.protobuf.TextFormat;
+
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 @Private
 @Unstable
@@ -41,7 +47,7 @@ public class GetNewApplicationResponsePBImpl extends GetNewApplicationResponse {
   boolean viaProto = false;
   
   private ApplicationId applicationId = null;
-  private Resource maximumResourceCapability = null;
+  private Map<String, Resource> maximumResourceCapability = null;
   
   public GetNewApplicationResponsePBImpl() {
     builder = GetNewApplicationResponseProto.newBuilder();
@@ -84,7 +90,7 @@ public class GetNewApplicationResponsePBImpl extends GetNewApplicationResponse {
       builder.setApplicationId(convertToProtoFormat(this.applicationId));
     }
     if (maximumResourceCapability != null) {
-    	builder.setMaximumCapability(convertToProtoFormat(this.maximumResourceCapability));
+    	addMaximumResourceCapability();
     }
   }
 
@@ -102,8 +108,7 @@ public class GetNewApplicationResponsePBImpl extends GetNewApplicationResponse {
     }
     viaProto = false;
   }
-    
-  
+
   @Override
   public ApplicationId getApplicationId() {
     if (this.applicationId != null) {
@@ -128,29 +133,66 @@ public class GetNewApplicationResponsePBImpl extends GetNewApplicationResponse {
   }
 
   @Override
-  public Resource getMaximumResourceCapability() {
-    if (this.maximumResourceCapability != null) {
-      return this.maximumResourceCapability;
-    }
- 
-    GetNewApplicationResponseProtoOrBuilder p = viaProto ? proto : builder;
-    if (!p.hasMaximumCapability()) {
-      return null;
-    }
-    
-    this.maximumResourceCapability = convertFromProtoFormat(p.getMaximumCapability());
+  public Map<String, Resource> getMaximumResourceCapability() {
+    initMaximumResourceCapability();
     return this.maximumResourceCapability;
   }
 
-  @Override
-  public void setMaximumResourceCapability(Resource capability) {
-    maybeInitBuilder();
-    if(maximumResourceCapability == null) {
-      builder.clearMaximumCapability();
+  private void initMaximumResourceCapability() {
+    if (maximumResourceCapability == null)
+      return;
+    GetNewApplicationResponseProtoOrBuilder p = viaProto ? proto : builder;
+    Map<String, Resource> maxResource = new HashMap<String, Resource>();
+    List<YarnProtos.StringResourceMapProto> resourceMapProtos = p.getMaximumCapabilityList();
+    for (YarnProtos.StringResourceMapProto resourceMapProto : resourceMapProtos) {
+      maxResource.put(resourceMapProto.getK(), convertFromProtoFormat(resourceMapProto.getV()));
     }
-    this.maximumResourceCapability = capability;
   }
- 
+
+  @Override
+  public void setMaximumResourceCapability(Map<String, Resource> capability) {
+    if(maximumResourceCapability == null)
+      return;
+    initMaximumResourceCapability();
+    maximumResourceCapability.clear();
+    this.maximumResourceCapability.putAll(capability);
+  }
+
+  private void addMaximumResourceCapability() {
+    maybeInitBuilder();
+    builder.clearMaximumCapability();
+    if (maximumResourceCapability == null)
+      return;
+    final Iterable<YarnProtos.StringResourceMapProto> iterable =
+        new Iterable<YarnProtos.StringResourceMapProto>() {
+          @Override
+          public Iterator<YarnProtos.StringResourceMapProto> iterator() {
+            return new Iterator<YarnProtos.StringResourceMapProto>() {
+
+              Iterator<String> itr = maximumResourceCapability.keySet().iterator();
+
+              @Override
+              public boolean hasNext() {
+                return itr.hasNext();
+              }
+
+              @Override
+              public YarnProtos.StringResourceMapProto next() {
+                String k = itr.next();
+                return YarnProtos.StringResourceMapProto.newBuilder().setK(k)
+                    .setV(convertToProtoFormat(maximumResourceCapability.get(k))).build();
+              }
+
+              @Override
+              public void remove() {
+                throw new UnsupportedOperationException();
+              }
+            };
+          }
+        };
+    builder.addAllMaximumCapability(iterable);
+  }
+
   private ApplicationIdPBImpl convertFromProtoFormat(ApplicationIdProto p) {
     return new ApplicationIdPBImpl(p);
   }
