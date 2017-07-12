@@ -1152,7 +1152,7 @@ public class CapacityScheduler extends
               // TODO, now we only consider limits for parent for non-labeled
               // resources, should consider labeled resources as well.
               new ResourceLimits(labelManager.getResourceByLabel(
-                  RMNodeLabelsManager.NO_LABEL, clusterResource)));
+                  RMNodeLabelsManager.NO_LABEL, null)));
       
       RMContainer excessReservation = assignment.getExcessReservation();
       if (excessReservation != null) {

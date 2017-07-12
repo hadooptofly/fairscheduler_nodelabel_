@@ -1601,7 +1601,7 @@ public class LeafQueue extends AbstractCSQueue {
     // Update reserved metrics if this is the first reservation
     if (rmContainer == null) {
       getMetrics().reserveResource(
-          application.getUser(), container.getResource());
+          application.getUser(), container.getResource(), rmContainer.getNodeLabel());
     }
 
     // Inform the application 
@@ -1619,7 +1619,7 @@ public class LeafQueue extends AbstractCSQueue {
 
       // Update reserved metrics
       getMetrics().unreserveResource(application.getUser(),
-          rmContainer.getContainer().getResource());
+          rmContainer.getContainer().getResource(), rmContainer.getNodeLabel());
       return true;
     }
     return false;
