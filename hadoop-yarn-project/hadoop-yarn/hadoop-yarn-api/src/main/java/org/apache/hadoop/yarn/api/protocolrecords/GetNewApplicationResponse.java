@@ -46,12 +46,12 @@ public abstract class GetNewApplicationResponse {
   @Private
   @Unstable
   public static GetNewApplicationResponse newInstance(
-      ApplicationId applicationId, Resource minCapability,
-      Map<String, Resource> maxCapability) {
+      ApplicationId applicationId, Resource minAllocation,
+      Resource maxAllocation) {
     GetNewApplicationResponse response =
         Records.newRecord(GetNewApplicationResponse.class);
     response.setApplicationId(applicationId);
-    response.setMaximumResourceCapability(maxCapability);
+    response.setMaximumAllocationCapability(maxAllocation);
     return response;
   }
 
@@ -76,9 +76,9 @@ public abstract class GetNewApplicationResponse {
    */
   @Public
   @Stable
-  public abstract Map<String, Resource> getMaximumResourceCapability();
+  public abstract Resource getMaximumAllocationCapability();
   
   @Private
   @Unstable
-  public abstract void setMaximumResourceCapability(Map<String, Resource> capability);
+  public abstract void setMaximumAllocationCapability(Resource capability);
 }

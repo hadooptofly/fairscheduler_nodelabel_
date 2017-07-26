@@ -93,7 +93,7 @@ public class TestSchedulerApplicationAttempt {
     Map<NodeId, RMContainer> reservations = new HashMap<NodeId, RMContainer>();
     reservations.put(node.getNodeID(), container2);
     app.reservedContainers.put(prio1, reservations);
-    oldMetrics.reserveResource(user, reservedResource);
+    oldMetrics.reserveResource(user, reservedResource, "");
     
     checkQueueMetrics(oldMetrics, 1, 1, 1536, 2, 2048, 3, 3072, 4);
     checkQueueMetrics(newMetrics, 0, 0, 0, 0, 0, 0, 0, 0);

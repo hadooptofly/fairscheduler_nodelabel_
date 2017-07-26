@@ -45,7 +45,6 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
 import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -96,31 +95,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CSQueue;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo.FifoScheduler;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.AppAttemptInfo;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.AppAttemptsInfo;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.NewApplication;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.AppInfo;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.AppState;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.AppQueue;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.ApplicationSubmissionContextInfo;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.ApplicationStatisticsInfo;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.AppsInfo;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.CapacitySchedulerInfo;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.ClusterInfo;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.ClusterMetricsInfo;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.CredentialsInfo;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.DelegationToken;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.FairSchedulerInfo;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.FifoSchedulerInfo;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.LocalResourceInfo;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.NodeInfo;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.NodesInfo;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.ResourceInfo;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.SchedulerInfo;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.SchedulerTypeInfo;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.StatisticsItemInfo;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.NodeLabelsInfo;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.NodeToLabelsInfo;
+import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.*;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.webapp.BadRequestException;
@@ -1227,14 +1202,10 @@ public class RMWebServices {
       LOG.error(msg, e);
       throw new YarnRuntimeException(msg, e);
     }
-    Map<String, Resource> resourceMap = new HashMap<String, Resource>();
-    for (StringResourceTuple tuple : resp.getMaximumResourceCapability()) {
-      resourceMap.put(tuple.getKey(), tuple.getValue());
-    }
 
     NewApplication appId =
         new NewApplication(resp.getApplicationId().toString(),
-          new ResourceInfo(resourceMap));
+          new AllocationLimit(resp.getMaximumAllocationCapability()));
     return appId;
   }
 
@@ -1280,27 +1251,28 @@ public class RMWebServices {
 
   protected Resource createAppSubmissionContextResource(
       ApplicationSubmissionContextInfo newApp) throws BadRequestException {
-    if (newApp.getResource().getvCores() > rm.getConfig().getInt(
+    String nodeLabel = newApp.getAppNodeLabelExpression();
+    if (newApp.getResource().getvCores(nodeLabel) > rm.getConfig().getInt(
       YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES,
       YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES)) {
       String msg = "Requested more cores than configured max";
       throw new BadRequestException(msg);
     }
-    if (newApp.getResource().getMemory() > rm.getConfig().getInt(
+    if (newApp.getResource().getMemory(nodeLabel) > rm.getConfig().getInt(
       YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_MB,
       YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_MB)) {
       String msg = "Requested more memory than configured max";
       throw new BadRequestException(msg);
     }
-    if (newApp.getResource().getgCores() > rm.getConfig().getInt(
+    if (newApp.getResource().getgCores(nodeLabel) > rm.getConfig().getInt(
       YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_GCORES,
       YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_GCORES)) {
       String msg = "Requested more gcores than configured max";
       throw new BadRequestException(msg);
     }
     Resource r =
-        Resource.newInstance(newApp.getResource().getMemory(), newApp
-          .getResource().getvCores(), newApp.getResource().getgCores());
+        Resource.newInstance(newApp.getResource().getMemory(nodeLabel), newApp
+          .getResource().getvCores(nodeLabel), newApp.getResource().getgCores(nodeLabel));
     return r;
   }
 

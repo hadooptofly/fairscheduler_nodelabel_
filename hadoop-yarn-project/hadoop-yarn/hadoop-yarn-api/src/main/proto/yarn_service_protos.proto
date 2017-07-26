@@ -104,7 +104,7 @@ message GetNewApplicationRequestProto {
 
 message GetNewApplicationResponseProto {
   optional ApplicationIdProto application_id = 1;
-  repeated StringResourceMapProto maximumCapability = 2;
+  optional ResourceProto maxAllocation = 2;
 }
 
 message GetApplicationReportRequestProto {

@@ -141,7 +141,7 @@ public class LeafQueue extends AbstractCSQueue {
         new TreeSet<FiCaSchedulerApp>(applicationComparator);
     this.activeApplications = new TreeSet<FiCaSchedulerApp>(applicationComparator);
     
-    setupQueueConfigs(cs.getClusterResource());
+    setupQueueConfigs(null);
   }
 
   protected synchronized void setupQueueConfigs(Resource clusterResource)

@@ -47,7 +47,7 @@ public class GetNewApplicationResponsePBImpl extends GetNewApplicationResponse {
   boolean viaProto = false;
   
   private ApplicationId applicationId = null;
-  private Map<String, Resource> maximumResourceCapability = null;
+  private Resource maximumAllocationCapability = null;
   
   public GetNewApplicationResponsePBImpl() {
     builder = GetNewApplicationResponseProto.newBuilder();
@@ -89,8 +89,8 @@ public class GetNewApplicationResponsePBImpl extends GetNewApplicationResponse {
     if (applicationId != null) {
       builder.setApplicationId(convertToProtoFormat(this.applicationId));
     }
-    if (maximumResourceCapability != null) {
-    	addMaximumResourceCapability();
+    if (maximumAllocationCapability != null) {
+    	builder.setMaxAllocation(convertToProtoFormat(this.maximumAllocationCapability));
     }
   }
 
@@ -133,76 +133,39 @@ public class GetNewApplicationResponsePBImpl extends GetNewApplicationResponse {
   }
 
   @Override
-  public Map<String, Resource> getMaximumResourceCapability() {
-    initMaximumResourceCapability();
-    return this.maximumResourceCapability;
-  }
-
-  private void initMaximumResourceCapability() {
-    if (maximumResourceCapability == null)
-      return;
-    GetNewApplicationResponseProtoOrBuilder p = viaProto ? proto : builder;
-    Map<String, Resource> maxResource = new HashMap<String, Resource>();
-    List<YarnProtos.StringResourceMapProto> resourceMapProtos = p.getMaximumCapabilityList();
-    for (YarnProtos.StringResourceMapProto resourceMapProto : resourceMapProtos) {
-      maxResource.put(resourceMapProto.getK(), convertFromProtoFormat(resourceMapProto.getV()));
+  public Resource getMaximumAllocationCapability() {
+    if (this.maximumAllocationCapability != null) {
+      return this.maximumAllocationCapability;
     }
+
+    GetNewApplicationResponseProtoOrBuilder p = viaProto ? proto : builder;
+    if (!p.hasMaxAllocation()) {
+      return null;
+    }
+
+    this.maximumAllocationCapability = convertFromProtoFormat(p.getMaxAllocation());
+    return this.maximumAllocationCapability;
   }
 
   @Override
-  public void setMaximumResourceCapability(Map<String, Resource> capability) {
-    if(maximumResourceCapability == null)
-      return;
-    initMaximumResourceCapability();
-    maximumResourceCapability.clear();
-    this.maximumResourceCapability.putAll(capability);
-  }
-
-  private void addMaximumResourceCapability() {
+  public void setMaximumAllocationCapability(Resource capability) {
     maybeInitBuilder();
-    builder.clearMaximumCapability();
-    if (maximumResourceCapability == null)
-      return;
-    final Iterable<YarnProtos.StringResourceMapProto> iterable =
-        new Iterable<YarnProtos.StringResourceMapProto>() {
-          @Override
-          public Iterator<YarnProtos.StringResourceMapProto> iterator() {
-            return new Iterator<YarnProtos.StringResourceMapProto>() {
-
-              Iterator<String> itr = maximumResourceCapability.keySet().iterator();
-
-              @Override
-              public boolean hasNext() {
-                return itr.hasNext();
-              }
-
-              @Override
-              public YarnProtos.StringResourceMapProto next() {
-                String k = itr.next();
-                return YarnProtos.StringResourceMapProto.newBuilder().setK(k)
-                    .setV(convertToProtoFormat(maximumResourceCapability.get(k))).build();
-              }
-
-              @Override
-              public void remove() {
-                throw new UnsupportedOperationException();
-              }
-            };
-          }
-        };
-    builder.addAllMaximumCapability(iterable);
+    if(maximumAllocationCapability == null) {
+      builder.clearMaxAllocation();
+    }
+    this.maximumAllocationCapability = capability;
   }
 
   private ApplicationIdPBImpl convertFromProtoFormat(ApplicationIdProto p) {
     return new ApplicationIdPBImpl(p);
   }
 
+  private ResourcePBImpl convertFromProtoFormat(ResourceProto p) {
+    return new ResourcePBImpl(p);
+  }
+
   private ApplicationIdProto convertToProtoFormat(ApplicationId t) {
     return ((ApplicationIdPBImpl)t).getProto();
-  }
-  
-  private Resource convertFromProtoFormat(ResourceProto resource) {
-	  return new ResourcePBImpl(resource);
   }
 
   private ResourceProto convertToProtoFormat(Resource resource) {

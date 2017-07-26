@@ -499,7 +499,7 @@ public class Client {
     // the required resources from the RM for the app master
     // Memory ask has to be a multiple of min and less than max. 
     // Dump out information about cluster capability as seen by the resource manager
-    int maxMem = appResponse.getMaximumResourceCapability().getMemory();
+    int maxMem = appResponse.getMaximumAllocationCapability().getMemory();
     LOG.info("Max mem capabililty of resources in this cluster " + maxMem);
 
     // A resource ask cannot exceed the max. 
@@ -510,7 +510,7 @@ public class Client {
       amMemory = maxMem;
     }				
 
-    int maxVCores = appResponse.getMaximumResourceCapability().getVirtualCores();
+    int maxVCores = appResponse.getMaximumAllocationCapability().getVirtualCores();
     LOG.info("Max virtual cores capabililty of resources in this cluster " + maxVCores);
     
     if (amVCores > maxVCores) {
@@ -520,7 +520,7 @@ public class Client {
       amVCores = maxVCores;
     }
 
-    int maxGCores = appResponse.getMaximumResourceCapability().getGpuCores();
+    int maxGCores = appResponse.getMaximumAllocationCapability().getGpuCores();
     LOG.info("Max gpu cores capabililty of resources in this cluster " + maxGCores);
 
     if (amGCores > maxGCores) {

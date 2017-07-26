@@ -92,7 +92,7 @@ public class TestSchedulerNegotiator {
 //
 //
 //    @Override
-//    public Resource getMaximumResourceCapability() {
+//    public Resource getMaximumAllocationCapability() {
 //      // TODO Auto-generated method stub
 //      return null;
 //    }

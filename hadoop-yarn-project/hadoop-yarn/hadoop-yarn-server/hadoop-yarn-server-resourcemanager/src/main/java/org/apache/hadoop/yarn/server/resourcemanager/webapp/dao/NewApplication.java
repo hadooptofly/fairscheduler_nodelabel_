@@ -31,24 +31,24 @@ public class NewApplication {
   String applicationId;
 
   @XmlElement(name="maximum-resource-capability")
-  ResourceInfo maximumResourceCapability;
+  AllocationLimit maximumAllocationCapability;
 
   public NewApplication() {
     applicationId = "";
-    maximumResourceCapability = new ResourceInfo();
+    maximumAllocationCapability = new AllocationLimit();
   }
 
-  public NewApplication(String appId, ResourceInfo maxResources) {
+  public NewApplication(String appId, AllocationLimit maxResources) {
     applicationId = appId;
-    maximumResourceCapability = maxResources;
+    maximumAllocationCapability = maxResources;
   }
 
   public String getApplicationId() {
     return applicationId;
   }
 
-  public ResourceInfo getMaximumResourceCapability() {
-    return maximumResourceCapability;
+  public AllocationLimit getMaximumAllocationCapability() {
+    return maximumAllocationCapability;
   }
 
 }

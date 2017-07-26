@@ -558,11 +558,11 @@ public class TestFairScheduler extends FairSchedulerTestBase {
     // because the sum of all active Queues' weight are 1.
     // Before NodeUpdate Event, CurrentCapacity should be 0
     QueueInfo queueInfo = scheduler.getQueueInfo("queueA", false, false);
-    Assert.assertEquals(0.25f, queueInfo.getCapacity().getEntrys().get(0).getValue(), 0.0f);
-    Assert.assertEquals(0.0f, queueInfo.getCurrentCapacity().getEntrys().get(0).getValue(), 0.0f);
+    Assert.assertEquals(0.25f, queueInfo.getCapacity().entrySet().iterator().next().getValue(), 0.0f);
+    Assert.assertEquals(0.0f, queueInfo.getCurrentCapacity().entrySet().iterator().next().getValue(), 0.0f);
     queueInfo = scheduler.getQueueInfo("queueB", false, false);
-    Assert.assertEquals(0.75f, queueInfo.getCapacity().getEntrys().get(0).getValue(), 0.0f);
-    Assert.assertEquals(0.0f, queueInfo.getCurrentCapacity().getEntrys().get(0).getValue(), 0.0f);
+    Assert.assertEquals(0.75f, queueInfo.getCapacity().entrySet().iterator().next().getValue(), 0.0f);
+    Assert.assertEquals(0.0f, queueInfo.getCurrentCapacity().entrySet().iterator().next().getValue(), 0.0f);
 
     // Each NodeUpdate Event will only assign one container.
     // To assign two containers, call handle NodeUpdate Event twice.
@@ -573,11 +573,11 @@ public class TestFairScheduler extends FairSchedulerTestBase {
     // After NodeUpdate Event, CurrentCapacity for queueA should be 1/2=0.5
     // and CurrentCapacity for queueB should be 6/6=1.
     queueInfo = scheduler.getQueueInfo("queueA", false, false);
-    Assert.assertEquals(0.25f, queueInfo.getCapacity().getEntrys().get(0).getValue(), 0.0f);
-    Assert.assertEquals(0.5f, queueInfo.getCurrentCapacity().getEntrys().get(0).getValue(), 0.0f);
+    Assert.assertEquals(0.25f, queueInfo.getCapacity().entrySet().iterator().next().getValue(), 0.0f);
+    Assert.assertEquals(0.5f, queueInfo.getCurrentCapacity().entrySet().iterator().next().getValue(), 0.0f);
     queueInfo = scheduler.getQueueInfo("queueB", false, false);
-    Assert.assertEquals(0.75f, queueInfo.getCapacity().getEntrys().get(0).getValue(), 0.0f);
-    Assert.assertEquals(1.0f, queueInfo.getCurrentCapacity().getEntrys().get(0).getValue(), 0.0f);
+    Assert.assertEquals(0.75f, queueInfo.getCapacity().entrySet().iterator().next().getValue(), 0.0f);
+    Assert.assertEquals(1.0f, queueInfo.getCurrentCapacity().entrySet().iterator().next().getValue(), 0.0f);
   }
 
   @Test

@@ -36,7 +36,7 @@ public class TestEmptyQueues {
   }
 
   private void testComputeShares(SchedulingPolicy policy) {
-    policy.computeShares(schedulables, Resources.none());
+    policy.computeShares(schedulables, null);
   }
 
   @Test (timeout = 1000)

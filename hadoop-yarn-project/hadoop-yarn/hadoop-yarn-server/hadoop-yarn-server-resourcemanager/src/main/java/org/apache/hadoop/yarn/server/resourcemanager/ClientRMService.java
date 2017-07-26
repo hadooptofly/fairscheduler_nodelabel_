@@ -251,7 +251,7 @@ public class ClientRMService extends AbstractService implements
         .newRecordInstance(GetNewApplicationResponse.class);
     response.setApplicationId(getNewApplicationId());
     // Pick up min/max resource from scheduler...
-    response.setMaximumResourceCapability(scheduler.getMaximumResourceCapability());
+    response.setMaximumAllocationCapability(scheduler.getMaximumResourceCapability());
     return response;
   }
   

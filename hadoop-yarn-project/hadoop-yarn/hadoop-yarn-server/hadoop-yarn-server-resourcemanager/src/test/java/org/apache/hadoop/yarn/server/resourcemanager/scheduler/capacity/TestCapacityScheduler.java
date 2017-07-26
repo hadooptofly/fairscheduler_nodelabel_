@@ -546,14 +546,14 @@ public class TestCapacityScheduler {
     cs.handle(new NodeAddedSchedulerEvent(n1));
     cs.handle(new NodeAddedSchedulerEvent(n2));
 
-    Assert.assertEquals(6 * GB, cs.getClusterResource().getMemory());
+    Assert.assertEquals(6 * GB, cs.getClusterResource().get("").getMemory());
 
     // reconnect n1 with downgraded memory
     n1 = MockNodes.newNodeInfo(0, MockNodes.newResource(2 * GB), 1);
     cs.handle(new NodeRemovedSchedulerEvent(n1));
     cs.handle(new NodeAddedSchedulerEvent(n1));
 
-    Assert.assertEquals(4 * GB, cs.getClusterResource().getMemory());
+    Assert.assertEquals(4 * GB, cs.getClusterResource().get("").getMemory());
     cs.stop();
   }
 
@@ -1704,17 +1704,17 @@ public class TestCapacityScheduler {
     assertEquals(1, newNumAppsA);
     assertEquals(2, newNumAppsRoot);
     // original consumption on a1
-    assertEquals(3 * GB, origOldA1.getResourcesUsed().getMemory());
-    assertEquals(1, origOldA1.getResourcesUsed().getvCores());
-    assertEquals(0, origNewA1.getResourcesUsed().getMemory()); // after the move
-    assertEquals(0, origNewA1.getResourcesUsed().getvCores()); // after the move
+    assertEquals(3 * GB, origOldA1.getResourcesUsed().getMemory(""));
+    assertEquals(1, origOldA1.getResourcesUsed().getvCores(""));
+    assertEquals(0, origNewA1.getResourcesUsed().getMemory("")); // after the move
+    assertEquals(0, origNewA1.getResourcesUsed().getvCores("")); // after the move
     // app moved here with live containers
-    assertEquals(3 * GB, targetNewA2.getResourcesUsed().getMemory());
-    assertEquals(1, targetNewA2.getResourcesUsed().getvCores());
+    assertEquals(3 * GB, targetNewA2.getResourcesUsed().getMemory(""));
+    assertEquals(1, targetNewA2.getResourcesUsed().getvCores(""));
     // it was empty before the move
     assertEquals(0, targetOldA2.getNumApplications());
-    assertEquals(0, targetOldA2.getResourcesUsed().getMemory());
-    assertEquals(0, targetOldA2.getResourcesUsed().getvCores());
+    assertEquals(0, targetOldA2.getResourcesUsed().getMemory(""));
+    assertEquals(0, targetOldA2.getResourcesUsed().getvCores(""));
     // after the app moved here
     assertEquals(1, targetNewA2.getNumApplications());
     // 1 container on original queue before move
@@ -1727,18 +1727,18 @@ public class TestCapacityScheduler {
     assertEquals(0, targetOldA2.getNumContainers());
     // 1 user with 3GB
     assertEquals(3 * GB, origOldA1.getUsers().getUsersList().get(0)
-        .getResourcesUsed().getMemory());
+        .getResourcesUsed().getMemory(""));
     // 1 user with 1 core
     assertEquals(1, origOldA1.getUsers().getUsersList().get(0)
-        .getResourcesUsed().getvCores());
+        .getResourcesUsed().getvCores(""));
     // user ha no more running app in the orig queue
     assertEquals(0, origNewA1.getUsers().getUsersList().size());
     // 1 user with 3GB
     assertEquals(3 * GB, targetNewA2.getUsers().getUsersList().get(0)
-        .getResourcesUsed().getMemory());
+        .getResourcesUsed().getMemory(""));
     // 1 user with 1 core
     assertEquals(1, targetNewA2.getUsers().getUsersList().get(0)
-        .getResourcesUsed().getvCores());
+        .getResourcesUsed().getvCores(""));
 
     // Get allocations from the scheduler
     application_0.schedule(); // task_0_0

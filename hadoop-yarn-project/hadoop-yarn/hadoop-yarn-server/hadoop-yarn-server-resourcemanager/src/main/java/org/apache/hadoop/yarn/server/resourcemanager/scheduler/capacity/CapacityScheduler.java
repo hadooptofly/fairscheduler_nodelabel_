@@ -513,12 +513,12 @@ public class CapacityScheduler extends
     addNewQueues(queues, newQueues);
     
     // Re-configure queues
-    root.reinitialize(newRoot, clusterResource);
+    root.reinitialize(newRoot, clusterResource.get(""));
     initializeQueueMappings();
 
     // Re-calculate headroom for active applications
-    root.updateClusterResource(clusterResource, new ResourceLimits(
-        clusterResource));
+    root.updateClusterResource(clusterResource.get(""), new ResourceLimits(
+        clusterResource.get("")));
 
     labelManager.reinitializeQueueLabels(getQueueToLabels());
     setQueueAcls(authorizer, queues);
@@ -962,7 +962,7 @@ public class CapacityScheduler extends
     
     // Sanity check
     SchedulerUtils.normalizeRequests(
-        ask, getResourceCalculator(), getClusterResource(),
+        ask, getResourceCalculator(), getClusterResource().get(""),
         getMinimumResourceCapability(), getMaximumResourceCapability());
 
     // Release containers
@@ -1003,7 +1003,7 @@ public class CapacityScheduler extends
       application.updateBlacklist(blacklistAdditions, blacklistRemovals);
 
       return application.getAllocation(getResourceCalculator(),
-                   clusterResource, getMinimumResourceCapability());
+                   clusterResource.get(""), getMinimumResourceCapability());
     }
   }
 
@@ -1075,8 +1075,8 @@ public class CapacityScheduler extends
   private synchronized void updateNodeAndQueueResource(RMNode nm, 
       ResourceOption resourceOption) {
     updateNodeResource(nm, resourceOption);
-    root.updateClusterResource(clusterResource, new ResourceLimits(
-        clusterResource));
+    root.updateClusterResource(clusterResource.get(""), new ResourceLimits(
+        clusterResource.get("")));
   }
   
   /**
@@ -1147,7 +1147,7 @@ public class CapacityScheduler extends
       LeafQueue queue = ((LeafQueue)reservedApplication.getQueue());
       CSAssignment assignment =
           queue.assignContainers(
-              clusterResource,
+              clusterResource.get(""),
               node,
               // TODO, now we only consider limits for parent for non-labeled
               // resources, should consider labeled resources as well.
@@ -1158,7 +1158,7 @@ public class CapacityScheduler extends
       if (excessReservation != null) {
       Container container = excessReservation.getContainer();
       queue.completedContainer(
-          clusterResource, assignment.getApplication(), node, 
+          clusterResource.get(""), assignment.getApplication(), node,
           excessReservation, 
           SchedulerUtils.createAbnormalContainerStatus(
               container.getId(), 
@@ -1177,12 +1177,12 @@ public class CapacityScheduler extends
               ", available: " + node.getAvailableResource());
         }
         root.assignContainers(
-            clusterResource,
+            clusterResource.get(""),
             node,
             // TODO, now we only consider limits for parent for non-labeled
             // resources, should consider labeled resources as well.
             new ResourceLimits(labelManager.getResourceByLabel(
-                RMNodeLabelsManager.NO_LABEL, clusterResource)));
+                RMNodeLabelsManager.NO_LABEL, clusterResource.get(""))));
       }
     } else {
       LOG.info("Skipping scheduling since node " + node.getNodeID() + 
@@ -1336,7 +1336,7 @@ public class CapacityScheduler extends
     FiCaSchedulerNode schedulerNode = new FiCaSchedulerNode(nodeManager,
         usePortForNodeName, nodeManager.getNodeLabels());
     this.nodes.put(nodeManager.getNodeID(), schedulerNode);
-    Resources.addTo(clusterResource, schedulerNode.getTotalResource());
+    Resources.addTo(clusterResource.get(""), schedulerNode.getTotalResource());
 
     // update this node to node label manager
     if (labelManager != null) {
@@ -1344,8 +1344,8 @@ public class CapacityScheduler extends
           schedulerNode.getTotalResource());
     }
     
-    root.updateClusterResource(clusterResource, new ResourceLimits(
-        clusterResource));
+    root.updateClusterResource(clusterResource.get(""), new ResourceLimits(
+        clusterResource.get("")));
     int numNodes = numNodeManagers.incrementAndGet();
     updateMaximumAllocation(schedulerNode, true);
     
@@ -1367,9 +1367,9 @@ public class CapacityScheduler extends
     if (node == null) {
       return;
     }
-    Resources.subtractFrom(clusterResource, node.getTotalResource());
-    root.updateClusterResource(clusterResource, new ResourceLimits(
-        clusterResource));
+    Resources.subtractFrom(clusterResource.get(""), node.getTotalResource());
+    root.updateClusterResource(clusterResource.get(""), new ResourceLimits(
+        clusterResource.get("")));
     int numNodes = numNodeManagers.decrementAndGet();
 
     if (scheduleAsynchronously && numNodes == 0) {
@@ -1430,7 +1430,7 @@ public class CapacityScheduler extends
     
     // Inform the queue
     LeafQueue queue = (LeafQueue)application.getQueue();
-    queue.completedContainer(clusterResource, application, node, 
+    queue.completedContainer(clusterResource.get(""), application, node,
         rmContainer, containerStatus, event, null, true);
 
     LOG.info("Application attempt " + application.getApplicationAttemptId()
@@ -1684,9 +1684,9 @@ public class CapacityScheduler extends
     }
     // Move all live containers
     for (RMContainer rmContainer : app.getLiveContainers()) {
-      source.detachContainer(clusterResource, app, rmContainer);
+      source.detachContainer(clusterResource.get(""), app, rmContainer);
       // attach the Container to another queue
-      dest.attachContainer(clusterResource, app, rmContainer);
+      dest.attachContainer(clusterResource.get(""), app, rmContainer);
     }
     // Detach the application..
     source.finishApplicationAttempt(app, sourceQueueName);

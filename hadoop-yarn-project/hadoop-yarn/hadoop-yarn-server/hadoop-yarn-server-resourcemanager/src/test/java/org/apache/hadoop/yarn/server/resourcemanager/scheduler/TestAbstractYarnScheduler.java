@@ -568,7 +568,7 @@ public class TestAbstractYarnScheduler extends ParameterizedSchedulerTestBase {
       privateResourceTrackerService.registerNodeManager(request1);
       privateDispatcher.await();
       Resource clusterResource =
-          rm.getResourceScheduler().getClusterResource();
+          rm.getResourceScheduler().getClusterResource().get("");
       Assert.assertEquals("Initial cluster resources don't match", capability,
           clusterResource);
 
