@@ -95,7 +95,7 @@ public class CapacityReservationSystem extends AbstractReservationSystem {
     Resource minAllocation = getMinAllocation();
     ResourceCalculator rescCalc = getResourceCalculator();
     CSQueue planQueue = capScheduler.getQueue(planQueueName);
-    return rescCalc.multiplyAndNormalizeDown(capScheduler.getClusterResource(),
+    return rescCalc.multiplyAndNormalizeDown(capScheduler.getClusterResource().get(""),
         planQueue.getAbsoluteCapacity(), minAllocation);
   }
 

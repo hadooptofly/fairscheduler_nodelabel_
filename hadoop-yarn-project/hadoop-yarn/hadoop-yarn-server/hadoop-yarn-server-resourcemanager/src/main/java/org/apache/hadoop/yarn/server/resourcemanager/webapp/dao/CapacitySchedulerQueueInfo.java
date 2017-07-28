@@ -86,7 +86,7 @@ public class CapacitySchedulerQueueInfo {
     numApplications = q.getNumApplications();
     queueName = q.getQueueName();
     state = q.getState();
-    resourcesUsed = new ResourceInfo(queueResourceUsage.getUsed(nodeLabel));
+    resourcesUsed = new ResourceInfo(null);
     if (q instanceof PlanQueue && !((PlanQueue) q).showReservationsAsQueues()) {
       hideReservationQueues = true;
     }

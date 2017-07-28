@@ -70,7 +70,7 @@ public class FairSchedulerMetrics extends SchedulerMetrics {
       new Gauge<Integer>() {
         @Override
         public Integer getValue() {
-          return app.getDemand().getMemory();
+          return app.getDemand().get("").getMemory();
         }
       }
     );
@@ -78,7 +78,7 @@ public class FairSchedulerMetrics extends SchedulerMetrics {
       new Gauge<Integer>() {
         @Override
         public Integer getValue() {
-          return app.getDemand().getVirtualCores();
+          return app.getDemand().get("").getVirtualCores();
         }
       }
     );
@@ -86,7 +86,7 @@ public class FairSchedulerMetrics extends SchedulerMetrics {
       new Gauge<Integer>() {
         @Override
         public Integer getValue() {
-          return app.getResourceUsage().getMemory();
+          return app.getResourceUsage().get("").getMemory();
         }
       }
     );
@@ -94,7 +94,7 @@ public class FairSchedulerMetrics extends SchedulerMetrics {
       new Gauge<Integer>() {
         @Override
         public Integer getValue() {
-          return app.getResourceUsage().getVirtualCores();
+          return app.getResourceUsage().get("").getVirtualCores();
         }
       }
     );
@@ -102,7 +102,7 @@ public class FairSchedulerMetrics extends SchedulerMetrics {
       new Gauge<Integer>() {
         @Override
         public Integer getValue() {
-          return app.getMinShare().getMemory();
+          return app.getMinShare().get("").getMemory();
         }
       }
     );
@@ -110,7 +110,7 @@ public class FairSchedulerMetrics extends SchedulerMetrics {
       new Gauge<Integer>() {
         @Override
         public Integer getValue() {
-          return app.getMinShare().getMemory();
+          return app.getMinShare().get("").getMemory();
         }
       }
     );
@@ -118,7 +118,7 @@ public class FairSchedulerMetrics extends SchedulerMetrics {
       new Gauge<Integer>() {
         @Override
         public Integer getValue() {
-          return Math.min(app.getMaxShare().getMemory(), totalMemoryMB);
+          return Math.min(app.getMaxShare().get("").getMemory(), totalMemoryMB);
         }
       }
     );
@@ -126,7 +126,7 @@ public class FairSchedulerMetrics extends SchedulerMetrics {
       new Gauge<Integer>() {
         @Override
         public Integer getValue() {
-          return Math.min(app.getMaxShare().getVirtualCores(), totalVCores);
+          return Math.min(app.getMaxShare().get("").getVirtualCores(), totalVCores);
         }
       }
     );
@@ -134,7 +134,7 @@ public class FairSchedulerMetrics extends SchedulerMetrics {
       new Gauge<Integer>() {
         @Override
         public Integer getValue() {
-          return app.getFairShare().getVirtualCores();
+          return app.getFairShare().get("").getVirtualCores();
         }
       }
     );
@@ -142,7 +142,7 @@ public class FairSchedulerMetrics extends SchedulerMetrics {
       new Gauge<Integer>() {
         @Override
         public Integer getValue() {
-          return app.getFairShare().getVirtualCores();
+          return app.getFairShare().get("").getVirtualCores();
         }
       }
     );
@@ -157,7 +157,7 @@ public class FairSchedulerMetrics extends SchedulerMetrics {
       new Gauge<Integer>() {
         @Override
         public Integer getValue() {
-          return queue.getDemand().getMemory();
+          return queue.getDemand().get("").getMemory();
         }
       }
     );
@@ -165,7 +165,7 @@ public class FairSchedulerMetrics extends SchedulerMetrics {
       new Gauge<Integer>() {
         @Override
         public Integer getValue() {
-          return queue.getDemand().getVirtualCores();
+          return queue.getDemand().get("").getVirtualCores();
         }
       }
     );
@@ -173,7 +173,7 @@ public class FairSchedulerMetrics extends SchedulerMetrics {
       new Gauge<Integer>() {
         @Override
         public Integer getValue() {
-          return queue.getResourceUsage().getMemory();
+          return queue.getResourceUsage().get("").getMemory();
         }
       }
     );
@@ -181,7 +181,7 @@ public class FairSchedulerMetrics extends SchedulerMetrics {
       new Gauge<Integer>() {
         @Override
         public Integer getValue() {
-          return queue.getResourceUsage().getVirtualCores();
+          return queue.getResourceUsage().get("").getVirtualCores();
         }
       }
     );
@@ -189,7 +189,7 @@ public class FairSchedulerMetrics extends SchedulerMetrics {
       new Gauge<Integer>() {
         @Override
         public Integer getValue() {
-          return queue.getMinShare().getMemory();
+          return queue.getMinShare().get("").getMemory();
         }
       }
     );
@@ -197,7 +197,7 @@ public class FairSchedulerMetrics extends SchedulerMetrics {
       new Gauge<Integer>() {
         @Override
         public Integer getValue() {
-          return queue.getMinShare().getVirtualCores();
+          return queue.getMinShare().get("").getVirtualCores();
         }
       }
     );
@@ -221,7 +221,7 @@ public class FairSchedulerMetrics extends SchedulerMetrics {
             maxReset = false;
           }
 
-          return Math.min(queue.getMaxShare().getMemory(), totalMemoryMB);
+          return Math.min(queue.getMaxShare().get("").getMemory(), totalMemoryMB);
         }
       }
     );
@@ -229,7 +229,7 @@ public class FairSchedulerMetrics extends SchedulerMetrics {
       new Gauge<Integer>() {
         @Override
         public Integer getValue() {
-          return Math.min(queue.getMaxShare().getVirtualCores(), totalVCores);
+          return Math.min(queue.getMaxShare().get("").getVirtualCores(), totalVCores);
         }
       }
     );
@@ -237,7 +237,7 @@ public class FairSchedulerMetrics extends SchedulerMetrics {
       new Gauge<Integer>() {
         @Override
         public Integer getValue() {
-          return queue.getFairShare().getMemory();
+          return queue.getFairShare().get("").getMemory();
         }
       }
     );
@@ -245,7 +245,7 @@ public class FairSchedulerMetrics extends SchedulerMetrics {
       new Gauge<Integer>() {
         @Override
         public Integer getValue() {
-          return queue.getFairShare().getVirtualCores();
+          return queue.getFairShare().get("").getVirtualCores();
         }
       }
     );

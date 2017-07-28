@@ -23,42 +23,39 @@ import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.metrics2.MetricsInfo;
 import org.apache.hadoop.metrics2.MetricsRecordBuilder;
 
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * A mutable long counter
+ * A mutable int counter for implementing metrics sources
  */
 @InterfaceAudience.Public
 @InterfaceStability.Evolving
-public class MutableCounterLong extends MutableCounter {
+public class MutableMapCounterInt extends MutableMapCounter {
+  private Map<String, MutableCounterInt> value = new HashMap<String, MutableCounterInt>();
 
-  private AtomicLong value = new AtomicLong();
-
-  MutableCounterLong(MetricsInfo info, long initValue) {
+  MutableMapCounterInt(MetricsInfo info, Map<String, MutableCounterInt> initValue) {
     super(info);
-    this.value.set(initValue);
+    this.value = initValue;
   }
 
   @Override
-  public void incr() {
-    incr(1);
+  public void incr(String label) {
+    incr(label, 1);
   }
 
   /**
    * Increment the value by a delta
    * @param delta of the increment
    */
-  public void incr(long delta) {
-    value.addAndGet(delta);
+  public synchronized void incr(String label, int delta) {
+    value.get(label).getValue().addAndGet(delta);
     setChanged();
   }
 
-  public AtomicLong getValue() {
-    return value;
-  }
-
-  public long value() {
-    return value.get();
+  public int value(String label) {
+    return value.get(label).value();
   }
 
   @Override

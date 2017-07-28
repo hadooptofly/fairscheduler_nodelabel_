@@ -65,8 +65,8 @@ public class FifoSchedulerInfo extends SchedulerInfo {
     qName = fs.getQueueInfo("", false, false).getQueueName();
     QueueInfo qInfo = fs.getQueueInfo(qName, true, true);
 
-    this.usedCapacity = qInfo.getCurrentCapacity();
-    this.capacity = qInfo.getCapacity();
+    this.usedCapacity = qInfo.getCurrentCapacity().get("");
+    this.capacity = qInfo.getCapacity().get("");
     this.minQueueMemoryCapacity = fs.getMinimumResourceCapability().getMemory();
     this.maxQueueMemoryCapacity = fs.getMaximumResourceCapability().getMemory();
     this.qstate = qInfo.getQueueState();

@@ -20,6 +20,7 @@ package org.apache.hadoop.metrics2.impl;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import com.google.common.collect.Lists;
 
@@ -30,6 +31,7 @@ import org.apache.hadoop.metrics2.MetricsFilter;
 import org.apache.hadoop.metrics2.MetricsRecordBuilder;
 import org.apache.hadoop.metrics2.MetricsTag;
 import org.apache.hadoop.metrics2.lib.Interns;
+import org.apache.hadoop.metrics2.lib.MutableCounterInt;
 import org.apache.hadoop.util.Time;
 
 class MetricsRecordBuilderImpl extends MetricsRecordBuilder {
@@ -75,6 +77,14 @@ class MetricsRecordBuilderImpl extends MetricsRecordBuilder {
   public MetricsRecordBuilderImpl add(AbstractMetric metric) {
     metrics.add(metric);
     return this;
+  }
+
+  @Override
+  public MetricsRecordBuilderImpl addCounter(MetricsInfo info, Map<String, MutableCounterInt>) {
+    if (acceptable && (metricFilter == null ||
+            metricFilter.accepts(info.name()))) {
+      metrics.add(new )
+    }
   }
 
   @Override

@@ -22,10 +22,13 @@ import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
 
+import org.apache.hadoop.metrics2.lib.MutableGaugeInt;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
+
+import java.util.Map;
 
 @XmlRootElement(name = "userMetrics")
 @XmlAccessorType(XmlAccessType.FIELD)
@@ -37,18 +40,8 @@ public class UserMetricsInfo {
   protected int appsRunning;
   protected int appsFailed;
   protected int appsKilled;
-  protected int runningContainers;
-  protected int pendingContainers;
-  protected int reservedContainers;
-  protected long reservedMB;
-  protected long pendingMB;
-  protected long allocatedMB;
-  protected long reservedVirtualCores;
-  protected long pendingVirtualCores;
-  protected long allocatedVirtualCores;
-  protected long reservedGpuCores;
-  protected long pendingGpuCores;
-  protected long allocatedGpuCores;
+
+  protected QueueMetrics userMetrics;
 
   @XmlTransient
   protected boolean userMetricsAvailable;
@@ -59,7 +52,7 @@ public class UserMetricsInfo {
   public UserMetricsInfo(final ResourceManager rm, final String user) {
     ResourceScheduler rs = rm.getResourceScheduler();
     QueueMetrics metrics = rs.getRootQueueMetrics();
-    QueueMetrics userMetrics = metrics.getUserMetrics(user);
+    userMetrics = metrics.getUserMetrics(user);
     this.userMetricsAvailable = false;
 
     if (userMetrics != null) {
@@ -71,22 +64,6 @@ public class UserMetricsInfo {
       this.appsRunning = userMetrics.getAppsRunning();
       this.appsFailed = userMetrics.getAppsFailed();
       this.appsKilled = userMetrics.getAppsKilled();
-
-      this.runningContainers = userMetrics.getAllocatedContainers();
-      this.pendingContainers = userMetrics.getPendingContainers();
-      this.reservedContainers = userMetrics.getReservedContainers();
-
-      this.reservedMB = userMetrics.getReservedMB();
-      this.pendingMB = userMetrics.getPendingMB();
-      this.allocatedMB = userMetrics.getAllocatedMB();
-
-      this.reservedVirtualCores = userMetrics.getReservedVirtualCores();
-      this.pendingVirtualCores = userMetrics.getPendingVirtualCores();
-      this.allocatedVirtualCores = userMetrics.getAllocatedVirtualCores();
-
-      this.reservedGpuCores = userMetrics.getReservedGpuCores();
-      this.pendingGpuCores = userMetrics.getPendingGpuCores();
-      this.allocatedGpuCores = userMetrics.getAllocatedGpuCores();
     }
   }
 
@@ -118,51 +95,51 @@ public class UserMetricsInfo {
     return appsKilled;
   }
 
-  public long getReservedMB() {
-    return this.reservedMB;
+  public Map<String, MutableGaugeInt> getReservedMB() {
+    return userMetrics.getReservedMB();
   }
 
-  public long getAllocatedMB() {
-    return this.allocatedMB;
+  public Map<String, MutableGaugeInt> getAllocatedMB() {
+    return userMetrics.getAllocatedMB();
   }
 
-  public long getPendingMB() {
-    return this.pendingMB;
+  public Map<String, MutableGaugeInt> getPendingMB() {
+    return userMetrics.getPendingMB();
   }
 
-  public long getReservedVirtualCores() {
-    return this.reservedVirtualCores;
+  public Map<String, MutableGaugeInt> getReservedVirtualCores() {
+    return userMetrics.getReservedVirtualCores();
   }
 
-  public long getAllocatedVirtualCores() {
-    return this.allocatedVirtualCores;
+  public Map<String, MutableGaugeInt> getAllocatedVirtualCores() {
+    return userMetrics.getAllocatedVirtualCores();
   }
 
-  public long getPendingVirtualCores() {
-    return this.pendingVirtualCores;
+  public Map<String, MutableGaugeInt> getPendingVirtualCores() {
+    return userMetrics.getPendingVirtualCores();
   }
 
-  public long getReservedGpuCores() {
-    return this.reservedGpuCores;
+  public Map<String, MutableGaugeInt> getReservedGpuCores() {
+    return userMetrics.getReservedGpuCores();
   }
 
-  public long getAllocatedGpuCores() {
-    return this.allocatedGpuCores;
+  public Map<String, MutableGaugeInt> getAllocatedGpuCores() {
+    return userMetrics.getAllocatedGpuCores();
   }
 
-  public long getPendingGpuCores() {
-    return this.pendingGpuCores;
+  public Map<String, MutableGaugeInt> getPendingGpuCores() {
+    return userMetrics.getPendingGpuCores();
   }
 
-  public int getReservedContainers() {
-    return this.reservedContainers;
+  public Map<String, MutableGaugeInt> getReservedContainers() {
+    return userMetrics.getReservedContainers();
   }
 
-  public int getRunningContainers() {
-    return this.runningContainers;
+  public Map<String, MutableGaugeInt> getRunningContainers() {
+    return userMetrics.getAllocatedContainers();
   }
 
-  public int getPendingContainers() {
-    return this.pendingContainers;
+  public Map<String, MutableGaugeInt> getPendingContainers() {
+    return userMetrics.getPendingContainers();
   }
 }

@@ -175,7 +175,7 @@ public class ProportionalCapacityPreemptionPolicy implements SchedulingEditPolic
   @Override
   public void editSchedule() {
     CSQueue root = scheduler.getRootQueue();
-    Resource clusterResources = Resources.clone(scheduler.getClusterResource());
+    Resource clusterResources = Resources.clone(scheduler.getClusterResource().get(""));
     clusterResources = getNonLabeledResources(clusterResources);
     setNodeLabels(scheduler.getRMContext().getNodeLabelManager()
         .getNodeLabels());

@@ -128,12 +128,14 @@ public class QueueCLI extends YarnCLI {
     writer.print("\tState : ");
     writer.println(queueInfo.getQueueState());
     DecimalFormat df = new DecimalFormat("#.0");
-    writer.print("\tCapacity : ");
-    writer.println(df.format(queueInfo.getCapacity() * 100) + "%");
-    writer.print("\tCurrent Capacity : ");
-    writer.println(df.format(queueInfo.getCurrentCapacity() * 100) + "%");
-    writer.print("\tMaximum Capacity : ");
-    writer.println(df.format(queueInfo.getMaximumCapacity() * 100) + "%");
+    for (String label : queueInfo.getCapacity().keySet()) {
+      writer.print("\tCapacity : " + label + " ");
+      writer.println(df.format(queueInfo.getCapacity().get(label) * 100) + "%");
+      writer.print("\tCurrent Capacity : " + label + " ");
+      writer.println(df.format(queueInfo.getCurrentCapacity().get(label) * 100) + "%");
+      writer.print("\tMaximum Capacity : " + label + " ");
+      writer.println(df.format(queueInfo.getMaximumCapacity().get(label) * 100) + "%");
+    }
     writer.print("\tDefault Node Label expression : ");
     if (null != queueInfo.getDefaultNodeLabelExpression()) {
       writer.println(queueInfo.getDefaultNodeLabelExpression());

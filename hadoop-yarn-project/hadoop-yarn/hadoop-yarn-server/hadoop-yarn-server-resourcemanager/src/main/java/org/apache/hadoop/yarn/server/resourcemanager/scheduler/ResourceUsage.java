@@ -40,6 +40,11 @@ import org.apache.hadoop.yarn.util.resource.Resources;
 public class ResourceUsage {
   private ReadLock readLock;
   private WriteLock writeLock;
+
+  public Map<String, UsageByLabel> getUsages() {
+    return usages;
+  }
+
   private Map<String, UsageByLabel> usages;
   // short for no-label :)
   private static final String NL = CommonNodeLabelsManager.NO_LABEL;

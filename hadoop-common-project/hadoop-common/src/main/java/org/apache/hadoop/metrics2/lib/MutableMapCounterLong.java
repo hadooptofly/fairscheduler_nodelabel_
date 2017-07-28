@@ -30,11 +30,11 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Evolving
-public class MutableCounterLong extends MutableCounter {
+public class MutableMapCounterLong extends MutableCounter {
 
   private AtomicLong value = new AtomicLong();
 
-  MutableCounterLong(MetricsInfo info, long initValue) {
+  MutableMapCounterLong(MetricsInfo info, long initValue) {
     super(info);
     this.value.set(initValue);
   }

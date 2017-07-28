@@ -23,20 +23,24 @@ import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.metrics2.MetricsInfo;
 import org.apache.hadoop.metrics2.MetricsRecordBuilder;
 
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * A mutable long counter
+ * A mutable int gauge
  */
 @InterfaceAudience.Public
 @InterfaceStability.Evolving
-public class MutableCounterLong extends MutableCounter {
+public class MutableMapGaugeInt extends MutableGauge {
 
-  private AtomicLong value = new AtomicLong();
+  private AtomicInteger value = new AtomicInteger();
 
-  MutableCounterLong(MetricsInfo info, long initValue) {
+  MutableMapGaugeInt(MetricsInfo info, int initValue) {
     super(info);
     this.value.set(initValue);
+  }
+
+  public int value() {
+    return value.get();
   }
 
   @Override
@@ -45,28 +49,42 @@ public class MutableCounterLong extends MutableCounter {
   }
 
   /**
-   * Increment the value by a delta
+   * Increment by delta
    * @param delta of the increment
    */
-  public void incr(long delta) {
+  public void incr(int delta) {
     value.addAndGet(delta);
     setChanged();
   }
 
-  public AtomicLong getValue() {
-    return value;
+  @Override
+  public void decr() {
+    decr(1);
   }
 
-  public long value() {
-    return value.get();
+  /**
+   * decrement by delta
+   * @param delta of the decrement
+   */
+  public void decr(int delta) {
+    value.addAndGet(-delta);
+    setChanged();
+  }
+
+  /**
+   * Set the value of the metric
+   * @param value to set
+   */
+  public void set(int value) {
+    this.value.set(value);
+    setChanged();
   }
 
   @Override
   public void snapshot(MetricsRecordBuilder builder, boolean all) {
     if (all || changed()) {
-      builder.addCounter(info(), value());
+      builder.addGauge(info(), value());
       clearChanged();
     }
   }
-
 }

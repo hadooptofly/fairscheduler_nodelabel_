@@ -21,52 +21,27 @@ package org.apache.hadoop.metrics2.lib;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.metrics2.MetricsInfo;
-import org.apache.hadoop.metrics2.MetricsRecordBuilder;
 
-import java.util.concurrent.atomic.AtomicLong;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
- * A mutable long counter
+ * The mutable counter (monotonically increasing) metric interface
  */
 @InterfaceAudience.Public
 @InterfaceStability.Evolving
-public class MutableCounterLong extends MutableCounter {
+public abstract class MutableMapCounter extends MutableMetric {
+  private final MetricsInfo info;
 
-  private AtomicLong value = new AtomicLong();
-
-  MutableCounterLong(MetricsInfo info, long initValue) {
-    super(info);
-    this.value.set(initValue);
+  protected MutableMapCounter(MetricsInfo info) {
+    this.info =  checkNotNull(info, "counter info");
   }
 
-  @Override
-  public void incr() {
-    incr(1);
+  protected MetricsInfo info() {
+    return info;
   }
 
   /**
-   * Increment the value by a delta
-   * @param delta of the increment
+   * Increment the metric value by 1.
    */
-  public void incr(long delta) {
-    value.addAndGet(delta);
-    setChanged();
-  }
-
-  public AtomicLong getValue() {
-    return value;
-  }
-
-  public long value() {
-    return value.get();
-  }
-
-  @Override
-  public void snapshot(MetricsRecordBuilder builder, boolean all) {
-    if (all || changed()) {
-      builder.addCounter(info(), value());
-      clearChanged();
-    }
-  }
-
+  public abstract void incr(String label);
 }

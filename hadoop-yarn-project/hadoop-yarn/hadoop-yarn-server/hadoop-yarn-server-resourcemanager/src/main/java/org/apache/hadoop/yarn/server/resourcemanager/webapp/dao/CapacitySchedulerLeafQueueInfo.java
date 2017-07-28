@@ -57,9 +57,9 @@ public class CapacitySchedulerLeafQueueInfo extends CapacitySchedulerQueueInfo {
     userLimit = q.getUserLimit();
     users = new UsersInfo(q.getUsers());
     userLimitFactor = q.getUserLimitFactor();
-    AMResourceLimit = new ResourceInfo(q.getAMResourceLimit());
-    usedAMResource = new ResourceInfo(q.getQueueResourceUsage().getAMUsed());
-    userAMResourceLimit = new ResourceInfo(q.getUserAMResourceLimit());
+    AMResourceLimit = new ResourceInfo(null);
+    usedAMResource = new ResourceInfo(null);
+    userAMResourceLimit = new ResourceInfo(null);
     preemptionDisabled = q.getPreemptionDisabled();
   }
 

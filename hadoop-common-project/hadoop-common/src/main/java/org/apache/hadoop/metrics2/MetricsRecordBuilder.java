@@ -20,6 +20,9 @@ package org.apache.hadoop.metrics2;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
+import org.apache.hadoop.metrics2.lib.*;
+
+import java.util.Map;
 
 /**
  * The metrics record builder interface
@@ -55,6 +58,38 @@ public abstract class MetricsRecordBuilder {
    * @return self
    */
   public abstract MetricsRecordBuilder setContext(String value);
+
+  /**
+   * help method
+   * @param info
+   * @param value
+   * @return
+   */
+  public abstract MetricsRecordBuilder addMapCounterInt(MetricsInfo info, Map<String, MutableCounterInt> value);
+
+  /**
+   * help method
+   * @param info
+   * @param value
+   * @return
+   */
+  public abstract MetricsRecordBuilder addMapCounterLong(MetricsInfo info, Map<String, MutableCounterLong> value);
+
+  /**
+   * help method
+   * @param info
+   * @param value
+   * @return
+   */
+  public abstract MetricsRecordBuilder addMapGaugeInt(MetricsInfo info, Map<String, MutableGaugeInt> value);
+
+  /**
+   * help method
+   * @param info
+   * @param value
+   * @return
+   */
+  public abstract MetricsRecordBuilder addMapGaugeLong(MetricsInfo info, Map<String, MutableGaugeLong> value);
 
   /**
    * Add an integer metric

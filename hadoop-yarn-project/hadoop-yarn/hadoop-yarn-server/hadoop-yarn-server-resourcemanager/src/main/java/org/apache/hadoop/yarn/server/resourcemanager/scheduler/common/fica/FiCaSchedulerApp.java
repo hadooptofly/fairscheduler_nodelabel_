@@ -121,8 +121,8 @@ public class FiCaSchedulerApp extends SchedulerApplicationAttempt {
     
     // Update usage metrics 
     Resource containerResource = rmContainer.getContainer().getResource();
-    queue.getMetrics().releaseResources(getUser(), 1, containerResource);
-    Resources.subtractFrom(currentConsumption, containerResource);
+    queue.getMetrics().releaseResources(getUser(), 1, containerResource, "");
+    Resources.subtractFrom(currentConsumption.get(""), containerResource);
 
     // Clear resource utilization metrics cache.
     lastMemoryAggregateAllocationUpdateTime = -1;
@@ -156,7 +156,7 @@ public class FiCaSchedulerApp extends SchedulerApplicationAttempt {
     // Update consumption and track allocations
     List<ResourceRequest> resourceRequestList = appSchedulingInfo.allocate(
         type, node, priority, request, container);
-    Resources.addTo(currentConsumption, container.getResource());
+    Resources.addTo(currentConsumption.get(""), container.getResource());
     
     // Update resource requests related to "request" and store in RMContainer 
     ((RMContainerImpl)rmContainer).setResourceRequests(resourceRequestList);

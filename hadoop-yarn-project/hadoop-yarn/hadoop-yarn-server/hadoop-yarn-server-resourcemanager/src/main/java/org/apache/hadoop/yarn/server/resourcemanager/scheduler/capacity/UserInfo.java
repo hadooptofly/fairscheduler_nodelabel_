@@ -40,11 +40,11 @@ public class UserInfo {
   UserInfo(String username, Resource resUsed, int activeApps, int pendingApps,
       Resource amResUsed, Resource resourceLimit) {
     this.username = username;
-    this.resourcesUsed = new ResourceInfo(resUsed);
+    this.resourcesUsed = new ResourceInfo(null);
     this.numActiveApplications = activeApps;
     this.numPendingApplications = pendingApps;
-    this.AMResourceUsed = new ResourceInfo(amResUsed);
-    this.userResourceLimit = new ResourceInfo(resourceLimit);
+    this.AMResourceUsed = new ResourceInfo(null);
+    this.userResourceLimit = new ResourceInfo(null);
   }
 
   public String getUsername() {

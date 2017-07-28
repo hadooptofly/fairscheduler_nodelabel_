@@ -84,7 +84,7 @@ public class FairReservationSystem extends AbstractReservationSystem {
   @Override
   protected Resource getPlanQueueCapacity(String planQueueName) {
     return fairScheduler.getQueueManager().getParentQueue(planQueueName, false)
-        .getSteadyFairShare();
+        .getSteadyFairShare().get("");
   }
 
 }

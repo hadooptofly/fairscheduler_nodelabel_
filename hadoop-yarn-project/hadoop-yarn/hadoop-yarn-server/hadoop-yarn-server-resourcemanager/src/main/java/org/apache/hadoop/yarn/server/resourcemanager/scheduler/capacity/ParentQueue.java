@@ -95,7 +95,7 @@ public class ParentQueue extends AbstractCSQueue {
     
     this.childQueues = new TreeSet<CSQueue>(queueComparator);
     
-    setupQueueConfigs(cs.getClusterResource());
+    setupQueueConfigs(null);
 
     LOG.info("Initialized parent-queue " + queueName + 
         " name=" + queueName + 
@@ -397,7 +397,7 @@ public class ParentQueue extends AbstractCSQueue {
       // looking
       if (!super.canAssignToThisQueue(clusterResource, nodeLabels, resourceLimits,
           minimumAllocation, Resources.createResource(getMetrics()
-              .getReservedMB(), getMetrics().getReservedVirtualCores(), getMetrics().getReservedGpuCores()))) {
+              .getReservedMB().get("").value(), getMetrics().getReservedVirtualCores().get("").value(), getMetrics().getReservedGpuCores().get("").value()))) {
         break;
       }
       

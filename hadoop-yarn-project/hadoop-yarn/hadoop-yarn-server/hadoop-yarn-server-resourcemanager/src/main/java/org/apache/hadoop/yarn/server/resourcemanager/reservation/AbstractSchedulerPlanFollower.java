@@ -85,7 +85,7 @@ public abstract class AbstractSchedulerPlanFollower implements PlanFollower {
     if (planQueue == null) return;
 
     // first we publish to the plan the current availability of resources
-    Resource clusterResources = scheduler.getClusterResource();
+    Resource clusterResources = null;
     Resource planResources = getPlanResources(plan, planQueue,
         clusterResources);
 

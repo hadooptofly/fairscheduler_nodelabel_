@@ -52,6 +52,10 @@ public class MutableCounterInt extends MutableCounter {
     setChanged();
   }
 
+  public AtomicInteger getValue() {
+    return value;
+  }
+
   public int value() {
     return value.get();
   }

@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.yarn.server.resourcemanager.webapp;
 
+import org.apache.hadoop.metrics2.lib.MutableGaugeInt;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.ClusterMetricsInfo;
@@ -53,10 +54,61 @@ public class MetricsOverviewTable extends HtmlBlock {
     //CSS in the correct spot
     html.style(".metrics {margin-bottom:5px}"); 
     
-    ClusterMetricsInfo clusterMetrics = 
- new ClusterMetricsInfo(this.rm);
+    ClusterMetricsInfo clusterMetrics = new ClusterMetricsInfo(this.rm);
     
     DIV<Hamlet> div = html.div().$class("metrics");
+
+    StringBuilder allocateContainer = new StringBuilder();
+    StringBuilder reserveMB = new StringBuilder();
+    StringBuilder allocateMB = new StringBuilder();
+    StringBuilder totalMB = new StringBuilder();
+    StringBuilder reserveVcore = new StringBuilder();
+    StringBuilder allocateVcore = new StringBuilder();
+    StringBuilder totalVcore = new StringBuilder();
+    StringBuilder reserveGcore = new StringBuilder();
+    StringBuilder allocateGcore = new StringBuilder();
+    StringBuilder totalGcore = new StringBuilder();
+
+    for (String nodeLabel : rm.getRMContext().getNodeLabelManager().getLabelSet()) {
+      MutableGaugeInt allocContainer = clusterMetrics.getContainersAllocated().get(nodeLabel);
+      MutableGaugeInt allocMB = clusterMetrics.getAllocatedMB().get(nodeLabel);
+      MutableGaugeInt resMB = clusterMetrics.getReservedMB().get(nodeLabel);
+      MutableGaugeInt allocVcore = clusterMetrics.getAllocatedVirtualCores().get(nodeLabel);
+      MutableGaugeInt resVcore = clusterMetrics.getReservedVirtualCores().get(nodeLabel);
+      MutableGaugeInt allocGcore = clusterMetrics.getAllocatedGpuCores().get(nodeLabel);
+      MutableGaugeInt resGcore = clusterMetrics.getReservedGpuCores().get(nodeLabel);
+
+      allocateContainer.append(nodeLabel).append(": ").append(String
+              .valueOf(allocContainer != null ? allocContainer.value() : 0))
+              .append("\n");
+      allocateMB.append(nodeLabel).append(": ").append(StringUtils
+              .byteDesc((allocMB != null ? allocMB.value() : 0) * BYTES_IN_MB))
+              .append("\n");
+      reserveMB.append(nodeLabel).append(": ").append(StringUtils
+              .byteDesc((reserveMB != null ? resMB.value() : 0) * BYTES_IN_MB))
+              .append("\n");
+      totalMB.append(nodeLabel).append(": ").append(StringUtils
+              .byteDesc(clusterMetrics.getTotalMB().get(nodeLabel) * BYTES_IN_MB))
+              .append("\n");
+      allocateVcore.append(nodeLabel).append(": ").append(String.valueOf(
+              allocVcore != null ? allocVcore.value() : 0))
+              .append("\n");
+      reserveVcore.append(nodeLabel).append(": ").append(String.valueOf(
+              resVcore != null ? resVcore.value() : 0))
+              .append("\n");
+      totalVcore.append(nodeLabel).append(": ").append(String.valueOf(
+              clusterMetrics.getTotalVirtualCores().get(nodeLabel)))
+              .append("\n");
+      allocateGcore.append(nodeLabel).append(": ").append(String.valueOf(
+              allocGcore != null ? allocGcore.value() : 0))
+              .append("\n");
+      reserveGcore.append(nodeLabel).append(": ").append(String.valueOf(
+              resGcore != null ? resGcore.value() : 0))
+              .append("\n");
+      totalGcore.append(nodeLabel).append(": ").append(String.valueOf(
+              clusterMetrics.getTotalGpuCores().get(nodeLabel)))
+              .append("\n");
+    }
     
     div.h3("Cluster Metrics").
     table("#metricsoverview").
@@ -93,17 +145,17 @@ public class MetricsOverviewTable extends HtmlBlock {
                 clusterMetrics.getAppsCompleted() + 
                 clusterMetrics.getAppsFailed() + clusterMetrics.getAppsKilled()
                 )
-            ).
-        td(String.valueOf(clusterMetrics.getContainersAllocated())).
-        td(StringUtils.byteDesc(clusterMetrics.getAllocatedMB() * BYTES_IN_MB)).
-        td(StringUtils.byteDesc(clusterMetrics.getTotalMB() * BYTES_IN_MB)).
-        td(StringUtils.byteDesc(clusterMetrics.getReservedMB() * BYTES_IN_MB)).
-        td(String.valueOf(clusterMetrics.getAllocatedVirtualCores())).
-        td(String.valueOf(clusterMetrics.getTotalVirtualCores())).
-        td(String.valueOf(clusterMetrics.getReservedVirtualCores())).
-        td(String.valueOf(clusterMetrics.getAllocatedGpuCores())).
-        td(String.valueOf(clusterMetrics.getTotalGpuCores())).
-        td(String.valueOf(clusterMetrics.getReservedGpuCores())).
+          ).
+        td(allocateContainer.toString()).
+        td(allocateMB.toString()).
+        td(totalMB.toString()).
+        td(reserveMB.toString()).
+        td(allocateVcore.toString()).
+        td(totalVcore.toString()).
+        td(reserveVcore.toString()).
+        td(allocateGcore.toString()).
+        td(totalGcore.toString()).
+        td(reserveGcore.toString()).
         td().a(url("nodes"),String.valueOf(clusterMetrics.getActiveNodes()))._().
         td().a(url("nodes/decommissioned"),String.valueOf(clusterMetrics.getDecommissionedNodes()))._().
         td().a(url("nodes/lost"),String.valueOf(clusterMetrics.getLostNodes()))._().
@@ -116,6 +168,72 @@ public class MetricsOverviewTable extends HtmlBlock {
     if (user != null) {
       UserMetricsInfo userMetrics = new UserMetricsInfo(this.rm, user);
       if (userMetrics.metricsAvailable()) {
+        StringBuilder userAllocateContainer = new StringBuilder();
+        StringBuilder userPendingContainer = new StringBuilder();
+        StringBuilder userReserveContainer = new StringBuilder();
+        StringBuilder userAllocateMB = new StringBuilder();
+        StringBuilder userPendingMB = new StringBuilder();
+        StringBuilder userReserveMB = new StringBuilder();
+        StringBuilder userAllocateVcore = new StringBuilder();
+        StringBuilder userPendingVcore = new StringBuilder();
+        StringBuilder userReserveVcore = new StringBuilder();
+        StringBuilder userAllocateGcore = new StringBuilder();
+        StringBuilder userPendingGcore = new StringBuilder();
+        StringBuilder userReserveGcore = new StringBuilder();
+
+        for (String nodeLabel : rm.getRMContext().getNodeLabelManager().getLabelSet()) {
+          MutableGaugeInt allocContainer = userMetrics.getRunningContainers().get(nodeLabel);
+          MutableGaugeInt pendContainer = userMetrics.getPendingContainers().get(nodeLabel);
+          MutableGaugeInt reserveContainer = userMetrics.getReservedContainers().get(nodeLabel);
+          MutableGaugeInt allocMB = userMetrics.getAllocatedMB().get(nodeLabel);
+          MutableGaugeInt pendMB = userMetrics.getPendingMB().get(nodeLabel);
+          MutableGaugeInt resMB = userMetrics.getReservedMB().get(nodeLabel);
+          MutableGaugeInt allocVcore = userMetrics.getAllocatedVirtualCores().get(nodeLabel);
+          MutableGaugeInt pendVcore = userMetrics.getPendingVirtualCores().get(nodeLabel);
+          MutableGaugeInt resVcore = userMetrics.getReservedVirtualCores().get(nodeLabel);
+          MutableGaugeInt allocGcore = userMetrics.getAllocatedGpuCores().get(nodeLabel);
+          MutableGaugeInt pendGcore = userMetrics.getPendingGpuCores().get(nodeLabel);
+          MutableGaugeInt resGcore = userMetrics.getReservedGpuCores().get(nodeLabel);
+
+
+          userAllocateContainer.append(nodeLabel).append(": ").append(String.valueOf(
+                  allocContainer != null ? allocContainer.value() : 0))
+                  .append("\n");
+          userPendingContainer.append(nodeLabel).append(": ").append(String.valueOf(
+                  pendContainer != null ? pendContainer.value() : 0))
+                  .append("\n");
+          userReserveContainer.append(nodeLabel).append(": ").append(String.valueOf(
+                  reserveContainer != null ? reserveContainer.value() : 0))
+                  .append("\n");
+          userAllocateMB.append(nodeLabel).append(": ").append(StringUtils.byteDesc(
+                  allocMB != null ? allocMB.value() * BYTES_IN_MB : 0))
+                  .append("\n");
+          userPendingMB.append(nodeLabel).append(": ").append(StringUtils.byteDesc(
+                  pendMB != null ? pendMB.value() * BYTES_IN_MB : 0))
+                  .append("\n");
+          userReserveMB.append(nodeLabel).append(": ").append(StringUtils.byteDesc(
+                  resMB != null ? resMB.value() * BYTES_IN_MB : 0))
+                  .append("\n");
+          userAllocateVcore.append(nodeLabel).append(": ").append(String.valueOf(
+                  allocVcore != null ? allocVcore.value() : 0))
+                  .append("\n");
+          userPendingVcore.append(nodeLabel).append(": ").append(String.valueOf(
+                  pendVcore != null ? pendVcore.value() : 0))
+                  .append("\n");
+          userReserveVcore.append(nodeLabel).append(": ").append(String.valueOf(
+                  resVcore != null ? resVcore.value() : 0))
+                  .append("\n");
+          userAllocateGcore.append(nodeLabel).append(": ").append(String.valueOf(
+                  allocGcore != null ? allocGcore.value() : 0))
+                  .append("\n");
+          userPendingGcore.append(nodeLabel).append(": ").append(String.valueOf(
+                  pendGcore != null ? pendGcore.value() : 0))
+                  .append("\n");
+          userReserveGcore.append(nodeLabel).append(": ").append(String.valueOf(
+                  resGcore != null ? resGcore.value() : 0))
+                  .append("\n");
+        }
+
         div.h3("User Metrics for " + user).
         table("#usermetricsoverview").
         thead().$class("ui-widget-header").
@@ -149,18 +267,18 @@ public class MetricsOverviewTable extends HtmlBlock {
                      userMetrics.getAppsFailed() + userMetrics.getAppsKilled())
                     )
               ).
-            td(String.valueOf(userMetrics.getRunningContainers())).
-            td(String.valueOf(userMetrics.getPendingContainers())).
-            td(String.valueOf(userMetrics.getReservedContainers())).
-            td(StringUtils.byteDesc(userMetrics.getAllocatedMB() * BYTES_IN_MB)).
-            td(StringUtils.byteDesc(userMetrics.getPendingMB() * BYTES_IN_MB)).
-            td(StringUtils.byteDesc(userMetrics.getReservedMB() * BYTES_IN_MB)).
-            td(String.valueOf(userMetrics.getAllocatedVirtualCores())).
-            td(String.valueOf(userMetrics.getPendingVirtualCores())).
-            td(String.valueOf(userMetrics.getReservedVirtualCores())).
-            td(String.valueOf(userMetrics.getAllocatedGpuCores())).
-            td(String.valueOf(userMetrics.getPendingGpuCores())).
-            td(String.valueOf(userMetrics.getReservedGpuCores())).
+            td(userAllocateContainer.toString()).
+            td(userPendingContainer.toString()).
+            td(userReserveContainer.toString()).
+            td(userAllocateMB.toString()).
+            td(userPendingMB.toString()).
+            td(userReserveMB.toString()).
+            td(userAllocateVcore.toString()).
+            td(userPendingVcore.toString()).
+            td(userReserveVcore.toString()).
+            td(userAllocateGcore.toString()).
+            td(userPendingGcore.toString()).
+            td(userReserveGcore.toString()).
           _().
         _()._();
         

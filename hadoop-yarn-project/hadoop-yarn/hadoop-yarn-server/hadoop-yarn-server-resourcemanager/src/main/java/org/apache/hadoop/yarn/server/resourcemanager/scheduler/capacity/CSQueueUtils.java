@@ -201,12 +201,6 @@ class CSQueueUtils {
     
     Resource available = Resources.subtract(queueLimit, usedResources);
     childQueue.getMetrics().setAvailableResourcesToQueue(
-        Resources.max(
-            calculator, 
-            clusterResource, 
-            available, 
-            Resources.none()
-            )
-        );
+        null);
    }
 }

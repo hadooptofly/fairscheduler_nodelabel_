@@ -21,10 +21,13 @@ import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlRootElement;
 
+import org.apache.hadoop.metrics2.lib.MutableGaugeInt;
 import org.apache.hadoop.yarn.server.resourcemanager.ClusterMetrics;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
+
+import java.util.Map;
 
 @XmlRootElement(name = "clusterMetrics")
 @XmlAccessorType(XmlAccessType.FIELD)
@@ -37,25 +40,9 @@ public class ClusterMetricsInfo {
   protected int appsFailed;
   protected int appsKilled;
 
-  protected long reservedMB;
-  protected long availableMB;
-  protected long allocatedMB;
-
-  protected long reservedVirtualCores;
-  protected long availableVirtualCores;
-  protected long allocatedVirtualCores;
-
-  protected long reservedGpuCores;
-  protected long availableGpuCores;
-  protected long allocatedGpuCores;
-
-  protected int containersAllocated;
-  protected int containersReserved;
-  protected int containersPending;
-
-  protected long totalMB;
-  protected long totalVirtualCores;
-  protected long totalGpuCores;
+  protected Map<String, Long> totalMB;
+  protected Map<String, Integer> totalVirtualCores;
+  protected Map<String, Integer> totalGpuCores;
   protected int totalNodes;
   protected int lostNodes;
   protected int unhealthyNodes;
@@ -63,12 +50,14 @@ public class ClusterMetricsInfo {
   protected int rebootedNodes;
   protected int activeNodes;
 
+  protected QueueMetrics metrics;
+
   public ClusterMetricsInfo() {
   } // JAXB needs this
 
   public ClusterMetricsInfo(final ResourceManager rm) {
     ResourceScheduler rs = rm.getResourceScheduler();
-    QueueMetrics metrics = rs.getRootQueueMetrics();
+    metrics = rs.getRootQueueMetrics();
     ClusterMetrics clusterMetrics = ClusterMetrics.getMetrics();
 
     this.appsSubmitted = metrics.getAppsSubmitted();
@@ -78,25 +67,6 @@ public class ClusterMetricsInfo {
     this.appsFailed = metrics.getAppsFailed();
     this.appsKilled = metrics.getAppsKilled();
 
-    this.reservedMB = metrics.getReservedMB();
-    this.availableMB = metrics.getAvailableMB();
-    this.allocatedMB = metrics.getAllocatedMB();
-
-    this.reservedVirtualCores = metrics.getReservedVirtualCores();
-    this.availableVirtualCores = metrics.getAvailableVirtualCores();
-    this.allocatedVirtualCores = metrics.getAllocatedVirtualCores();
-
-    this.reservedGpuCores = metrics.getReservedGpuCores();
-    this.availableGpuCores = metrics.getAvailableGpuCores();
-    this.allocatedGpuCores = metrics.getAllocatedGpuCores();
-
-    this.containersAllocated = metrics.getAllocatedContainers();
-    this.containersPending = metrics.getPendingContainers();
-    this.containersReserved = metrics.getReservedContainers();
-
-    this.totalMB = availableMB + allocatedMB;
-    this.totalVirtualCores = availableVirtualCores + allocatedVirtualCores;
-    this.totalGpuCores = availableGpuCores + allocatedGpuCores;
     this.activeNodes = clusterMetrics.getNumActiveNMs();
     this.lostNodes = clusterMetrics.getNumLostNMs();
     this.unhealthyNodes = clusterMetrics.getUnhealthyNMs();
@@ -104,6 +74,22 @@ public class ClusterMetricsInfo {
     this.rebootedNodes = clusterMetrics.getNumRebootedNMs();
     this.totalNodes = activeNodes + lostNodes + decommissionedNodes
         + rebootedNodes + unhealthyNodes;
+
+    for (String nodeLabel : rm.getRMContext().getNodeLabelManager().getLabelSet()) {
+      MutableGaugeInt availMB = metrics.getAvailableMB().get(nodeLabel);
+      MutableGaugeInt allocateMB = metrics.getAllocatedMB().get(nodeLabel);
+      MutableGaugeInt availVcore = metrics.getAvailableVirtualCores().get(nodeLabel);
+      MutableGaugeInt allocateVcore = metrics.getAllocatedGpuCores().get(nodeLabel);
+      MutableGaugeInt availGcore = metrics.getAvailableGpuCores().get(nodeLabel);
+      MutableGaugeInt allocateGcore = metrics.getAllocatedGpuCores().get(nodeLabel);
+
+      this.totalMB.put(nodeLabel, (long)(availMB != null ? availMB.value() : 0
+              + (allocateMB != null ? allocateMB.value() : 0)));
+      this.totalVirtualCores.put(nodeLabel, availVcore != null ? availVcore.value() : 0
+              + (allocateVcore != null ? allocateVcore.value() : 0));
+      this.totalGpuCores.put(nodeLabel, availGcore != null ? availGcore.value() : 0
+              + (allocateGcore != null ? allocateGcore.value() : 0));
+    }
   }
 
   public int getAppsSubmitted() {
@@ -130,63 +116,63 @@ public class ClusterMetricsInfo {
     return appsKilled;
   }
 
-  public long getReservedMB() {
-    return this.reservedMB;
+  public Map<String, MutableGaugeInt> getReservedMB() {
+    return metrics.getReservedMB();
   }
 
-  public long getAvailableMB() {
-    return this.availableMB;
+  public Map<String, MutableGaugeInt> getAvailableMB() {
+    return metrics.getAvailableMB();
   }
 
-  public long getAllocatedMB() {
-    return this.allocatedMB;
+  public Map<String, MutableGaugeInt> getAllocatedMB() {
+    return metrics.getAllocatedMB();
   }
 
-  public long getReservedVirtualCores() {
-    return this.reservedVirtualCores;
+  public Map<String, MutableGaugeInt> getReservedVirtualCores() {
+    return metrics.getReservedVirtualCores();
   }
 
-  public long getAvailableVirtualCores() {
-    return this.availableVirtualCores;
+  public Map<String, MutableGaugeInt> getAvailableVirtualCores() {
+    return metrics.getAvailableVirtualCores();
   }
 
-  public long getAllocatedVirtualCores() {
-    return this.allocatedVirtualCores;
+  public Map<String, MutableGaugeInt> getAllocatedVirtualCores() {
+    return metrics.getAllocatedVirtualCores();
   }
 
-  public long getReservedGpuCores() {
-    return this.reservedGpuCores;
+  public Map<String, MutableGaugeInt> getReservedGpuCores() {
+    return metrics.getReservedGpuCores();
   }
 
-  public long getAvailableGpuCores() {
-    return this.availableGpuCores;
+  public Map<String, MutableGaugeInt> getAvailableGpuCores() {
+    return metrics.getAvailableGpuCores();
   }
 
-  public long getAllocatedGpuCores() {
-    return this.allocatedGpuCores;
+  public Map<String, MutableGaugeInt> getAllocatedGpuCores() {
+    return metrics.getAllocatedGpuCores();
   }
 
-  public int getContainersAllocated() {
-    return this.containersAllocated;
+  public Map<String, MutableGaugeInt> getContainersAllocated() {
+    return metrics.getAllocatedContainers();
   }
 
-  public int getReservedContainers() {
-    return this.containersReserved;
+  public Map<String, MutableGaugeInt> getReservedContainers() {
+    return metrics.getReservedContainers();
   }
 
-  public int getPendingContainers() {
-    return this.containersPending;
+  public Map<String, MutableGaugeInt> getPendingContainers() {
+    return metrics.getPendingContainers();
   }
 
-  public long getTotalMB() {
+  public Map<String, Long> getTotalMB() {
     return this.totalMB;
   }
 
-  public long getTotalVirtualCores() {
+  public Map<String, Integer> getTotalVirtualCores() {
     return this.totalVirtualCores;
   }
 
-  public long getTotalGpuCores() {
+  public Map<String, Integer> getTotalGpuCores() {
     return this.totalGpuCores;
   }
 

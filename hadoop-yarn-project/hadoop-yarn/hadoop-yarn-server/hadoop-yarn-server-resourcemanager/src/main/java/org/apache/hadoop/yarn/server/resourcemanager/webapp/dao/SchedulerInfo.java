@@ -35,8 +35,8 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo.FifoSchedule
   FifoSchedulerInfo.class })
 public class SchedulerInfo {
   protected String schedulerName;
-  protected ResourceInfo minAllocResource;
-  protected ResourceInfo maxAllocResource;
+  protected AllocationLimit minAllocResource;
+  protected AllocationLimit maxAllocResource;
   protected EnumSet<SchedulerResourceTypes> schedulingResourceTypes;
 
   public SchedulerInfo() {
@@ -52,8 +52,8 @@ public class SchedulerInfo {
     } else if (rs instanceof FifoScheduler) {
       this.schedulerName = "Fifo Scheduler";
     }
-    this.minAllocResource = new ResourceInfo(rs.getMinimumResourceCapability());
-    this.maxAllocResource = new ResourceInfo(rs.getMaximumResourceCapability());
+    this.minAllocResource = new AllocationLimit(rs.getMinimumResourceCapability());
+    this.maxAllocResource = new AllocationLimit(rs.getMaximumResourceCapability());
     this.schedulingResourceTypes = rs.getSchedulingResourceTypes();
   }
 
@@ -61,11 +61,11 @@ public class SchedulerInfo {
     return this.schedulerName;
   }
 
-  public ResourceInfo getMinAllocation() {
+  public AllocationLimit getMinAllocation() {
     return this.minAllocResource;
   }
 
-  public ResourceInfo getMaxAllocation() {
+  public AllocationLimit getMaxAllocation() {
     return this.maxAllocResource;
   }
 

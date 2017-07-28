@@ -396,7 +396,7 @@ public class MetricsRegistry {
   public synchronized void snapshot(MetricsRecordBuilder builder, boolean all) {
     for (MetricsTag tag : tags()) {
       builder.add(tag);
-    }
+
     for (MutableMetric metric : metrics()) {
       metric.snapshot(builder, all);
     }

@@ -300,11 +300,11 @@ public abstract class AbstractCSQueue implements CSQueue {
     QueueInfo queueInfo = recordFactory.newRecordInstance(QueueInfo.class);
     queueInfo.setQueueName(queueName);
     queueInfo.setAccessibleNodeLabels(accessibleLabels);
-    queueInfo.setCapacity(queueCapacities.getCapacity());
-    queueInfo.setMaximumCapacity(queueCapacities.getMaximumCapacity());
+    queueInfo.setCapacity(null);
+    queueInfo.setMaximumCapacity(null);
     queueInfo.setQueueState(state);
     queueInfo.setDefaultNodeLabelExpression(defaultLabelExpression);
-    queueInfo.setCurrentCapacity(getUsedCapacity());
+    queueInfo.setCurrentCapacity(null);
     return queueInfo;
   }
   

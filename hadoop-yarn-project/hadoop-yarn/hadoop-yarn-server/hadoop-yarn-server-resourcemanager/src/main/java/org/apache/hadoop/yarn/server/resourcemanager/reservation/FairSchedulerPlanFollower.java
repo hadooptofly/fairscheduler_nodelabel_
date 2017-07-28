@@ -102,7 +102,7 @@ public class FairSchedulerPlanFollower extends AbstractSchedulerPlanFollower {
   protected Resource getPlanResources(Plan plan, Queue queue,
       Resource clusterResources) {
     FSParentQueue planQueue = (FSParentQueue)queue;
-    Resource planResources = planQueue.getSteadyFairShare();
+    Resource planResources = null;
     return planResources;
   }
 
@@ -115,7 +115,7 @@ public class FairSchedulerPlanFollower extends AbstractSchedulerPlanFollower {
         fs.getQueueManager().getLeafQueue(reservationQueueName, false);
     Resource reservationResource = null;
     if (reservationQueue != null) {
-      reservationResource = reservationQueue.getSteadyFairShare();
+      reservationResource = null;
     }
     return reservationResource;
   }

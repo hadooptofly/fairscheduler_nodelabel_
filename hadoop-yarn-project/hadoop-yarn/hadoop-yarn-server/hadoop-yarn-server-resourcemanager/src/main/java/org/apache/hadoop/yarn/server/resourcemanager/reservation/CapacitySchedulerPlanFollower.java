@@ -160,7 +160,7 @@ public class CapacitySchedulerPlanFollower extends AbstractSchedulerPlanFollower
     CSQueue resQueue = cs.getQueue(reservationId.toString());
     Resource reservationResource = null;
     if (resQueue != null) {
-      reservationResource = Resources.multiply(cs.getClusterResource(),
+      reservationResource = Resources.multiply(null,
           resQueue.getAbsoluteCapacity());
     }
     return reservationResource;

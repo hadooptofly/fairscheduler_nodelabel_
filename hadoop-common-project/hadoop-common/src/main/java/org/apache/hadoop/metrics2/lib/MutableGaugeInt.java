@@ -39,6 +39,10 @@ public class MutableGaugeInt extends MutableGauge {
     this.value.set(initValue);
   }
 
+  public AtomicInteger getValue() {
+    return value;
+  }
+
   public int value() {
     return value.get();
   }

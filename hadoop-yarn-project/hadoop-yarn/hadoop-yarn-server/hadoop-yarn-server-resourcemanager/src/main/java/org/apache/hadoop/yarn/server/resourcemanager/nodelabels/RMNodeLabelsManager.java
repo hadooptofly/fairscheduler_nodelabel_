@@ -319,7 +319,16 @@ public class RMNodeLabelsManager extends CommonNodeLabelsManager {
       readLock.unlock();
     }
   }
-  
+
+  public Set<String> getLabelSet() {
+    try {
+      readLock.lock();
+      return labelCollections.keySet();
+    } finally {
+      readLock.unlock();
+    }
+  }
+
   public boolean containsNodeLabel(String label) {
     try {
       readLock.lock();

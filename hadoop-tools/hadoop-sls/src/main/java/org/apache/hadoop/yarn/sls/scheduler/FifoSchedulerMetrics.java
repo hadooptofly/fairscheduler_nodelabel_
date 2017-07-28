@@ -46,7 +46,7 @@ public class FifoSchedulerMetrics extends SchedulerMetrics {
       new Gauge<Float>() {
         @Override
         public Float getValue() {
-          return queue.getCurrentCapacity();
+          return queue.getCurrentCapacity().get("");
         }
       }
     );
@@ -54,7 +54,7 @@ public class FifoSchedulerMetrics extends SchedulerMetrics {
       new Gauge<Float>() {
         @Override
         public Float getValue() {
-          return queue.getCurrentCapacity();
+          return queue.getCurrentCapacity().get("");
         }
       }
     );
