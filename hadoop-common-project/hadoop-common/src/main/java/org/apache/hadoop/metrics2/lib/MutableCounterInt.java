@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class MutableCounterInt extends MutableCounter {
   private AtomicInteger value = new AtomicInteger();
 
-  MutableCounterInt(MetricsInfo info, int initValue) {
+  public MutableCounterInt(MetricsInfo info, int initValue) {
     super(info);
     this.value.set(initValue);
   }

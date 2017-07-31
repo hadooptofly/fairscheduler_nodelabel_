@@ -22,6 +22,7 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.metrics2.MetricsInfo;
 import org.apache.hadoop.metrics2.MetricsRecordBuilder;
+import org.apache.hadoop.tools.metrics.NoNullHashMap;
 
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -30,53 +31,58 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Evolving
-public class MutableMapGaugeLong extends MutableGauge {
+public class MutableMapGaugeLong extends MutableMapGauge {
 
-  private AtomicLong value = new AtomicLong();
+  private NoNullHashMap<String, MutableGaugeLong> value = new NoNullHashMap<String, MutableGaugeLong>();
 
-  MutableMapGaugeLong(MetricsInfo info, long initValue) {
+  public MutableMapGaugeLong(MetricsInfo info, NoNullHashMap<String, MutableGaugeLong> initValue) {
     super(info);
-    this.value.set(initValue);
+    value = initValue;
   }
 
-  public long value() {
-    return value.get();
+  public NoNullHashMap<String, MutableGaugeLong> getValue() {
+    return value;
+  }
+
+  public long value(String label) {
+    return value.get(label).value();
   }
 
   @Override
-  public void incr() {
-    incr(1);
+  public void incr(String label) {
+    incr(label, 1);
   }
 
   /**
    * Increment by delta
    * @param delta of the increment
    */
-  public void incr(long delta) {
-    value.addAndGet(delta);
+  public void incr(String label, long delta) {
+    value.get(label).getValue().addAndGet(delta);
     setChanged();
   }
 
   @Override
-  public void decr() {
-    decr(1);
+  public void decr(String label) {
+    decr(label, 1);
   }
 
   /**
    * decrement by delta
    * @param delta of the decrement
    */
-  public void decr(long delta) {
-    value.addAndGet(-delta);
+  public void decr(String label, long delta) {
+    value.get(label).getValue().addAndGet(-delta);
     setChanged();
   }
 
   /**
    * Set the value of the metric
+   * @param label to set
    * @param value to set
    */
-  public void set(long value) {
-    this.value.set(value);
+  public void set(String label, long value) {
+    this.value.get(label).set(value);
     setChanged();
   }
 

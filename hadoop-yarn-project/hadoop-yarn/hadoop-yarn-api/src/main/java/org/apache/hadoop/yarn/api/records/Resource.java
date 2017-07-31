@@ -73,16 +73,16 @@ public abstract class Resource implements Comparable<Resource> {
    */
   @Public
   @Stable
-  public abstract int getMemory();
-  
+  public abstract long getMemory();
+
   /**
    * Set <em>memory</em> of the resource.
+   * use this since now.
    * @param memory <em>memory</em> of the resource
    */
   @Public
   @Stable
-  public abstract void setMemory(int memory);
-
+  public abstract void setMemory(long memory);
 
   /**
    * Get <em>number of virtual cpu cores</em> of the resource.
@@ -125,7 +125,7 @@ public abstract class Resource implements Comparable<Resource> {
   public int hashCode() {
     final int prime = 263167;
     int result = 3571;
-    result = 939769357 + getMemory(); // prime * result = 939769357 initially
+    result = 939769357 + (int)getMemory(); // prime * result = 939769357 initially
     result = prime * result + getVirtualCores() + getGpuCores();
     return result;
   }

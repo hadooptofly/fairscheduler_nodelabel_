@@ -34,10 +34,12 @@ public class MutableGaugeLong extends MutableGauge {
 
   private AtomicLong value = new AtomicLong();
 
-  MutableGaugeLong(MetricsInfo info, long initValue) {
+  public MutableGaugeLong(MetricsInfo info, long initValue) {
     super(info);
     this.value.set(initValue);
   }
+
+  public AtomicLong getValue() { return value; }
 
   public long value() {
     return value.get();

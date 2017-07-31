@@ -56,13 +56,13 @@ public class ResourcePBImpl extends Resource {
     
   
   @Override
-  public int getMemory() {
+  public long getMemory() {
     ResourceProtoOrBuilder p = viaProto ? proto : builder;
     return (p.getMemory());
   }
 
   @Override
-  public void setMemory(int memory) {
+  public void setMemory(long memory) {
     maybeInitBuilder();
     builder.setMemory((memory));
   }
@@ -93,14 +93,14 @@ public class ResourcePBImpl extends Resource {
 
   @Override
   public int compareTo(Resource other) {
-    int diff = this.getMemory() - other.getMemory();
+    long diff = this.getMemory() - other.getMemory();
     if (diff == 0) {
       diff = this.getVirtualCores() - other.getVirtualCores();
       if (diff == 0) {
         diff = this.getGpuCores() - other.getGpuCores();
       }
     }
-    return diff;
+    return (int) diff;
   }
   
   

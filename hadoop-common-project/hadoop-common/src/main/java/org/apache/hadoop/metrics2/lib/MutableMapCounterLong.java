@@ -22,6 +22,7 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.metrics2.MetricsInfo;
 import org.apache.hadoop.metrics2.MetricsRecordBuilder;
+import org.apache.hadoop.tools.metrics.NoNullHashMap;
 
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -30,35 +31,31 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Evolving
-public class MutableMapCounterLong extends MutableCounter {
+public class MutableMapCounterLong extends MutableMapCounter {
 
-  private AtomicLong value = new AtomicLong();
+  private NoNullHashMap<String, MutableCounterLong> value = new NoNullHashMap<String, MutableCounterLong>();
 
-  MutableMapCounterLong(MetricsInfo info, long initValue) {
+  public MutableMapCounterLong(MetricsInfo info, NoNullHashMap<String, MutableCounterLong> initValue) {
     super(info);
-    this.value.set(initValue);
+    value = initValue;
   }
 
   @Override
-  public void incr() {
-    incr(1);
+  public void incr(String label) {
+    incr(label, 1);
   }
 
   /**
    * Increment the value by a delta
    * @param delta of the increment
    */
-  public void incr(long delta) {
-    value.addAndGet(delta);
+  public void incr(String label, long delta) {
+    value.get(label).getValue().addAndGet(delta);
     setChanged();
   }
 
-  public AtomicLong getValue() {
-    return value;
-  }
-
-  public long value() {
-    return value.get();
+  public long value(String label) {
+    return value.get(label).value();
   }
 
   @Override

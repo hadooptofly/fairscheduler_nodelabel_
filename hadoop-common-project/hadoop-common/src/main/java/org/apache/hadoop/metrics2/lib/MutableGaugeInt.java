@@ -34,7 +34,7 @@ public class MutableGaugeInt extends MutableGauge {
 
   private AtomicInteger value = new AtomicInteger();
 
-  MutableGaugeInt(MetricsInfo info, int initValue) {
+  public MutableGaugeInt(MetricsInfo info, int initValue) {
     super(info);
     this.value.set(initValue);
   }

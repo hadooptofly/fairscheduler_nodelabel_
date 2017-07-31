@@ -22,7 +22,9 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.metrics2.MetricsInfo;
 import org.apache.hadoop.metrics2.MetricsRecordBuilder;
+import org.apache.hadoop.tools.metrics.NoNullHashMap;
 
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -30,53 +32,58 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Evolving
-public class MutableMapGaugeInt extends MutableGauge {
+public class MutableMapGaugeInt extends MutableMapGauge {
 
-  private AtomicInteger value = new AtomicInteger();
+  private NoNullHashMap<String, MutableGaugeInt> value = new NoNullHashMap<String, MutableGaugeInt>();
 
-  MutableMapGaugeInt(MetricsInfo info, int initValue) {
+  public MutableMapGaugeInt(MetricsInfo info, NoNullHashMap<String, MutableGaugeInt> initValue) {
     super(info);
-    this.value.set(initValue);
+    value = initValue;
   }
 
-  public int value() {
-    return value.get();
+  public NoNullHashMap<String, MutableGaugeInt> getValue() {
+    return value;
+  }
+
+  public int value(String label) {
+    return value.get(label).value();
   }
 
   @Override
-  public void incr() {
-    incr(1);
+  public void incr(String label) {
+    incr(label, 1);
   }
 
   /**
    * Increment by delta
    * @param delta of the increment
    */
-  public void incr(int delta) {
-    value.addAndGet(delta);
+  public void incr(String label, int delta) {
+    value.get(label).getValue().addAndGet(delta);
     setChanged();
   }
 
   @Override
-  public void decr() {
-    decr(1);
+  public void decr(String label) {
+    decr(label, 1);
   }
 
   /**
    * decrement by delta
    * @param delta of the decrement
    */
-  public void decr(int delta) {
-    value.addAndGet(-delta);
+  public void decr(String label, int delta) {
+    value.get(label).getValue().addAndGet(-delta);
     setChanged();
   }
 
   /**
    * Set the value of the metric
+   * @param label to set
    * @param value to set
    */
-  public void set(int value) {
-    this.value.set(value);
+  public void set(String label, int value) {
+    this.value.get(label).set(value);
     setChanged();
   }
 

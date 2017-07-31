@@ -33,11 +33,8 @@ import org.apache.hadoop.metrics2.MetricsSource;
 import org.apache.hadoop.metrics2.MetricsSystem;
 import org.apache.hadoop.metrics2.annotation.Metric;
 import org.apache.hadoop.metrics2.annotation.Metrics;
-import org.apache.hadoop.metrics2.lib.DefaultMetricsSystem;
-import org.apache.hadoop.metrics2.lib.MetricsRegistry;
-import org.apache.hadoop.metrics2.lib.MutableCounterInt;
-import org.apache.hadoop.metrics2.lib.MutableCounterLong;
-import org.apache.hadoop.metrics2.lib.MutableGaugeInt;
+import org.apache.hadoop.metrics2.lib.*;
+import org.apache.hadoop.tools.metrics.NoNullHashMap;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
@@ -59,29 +56,29 @@ public class QueueMetrics implements MetricsSource {
   @Metric("# of apps killed") MutableCounterInt appsKilled;
   @Metric("# of apps failed") MutableCounterInt appsFailed;
 
-  @Metric("Allocated memory in MB") Map<String, MutableGaugeInt> allocatedMB;
-  @Metric("Allocated CPU in virtual cores") Map<String, MutableGaugeInt> allocatedVCores;
-  @Metric("Allocated GPU in cores") Map<String, MutableGaugeInt> allocatedGCores;
-  @Metric("# of allocated containers") Map<String, MutableGaugeInt> allocatedContainers;
-  @Metric("Aggregate # of allocated containers") Map<String, MutableCounterLong> aggregateContainersAllocated;
+  @Metric("Allocated memory in MB") MutableMapGaugeLong allocatedMB;
+  @Metric("Allocated CPU in virtual cores") MutableMapGaugeInt allocatedVCores;
+  @Metric("Allocated GPU in cores") MutableMapGaugeInt allocatedGCores;
+  @Metric("# of allocated containers") MutableMapGaugeInt allocatedContainers;
+  @Metric("Aggregate # of allocated containers") MutableCounterLong aggregateContainersAllocated;
   @Metric("Aggregate # of allocated node-local containers")
     MutableCounterLong aggregateNodeLocalContainersAllocated;
   @Metric("Aggregate # of allocated rack-local containers")
     MutableCounterLong aggregateRackLocalContainersAllocated;
   @Metric("Aggregate # of allocated off-switch containers")
     MutableCounterLong aggregateOffSwitchContainersAllocated;
-  @Metric("Aggregate # of released containers") Map<String, MutableCounterLong> aggregateContainersReleased;
-  @Metric("Available memory in MB") Map<String, MutableGaugeInt> availableMB;
-  @Metric("Available CPU in virtual cores") Map<String, MutableGaugeInt> availableVCores;
-  @Metric("Available GPU in cores") Map<String, MutableGaugeInt> availableGCores;
-  @Metric("Pending memory allocation in MB") Map<String, MutableGaugeInt> pendingMB;
-  @Metric("Pending CPU allocation in virtual cores") Map<String, MutableGaugeInt> pendingVCores;
-  @Metric("Pending GPU allocation in cores") Map<String, MutableGaugeInt> pendingGCores;
-  @Metric("# of pending containers") Map<String, MutableGaugeInt> pendingContainers;
-  @Metric("# of reserved memory in MB") Map<String, MutableGaugeInt> reservedMB;
-  @Metric("Reserved CPU in virtual cores") Map<String, MutableGaugeInt> reservedVCores;
-  @Metric("Reserved GPU in cores") Map<String, MutableGaugeInt> reservedGCores;
-  @Metric("# of reserved containers") Map<String, MutableGaugeInt> reservedContainers;
+  @Metric("Aggregate # of released containers") MutableCounterLong aggregateContainersReleased;
+  @Metric("Available memory in MB") MutableMapGaugeLong availableMB;
+  @Metric("Available CPU in virtual cores") MutableMapGaugeInt availableVCores;
+  @Metric("Available GPU in cores") MutableMapGaugeInt availableGCores;
+  @Metric("Pending memory allocation in MB") MutableMapGaugeLong pendingMB;
+  @Metric("Pending CPU allocation in virtual cores") MutableMapGaugeInt pendingVCores;
+  @Metric("Pending GPU allocation in cores") MutableMapGaugeInt pendingGCores;
+  @Metric("# of pending containers") MutableMapGaugeInt pendingContainers;
+  @Metric("# of reserved memory in MB") MutableMapGaugeLong reservedMB;
+  @Metric("Reserved CPU in virtual cores") MutableMapGaugeInt reservedVCores;
+  @Metric("Reserved GPU in cores") MutableMapGaugeInt reservedGCores;
+  @Metric("# of reserved containers") MutableMapGaugeInt reservedContainers;
   @Metric("# of active users") MutableGaugeInt activeUsers;
   @Metric("# of active applications") MutableGaugeInt activeApplications;
   private final MutableGaugeInt[] runningTime;
@@ -330,9 +327,9 @@ public class QueueMetrics implements MetricsSource {
     for (String nodeLabel : clusterResource.keySet()) {
       Resource limit = Resources.subtract(
           clusterResource.get(nodeLabel), getAllocatedResources().get(nodeLabel));
-      availableMB.get(nodeLabel).set(limit.getMemory());
-      availableVCores.get(nodeLabel).set(limit.getVirtualCores());
-      availableGCores.get(nodeLabel).set(limit.getGpuCores());
+      availableMB.set(nodeLabel, limit.getMemory());
+      availableVCores.set(nodeLabel, limit.getVirtualCores());
+      availableGCores.set(nodeLabel, limit.getGpuCores());
     }
   }
 
@@ -368,10 +365,10 @@ public class QueueMetrics implements MetricsSource {
   }
 
   private void _incrPendingResources(int containers, Resource res, String nodeLabel) {
-    pendingContainers.get(nodeLabel).incr(containers);
-    pendingMB.get(nodeLabel).incr(res.getMemory() * containers);
-    pendingVCores.get(nodeLabel).incr(res.getVirtualCores() * containers);
-    pendingGCores.get(nodeLabel).incr(res.getGpuCores() * containers);
+    pendingContainers.incr(nodeLabel, containers);
+    pendingMB.incr(nodeLabel, res.getMemory() * containers);
+    pendingVCores.incr(nodeLabel, res.getVirtualCores() * containers);
+    pendingGCores.incr(nodeLabel, res.getGpuCores() * containers);
   }
 
   public void decrPendingResources(String user, int containers, Resource res, String nodeLabel) {
@@ -386,10 +383,10 @@ public class QueueMetrics implements MetricsSource {
   }
 
   private void _decrPendingResources(int containers, Resource res, String nodeLabel) {
-    pendingContainers.get(nodeLabel).decr(containers);
-    pendingMB.get(nodeLabel).decr(res.getMemory() * containers);
-    pendingVCores.get(nodeLabel).decr(res.getVirtualCores() * containers);
-    pendingGCores.get(nodeLabel).decr(res.getGpuCores() * containers);
+    pendingContainers.decr(nodeLabel, containers);
+    pendingMB.decr(nodeLabel, res.getMemory() * containers);
+    pendingVCores.decr(nodeLabel, res.getVirtualCores() * containers);
+    pendingGCores.decr(nodeLabel, res.getGpuCores() * containers);
   }
 
   public void incrNodeTypeAggregations(String user, NodeType type) {
@@ -413,11 +410,11 @@ public class QueueMetrics implements MetricsSource {
 
   public void allocateResources(String user, int containers, Resource res,
       boolean decrPending, String nodeLabel) {
-    allocatedContainers.get(nodeLabel).incr(containers);
-    aggregateContainersAllocated.get(nodeLabel).incr(containers);
-    allocatedMB.get(nodeLabel).incr(res.getMemory() * containers);
-    allocatedVCores.get(nodeLabel).incr(res.getVirtualCores() * containers);
-    allocatedGCores.get(nodeLabel).incr(res.getGpuCores() * containers);
+    allocatedContainers.incr(nodeLabel, containers);
+    aggregateContainersAllocated.incr(containers);
+    allocatedMB.incr(nodeLabel, res.getMemory() * containers);
+    allocatedVCores.incr(nodeLabel, res.getVirtualCores() * containers);
+    allocatedGCores.incr(nodeLabel, res.getGpuCores() * containers);
     if (decrPending) {
       _decrPendingResources(containers, res, nodeLabel);
     }
@@ -431,11 +428,11 @@ public class QueueMetrics implements MetricsSource {
   }
 
   public void releaseResources(String user, int containers, Resource res, String nodeLabel) {
-    allocatedContainers.get(nodeLabel).decr(containers);
-    aggregateContainersReleased.get(nodeLabel).incr(containers);
-    allocatedMB.get(nodeLabel).decr(res.getMemory() * containers);
-    allocatedVCores.get(nodeLabel).decr(res.getVirtualCores() * containers);
-    allocatedGCores.get(nodeLabel).decr(res.getGpuCores() * containers);
+    allocatedContainers.decr(nodeLabel, containers);
+    aggregateContainersReleased.incr(containers);
+    allocatedMB.decr(nodeLabel, res.getMemory() * containers);
+    allocatedVCores.decr(nodeLabel, res.getVirtualCores() * containers);
+    allocatedGCores.decr(nodeLabel, res.getGpuCores() * containers);
     QueueMetrics userMetrics = getUserMetrics(user);
     if (userMetrics != null) {
       userMetrics.releaseResources(user, containers, res, nodeLabel);
@@ -446,10 +443,10 @@ public class QueueMetrics implements MetricsSource {
   }
 
   public void reserveResource(String user, Resource res, String nodeLabel) {
-    reservedContainers.get(nodeLabel).incr();
-    reservedMB.get(nodeLabel).incr(res.getMemory());
-    reservedVCores.get(nodeLabel).incr(res.getVirtualCores());
-    reservedGCores.get(nodeLabel).incr(res.getGpuCores());
+    reservedContainers.incr(nodeLabel);
+    reservedMB.incr(nodeLabel, res.getMemory());
+    reservedVCores.incr(nodeLabel, res.getVirtualCores());
+    reservedGCores.incr(nodeLabel, res.getGpuCores());
     QueueMetrics userMetrics = getUserMetrics(user);
     if (userMetrics != null) {
       userMetrics.reserveResource(user, res, nodeLabel);
@@ -460,10 +457,10 @@ public class QueueMetrics implements MetricsSource {
   }
 
   public void unreserveResource(String user, Resource res, String nodeLabel) {
-    reservedContainers.get(nodeLabel).decr();
-    reservedMB.get(nodeLabel).decr(res.getMemory());
-    reservedVCores.get(nodeLabel).decr(res.getVirtualCores());
-    reservedGCores.get(nodeLabel).decr(res.getGpuCores());
+    reservedContainers.decr(nodeLabel);
+    reservedMB.decr(nodeLabel, res.getMemory());
+    reservedVCores.decr(nodeLabel, res.getVirtualCores());
+    reservedGCores.decr(nodeLabel, res.getGpuCores());
     QueueMetrics userMetrics = getUserMetrics(user);
     if (userMetrics != null) {
       userMetrics.unreserveResource(user, res, nodeLabel);
@@ -529,73 +526,73 @@ public class QueueMetrics implements MetricsSource {
   
   public Map<String, Resource> getAllocatedResources() {
     Map<String, Resource> allocated = new HashMap<String, Resource>();
-    for (String nodeLabel : allocatedMB.keySet()) {
+    for (String nodeLabel : allocatedContainers.getValue().keySet()) {
       allocated.put(nodeLabel,
           BuilderUtils.newResource(
-              allocatedMB.get(nodeLabel).value(),
-              allocatedVCores.get(nodeLabel).value(),
-              allocatedGCores.get(nodeLabel).value()));
+              allocatedMB.value(nodeLabel),
+              allocatedVCores.value(nodeLabel),
+              allocatedGCores.value(nodeLabel)));
     }
       return allocated;
   }
 
-  public Map<String, MutableGaugeInt> getAllocatedMB() {
+  public MutableMapGaugeLong getAllocatedMB() {
     return allocatedMB;
   }
   
-  public Map<String, MutableGaugeInt> getAllocatedVirtualCores() {
+  public MutableMapGaugeInt getAllocatedVirtualCores() {
     return allocatedVCores;
   }
 
-  public Map<String, MutableGaugeInt> getAllocatedGpuCores() {
+  public MutableMapGaugeInt getAllocatedGpuCores() {
     return allocatedGCores;
   }
 
-  public Map<String, MutableGaugeInt> getAllocatedContainers() {
+  public MutableMapGaugeInt getAllocatedContainers() {
     return allocatedContainers;
   }
 
-  public Map<String, MutableGaugeInt> getAvailableMB() {
+  public MutableMapGaugeLong getAvailableMB() {
     return availableMB;
   }  
   
-  public Map<String, MutableGaugeInt> getAvailableVirtualCores() {
+  public MutableMapGaugeInt getAvailableVirtualCores() {
     return availableVCores;
   }
 
-  public Map<String, MutableGaugeInt> getAvailableGpuCores() {
+  public MutableMapGaugeInt getAvailableGpuCores() {
     return availableGCores;
   }
 
-  public Map<String, MutableGaugeInt> getPendingMB() {
+  public MutableMapGaugeLong getPendingMB() {
     return pendingMB;
   }
   
-  public Map<String, MutableGaugeInt> getPendingVirtualCores() {
+  public MutableMapGaugeInt getPendingVirtualCores() {
     return pendingVCores;
   }
 
-  public Map<String, MutableGaugeInt> getPendingGpuCores() {
+  public MutableMapGaugeInt getPendingGpuCores() {
     return pendingGCores;
   }
 
-  public Map<String, MutableGaugeInt> getPendingContainers() {
+  public MutableMapGaugeInt getPendingContainers() {
     return pendingContainers;
   }
   
-  public Map<String, MutableGaugeInt> getReservedMB() {
+  public MutableMapGaugeLong getReservedMB() {
     return reservedMB;
   }
   
-  public Map<String, MutableGaugeInt> getReservedVirtualCores() {
+  public MutableMapGaugeInt getReservedVirtualCores() {
     return reservedVCores;
   }
 
-  public Map<String, MutableGaugeInt> getReservedGpuCores() {
+  public MutableMapGaugeInt getReservedGpuCores() {
     return reservedGCores;
   }
 
-  public Map<String, MutableGaugeInt> getReservedContainers() {
+  public MutableMapGaugeInt getReservedContainers() {
     return reservedContainers;
   }
   

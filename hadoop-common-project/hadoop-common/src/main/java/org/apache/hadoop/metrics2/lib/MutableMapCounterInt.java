@@ -22,6 +22,7 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.metrics2.MetricsInfo;
 import org.apache.hadoop.metrics2.MetricsRecordBuilder;
+import org.apache.hadoop.tools.metrics.NoNullHashMap;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -33,9 +34,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 @InterfaceAudience.Public
 @InterfaceStability.Evolving
 public class MutableMapCounterInt extends MutableMapCounter {
-  private Map<String, MutableCounterInt> value = new HashMap<String, MutableCounterInt>();
+  private NoNullHashMap<String, MutableCounterInt> value =
+          new NoNullHashMap<String, MutableCounterInt>();
 
-  MutableMapCounterInt(MetricsInfo info, Map<String, MutableCounterInt> initValue) {
+  public MutableMapCounterInt(MetricsInfo info, NoNullHashMap<String, MutableCounterInt> initValue) {
     super(info);
     this.value = initValue;
   }
