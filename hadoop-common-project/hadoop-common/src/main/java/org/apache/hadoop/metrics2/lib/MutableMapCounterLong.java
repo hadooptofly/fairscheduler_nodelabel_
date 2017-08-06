@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @InterfaceStability.Evolving
 public class MutableMapCounterLong extends MutableMapCounter {
 
-  private NoNullHashMap<String, MutableCounterLong> value = new NoNullHashMap<String, MutableCounterLong>();
+  private NoNullHashMap<String, MutableCounterLong> value = new NoNullHashMap<String, MutableCounterLong>(){};
 
   public MutableMapCounterLong(MetricsInfo info, NoNullHashMap<String, MutableCounterLong> initValue) {
     super(info);
@@ -61,7 +61,7 @@ public class MutableMapCounterLong extends MutableMapCounter {
   @Override
   public void snapshot(MetricsRecordBuilder builder, boolean all) {
     if (all || changed()) {
-      builder.addCounter(info(), value());
+      builder.addCounter(info(), value(""));
       clearChanged();
     }
   }

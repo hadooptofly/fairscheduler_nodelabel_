@@ -21,7 +21,8 @@ package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.yarn.api.records.Resource;
-import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceType;
+import org.apache.hadoop.yarn.util.NoNullHashMap;
+import org.apache.hadoop.yarn.util.resource.ResourceType;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSQueue;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.ComparatorWrapper;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.Schedulable;
@@ -32,7 +33,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceType.*;
+import static org.apache.hadoop.yarn.util.resource.ResourceType.*;
 
 /**
  * Makes scheduling decisions by trying to equalize gpu resource usage.
@@ -65,7 +66,7 @@ public class FairShareGPUPolicy extends SchedulingPolicy {
   
   @Override
   public void computeShares(Collection<? extends Schedulable> schedulables,
-                            Map<String, Resource> totalResources) {
+                            NoNullHashMap<String, Resource> totalResources) {
     for (ResourceType type : ResourceType.values()) {
       ComputeFairShares.computeShares(schedulables, totalResources, type);
     }
@@ -73,15 +74,15 @@ public class FairShareGPUPolicy extends SchedulingPolicy {
 
   @Override
   public void computeSteadyShares(Collection<? extends FSQueue> queues,
-      Map<String, Resource> totalResources) {
+                                  NoNullHashMap<String, Resource> totalResources) {
     for (ResourceType type : ResourceType.values()) {
       ComputeFairShares.computeSteadyShares(queues, totalResources, type);
     }
   }
 
   @Override
-  public Map<String, Boolean> checkIfUsageOverFairShare(Map<String, Resource> usage, Map<String, Resource> fairShare) {
-    Map<String, Boolean> isOver = new HashMap<String, Boolean>();
+  public NoNullHashMap<String, Boolean> checkIfUsageOverFairShare(NoNullHashMap<String, Resource> usage, NoNullHashMap<String, Resource> fairShare) {
+    NoNullHashMap<String, Boolean> isOver = new NoNullHashMap<String, Boolean>(){};
     for (String nodeLabel : usage.keySet()){
       if (Resources.fitsIn(usage.get(nodeLabel), fairShare.get(nodeLabel))) {
         isOver.put(nodeLabel, false);

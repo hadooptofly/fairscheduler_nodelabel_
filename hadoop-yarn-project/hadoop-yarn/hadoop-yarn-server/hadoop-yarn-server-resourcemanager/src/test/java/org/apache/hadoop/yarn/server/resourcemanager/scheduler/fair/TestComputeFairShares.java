@@ -27,8 +27,8 @@ import org.apache.hadoop.yarn.api.records.Resource;
 import org.junit.Assert;
 
 import org.apache.hadoop.yarn.util.resource.Resources;
-import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceType;
-import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
+import org.apache.hadoop.yarn.util.resource.ResourceType;
+import org.apache.hadoop.yarn.util.resource.ResourceWeights;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies.ComputeFairShares;
 import org.junit.Before;
 import org.junit.Test;

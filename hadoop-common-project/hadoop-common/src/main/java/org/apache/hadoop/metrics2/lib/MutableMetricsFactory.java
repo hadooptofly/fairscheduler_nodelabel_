@@ -72,8 +72,9 @@ public class MutableMetricsFactory {
                               annotation.sampleName(), annotation.valueName(),
                               annotation.always());
     }
-    throw new MetricsException("Unsupported metric field "+ field.getName() +
-                               " of type "+ field.getType().getName());
+    //throw new MetricsException("Unsupported metric field "+ field.getName() +
+    //                           " of type "+ field.getType().getName());
+    return null;
   }
 
   MutableMetric newForMethod(Object source, Method method, Metric annotation,

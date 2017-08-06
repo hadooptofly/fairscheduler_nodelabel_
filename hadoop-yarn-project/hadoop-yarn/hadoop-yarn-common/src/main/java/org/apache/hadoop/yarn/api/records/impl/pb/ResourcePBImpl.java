@@ -56,13 +56,13 @@ public class ResourcePBImpl extends Resource {
     
   
   @Override
-  public long getMemory() {
+  public int getMemory() {
     ResourceProtoOrBuilder p = viaProto ? proto : builder;
     return (p.getMemory());
   }
 
   @Override
-  public void setMemory(long memory) {
+  public void setMemory(int memory) {
     maybeInitBuilder();
     builder.setMemory((memory));
   }

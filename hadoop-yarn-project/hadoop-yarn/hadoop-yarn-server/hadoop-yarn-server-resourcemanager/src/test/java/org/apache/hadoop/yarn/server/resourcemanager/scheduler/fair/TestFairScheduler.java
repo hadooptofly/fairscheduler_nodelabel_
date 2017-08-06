@@ -75,7 +75,7 @@ import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.server.resourcemanager.ApplicationMasterService;
 import org.apache.hadoop.yarn.server.resourcemanager.MockNodes;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
-import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceType;
+import org.apache.hadoop.yarn.util.resource.ResourceType;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.MockRMApp;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppEvent;
@@ -734,12 +734,12 @@ public class TestFairScheduler extends FairSchedulerTestBase {
     // verify metrics
     QueueMetrics queue1Metrics = scheduler.getQueueManager().getQueue("queue1")
         .getMetrics();
-    assertEquals(1024, queue1Metrics.getAllocatedMB().get(""));
-    assertEquals(2, queue1Metrics.getAllocatedVirtualCores().get(""));
-    assertEquals(1024, scheduler.getRootQueueMetrics().getAllocatedMB().get(""));
-    assertEquals(2, scheduler.getRootQueueMetrics().getAllocatedVirtualCores().get(""));
-    assertEquals(512, scheduler.getRootQueueMetrics().getAvailableMB().get(""));
-    assertEquals(4, scheduler.getRootQueueMetrics().getAvailableVirtualCores().get(""));
+    assertEquals(1024, queue1Metrics.getAllocatedMB().getValue().get(""));
+    assertEquals(2, queue1Metrics.getAllocatedVirtualCores().getValue().get(""));
+    assertEquals(1024, scheduler.getRootQueueMetrics().getAllocatedMB().getValue().get(""));
+    assertEquals(2, scheduler.getRootQueueMetrics().getAllocatedVirtualCores().getValue().get(""));
+    assertEquals(512, scheduler.getRootQueueMetrics().getAvailableMB().getValue().get(""));
+    assertEquals(4, scheduler.getRootQueueMetrics().getAvailableVirtualCores().getValue().get(""));
   }
 
   @Test (timeout = 5000)

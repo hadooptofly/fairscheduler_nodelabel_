@@ -20,14 +20,12 @@ package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.security.InvalidParameterException;
 import java.util.*;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -38,8 +36,8 @@ import org.apache.hadoop.security.authorize.AccessControlList;
 import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.yarn.api.records.QueueACL;
 import org.apache.hadoop.yarn.api.records.Resource;
-import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.RMNodeLabelsManager;
-import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
+import org.apache.hadoop.yarn.util.NoNullHashMap;
+import org.apache.hadoop.yarn.util.resource.ResourceWeights;
 import org.apache.hadoop.yarn.util.Clock;
 import org.apache.hadoop.yarn.util.SystemClock;
 import org.apache.hadoop.yarn.util.resource.Resources;
@@ -209,12 +207,12 @@ public class AllocationFileLoaderService extends AbstractService {
     // Create some temporary hashmaps to hold the new allocs, and we only save
     // them in our fields if we have parsed the entire allocs file successfully.
     Map<String, Set<String>> queueAccessiableNodeLabel = new HashMap<String, Set<String>>();
-    Map<String, Map<String, Resource>> minQueueResources = new HashMap<String, Map<String, Resource>>();
-    Map<String, Map<String, Resource>> maxQueueResources = new HashMap<String, Map<String, Resource>>();
+    Map<String, NoNullHashMap<String, Resource>> minQueueResources = new HashMap<String, NoNullHashMap<String, Resource>>();
+    Map<String, NoNullHashMap<String, Resource>> maxQueueResources = new HashMap<String, NoNullHashMap<String, Resource>>();
     Map<String, Integer> queueMaxApps = new HashMap<String, Integer>();
     Map<String, Integer> userMaxApps = new HashMap<String, Integer>();
     Map<String, Float> queueMaxAMShares = new HashMap<String, Float>();
-    Map<String, Map<String, ResourceWeights>> queueWeights = new HashMap<String, Map<String, ResourceWeights>>();
+    Map<String, NoNullHashMap<String, ResourceWeights>> queueWeights = new HashMap<String, NoNullHashMap<String, ResourceWeights>>();
     Map<String, SchedulingPolicy> queuePolicies = new HashMap<String, SchedulingPolicy>();
     Map<String, Long> minSharePreemptionTimeouts = new HashMap<String, Long>();
     Map<String, Long> fairSharePreemptionTimeouts = new HashMap<String, Long>();
@@ -416,10 +414,10 @@ public class AllocationFileLoaderService extends AbstractService {
    */
   private void loadQueue(String parentName, Element element,
       Map<String, Set<String>> queueAccessiableNodeLabel,
-      Map<String, Map<String, Resource>> minQueueResources,
-      Map<String, Map<String, Resource>> maxQueueResources, Map<String, Integer> queueMaxApps,
+      Map<String, NoNullHashMap<String, Resource>> minQueueResources,
+      Map<String, NoNullHashMap<String, Resource>> maxQueueResources, Map<String, Integer> queueMaxApps,
       Map<String, Integer> userMaxApps, Map<String, Float> queueMaxAMShares,
-      Map<String, Map<String, ResourceWeights>> queueWeights,
+      Map<String, NoNullHashMap<String, ResourceWeights>> queueWeights,
       Map<String, SchedulingPolicy> queuePolicies,
       Map<String, Long> minSharePreemptionTimeouts,
       Map<String, Long> fairSharePreemptionTimeouts,
@@ -450,15 +448,16 @@ public class AllocationFileLoaderService extends AbstractService {
         continue;
       Element field = (Element) fieldNode;
       if ("accessiableNodeLabel".equals(field.getTagName())) {
-        accessiableNodeLabel = ImmutableSet.copyOf(((Text)field.getFirstChild())
+        accessiableNodeLabel = Sets.newHashSet(((Text)field.getFirstChild())
             .getData().trim().split(","));
+        accessiableNodeLabel.add("");
         queueAccessiableNodeLabel.put(queueName, accessiableNodeLabel);
       } else if ("minResources".equals(field.getTagName())) {
         // Format check
         if (!field.hasAttribute("label")) {
           throw new IllegalArgumentException("Min/Max share configs" +
-              "must specify node label." +
-              "exmaple: \\\"\\\" mean NO_LABEL");
+              " must specify node label." +
+              " Exmaple: \"\" means NO_LABEL");
         }
         String nodeLabel = field.getAttribute("label");
         String text = ((Text)field.getFirstChild()).getData().trim();
@@ -466,15 +465,15 @@ public class AllocationFileLoaderService extends AbstractService {
         if (minQueueResources.containsKey(queueName))
           minQueueResources.get(queueName).put(nodeLabel, val);
         else {
-          minQueueResources.put(queueName, new HashMap<String, Resource>());
+          minQueueResources.put(queueName, new NoNullHashMap<String, Resource>(){});
           minQueueResources.get(queueName).put(nodeLabel, val);
         }
       } else if ("maxResources".equals(field.getTagName())) {
         // Format check
         if (!field.hasAttribute("label")) {
           throw new IllegalArgumentException("Min/Max share configs" +
-              "must specify node label." +
-              "exmaple: \\\"\\\" mean NO_LABEL");
+              " must specify node label." +
+              " Exmaple: \"\" mean NO_LABEL");
         }
         String nodeLabel = field.getAttribute("label");
         String text = ((Text)field.getFirstChild()).getData().trim();
@@ -482,7 +481,7 @@ public class AllocationFileLoaderService extends AbstractService {
         if (maxQueueResources.containsKey(queueName))
           maxQueueResources.get(queueName).put(nodeLabel, val);
         else {
-          maxQueueResources.put(queueName, new HashMap<String, Resource>());
+          maxQueueResources.put(queueName, new NoNullHashMap<String, Resource>(){});
           maxQueueResources.get(queueName).put(nodeLabel, val);
         }
       } else if ("maxRunningApps".equals(field.getTagName())) {
@@ -506,7 +505,7 @@ public class AllocationFileLoaderService extends AbstractService {
         if (queueWeights.containsKey(queueName))
           queueWeights.get(queueName).put(nodeLabel, new ResourceWeights((float) val));
         else {
-          queueWeights.put(queueName, new HashMap<String, ResourceWeights>());
+          queueWeights.put(queueName, new NoNullHashMap<String, ResourceWeights>(){});
           queueWeights.get(queueName).put(nodeLabel, new ResourceWeights((float) val));
         }
       } else if ("minSharePreemptionTimeout".equals(field.getTagName())) {
@@ -564,6 +563,16 @@ public class AllocationFileLoaderService extends AbstractService {
       configuredQueues.get(FSQueueType.PARENT).add(queueName);
     }
     queueAcls.put(queueName, acls);
+
+    // anyone can access no_label
+    if (accessiableNodeLabel.size() == 0) {
+      queueAccessiableNodeLabel.put(queueName, Sets.<String>newHashSet());
+    }
+
+    if (!accessiableNodeLabel.contains("")) {
+      queueAccessiableNodeLabel.get(queueName).add("");
+    }
+
     Iterator<String> it = accessiableNodeLabel.iterator();
     while (it.hasNext()) {
       String nodeLabel = it.next();
@@ -574,7 +583,7 @@ public class AllocationFileLoaderService extends AbstractService {
           || !queueWeights.get(queueName)
           .containsKey(nodeLabel)) {
         LOG.warn("Queue " + queueName
-            + "cluster partition: "
+            + " cluster partition: "
             + nodeLabel
             + " have not been set Min/Max share or weight.");
         throw new IllegalArgumentException("Min/Max share or weight not set.");

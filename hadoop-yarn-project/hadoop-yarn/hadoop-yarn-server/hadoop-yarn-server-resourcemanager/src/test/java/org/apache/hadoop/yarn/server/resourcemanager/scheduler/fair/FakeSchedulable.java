@@ -20,35 +20,33 @@ package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair;
 
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
-import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceType;
-import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
+import org.apache.hadoop.yarn.util.resource.ResourceType;
+import org.apache.hadoop.yarn.util.resource.ResourceWeights;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
+import org.apache.hadoop.yarn.util.NoNullHashMap;
 import org.apache.hadoop.yarn.util.Records;
 import org.apache.hadoop.yarn.util.resource.Resources;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Dummy implementation of Schedulable for unit testing.
  */
 public class FakeSchedulable implements Schedulable {
-  private Map<String, Resource> usage;
-  private Map<String, Resource> minShare;
-  private Map<String, Resource> maxShare;
-  private Map<String, Resource> fairShare;
-  private Map<String, ResourceWeights> weights;
+  private NoNullHashMap<String, Resource> usage;
+  private NoNullHashMap<String, Resource> minShare;
+  private NoNullHashMap<String, Resource> maxShare;
+  private NoNullHashMap<String, Resource> fairShare;
+  private NoNullHashMap<String, ResourceWeights> weights;
   private Priority priority;
   private long startTime;
 
-  static private Map<String, Resource> getResource(int size, String nodeLabel) {
-    Map<String, Resource> resourceMap = new HashMap<String, Resource>();
+  static private NoNullHashMap<String, Resource> getResource(int size, String nodeLabel) {
+    NoNullHashMap<String, Resource> resourceMap = new NoNullHashMap<String, Resource>(){};
     resourceMap.put(nodeLabel, Resources.createResource(size, 0));
     return resourceMap;
   }
 
-  static private Map<String, ResourceWeights> getResourceWeights(double size, String nodeLabel) {
-    Map<String, ResourceWeights> resourceMap = new HashMap<String, ResourceWeights>();
+  static private NoNullHashMap<String, ResourceWeights> getResourceWeights(double size, String nodeLabel) {
+    NoNullHashMap<String, ResourceWeights> resourceMap = new NoNullHashMap<String, ResourceWeights>(){};
     resourceMap.put(nodeLabel, new ResourceWeights((float) size));
     return resourceMap;
   }
@@ -89,9 +87,9 @@ public class FakeSchedulable implements Schedulable {
         0);
   }
   
-  public FakeSchedulable(Map<String, Resource> minShare, Map<String, Resource> maxShare,
-                         Map<String, ResourceWeights> weight, Map<String, Resource> fairShare,
-                         Map<String, Resource> usage, long startTime) {
+  public FakeSchedulable(NoNullHashMap<String, Resource> minShare, NoNullHashMap<String, Resource> maxShare,
+                         NoNullHashMap<String, ResourceWeights> weight, NoNullHashMap<String, Resource> fairShare,
+                         NoNullHashMap<String, Resource> usage, long startTime) {
     this.minShare = minShare;
     this.maxShare = maxShare;
     this.weights = weight;
@@ -112,17 +110,17 @@ public class FakeSchedulable implements Schedulable {
   }
 
   @Override
-  public Map<String, Resource> getFairShare() {
+  public NoNullHashMap<String, Resource> getFairShare() {
     return this.fairShare;
   }
 
   @Override
-  public void setFairShare(Map<String, Resource> fairShare) {
+  public void setFairShare(NoNullHashMap<String, Resource> fairShare) {
     this.fairShare = fairShare;
   }
 
   @Override
-  public Map<String, Resource> getDemand() {
+  public NoNullHashMap<String, Resource> getDemand() {
     return null;
   }
 
@@ -137,7 +135,7 @@ public class FakeSchedulable implements Schedulable {
   }
 
   @Override
-  public Map<String, Resource> getResourceUsage() {
+  public NoNullHashMap<String, Resource> getResourceUsage() {
     return usage;
   }
 
@@ -147,17 +145,17 @@ public class FakeSchedulable implements Schedulable {
   }
   
   @Override
-  public Map<String, ResourceWeights> getWeights() {
+  public NoNullHashMap<String, ResourceWeights> getWeights() {
     return weights;
   }
   
   @Override
-  public Map<String, Resource> getMinShare() {
+  public NoNullHashMap<String, Resource> getMinShare() {
     return minShare;
   }
   
   @Override
-  public Map<String, Resource> getMaxShare() {
+  public NoNullHashMap<String, Resource> getMaxShare() {
     return maxShare;
   }
 

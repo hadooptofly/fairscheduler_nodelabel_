@@ -2,8 +2,10 @@ package org.apache.hadoop.tools.metrics;
 
 import com.sun.jdi.InvalidTypeException;
 import org.apache.hadoop.metrics2.MetricsInfo;
+import org.apache.hadoop.metrics2.impl.*;
 import org.apache.hadoop.metrics2.lib.*;
 
+import java.lang.reflect.ParameterizedType;
 import java.util.HashMap;
 
 /**
@@ -26,10 +28,17 @@ import java.util.HashMap;
 
 public class NoNullHashMap<K, V> extends HashMap<K, V>{
 
+    private final String kClass, vClass;
+
+    {
+        kClass = ((Class)((ParameterizedType)this.getClass().getGenericSuperclass()).getActualTypeArguments()[0]).getName();
+        vClass = ((Class)((ParameterizedType)this.getClass().getGenericSuperclass()).getActualTypeArguments()[1]).getName();
+    }
+
     public V get(Object k, MetricsInfo info) throws InvalidTypeException{
         V v = super.get(k);
         if (null == v) {
-            switch (v.getClass().getName())
+            switch (vClass)
             {
                 case "org.apache.hadoop.metrics2.lib.MutableCounterInt" :
                     MutableCounterInt mutableCounterInt = new MutableCounterInt(info, 0);
@@ -49,24 +58,78 @@ public class NoNullHashMap<K, V> extends HashMap<K, V>{
                     return (V) mutableGaugeLong;
                 case "org.apache.hadoop.metrics2.lib.MutableMapCounterInt" :
                     MutableMapCounterInt mutableMapCounterInt = new MutableMapCounterInt(
-                            info, new NoNullHashMap<String, MutableCounterInt>());
+                            info, new NoNullHashMap<String, MutableCounterInt>(){});
                     put((K) k, (V) mutableMapCounterInt);
                     return (V) mutableMapCounterInt;
                 case "org.apache.hadoop.metrics2.lib.MutableMapCounterLong" :
                     MutableMapCounterLong mutableMapCounterLong = new MutableMapCounterLong(
-                            info, new NoNullHashMap<String, MutableCounterLong>());
+                            info, new NoNullHashMap<String, MutableCounterLong>(){});
                     put((K) k, (V) mutableMapCounterLong);
                     return (V) mutableMapCounterLong;
                 case "org.apache.hadoop.metrics2.lib.MutableMapGaugeInt" :
                     MutableMapGaugeInt mutableMapGaugeInt = new MutableMapGaugeInt(
-                            info, new NoNullHashMap<String, MutableGaugeInt>());
+                            info, new NoNullHashMap<String, MutableGaugeInt>(){});
                     put((K) k, (V) mutableMapGaugeInt);
                     return (V) mutableMapGaugeInt;
                 case "org.apache.hadoop.metrics2.lib.MutableMapGaugeLong" :
                     MutableMapGaugeLong mutableMapGaugeLong = new MutableMapGaugeLong(
-                            info, new NoNullHashMap<String, MutableGaugeLong>());
+                            info, new NoNullHashMap<String, MutableGaugeLong>(){});
                     put((K) k, (V) mutableMapGaugeLong);
                     return (V) mutableMapGaugeLong;
+                case "org.apache.hadoop.metrics2.impl.MetricCounterInt" :
+                    MetricCounterInt metricCounterInt = new MetricCounterInt(info, 0);
+                    put((K) k,  (V) metricCounterInt);
+                    return (V) metricCounterInt;
+                case "org.apache.hadoop.metrics2.impl.MetricCounterLong" :
+                    MetricCounterLong metricCounterLong = new MetricCounterLong(info, 0L);
+                    put((K) k, (V) metricCounterLong);
+                    return (V) metricCounterLong;
+                case "org.apache.hadoop.metrics2.impl.MetricGaugeInt" :
+                    MetricGaugeInt metricGaugeInt = new MetricGaugeInt(info, 0);
+                    put((K) k, (V) metricGaugeInt);
+                    return (V) metricGaugeInt;
+                case "org.apache.hadoop.metrics2.impl.MetricGaugeLong" :
+                    MetricGaugeLong metricGaugeLong = new MetricGaugeLong(info, 0L);
+                    put((K) k, (V) metricGaugeLong);
+                    return (V) metricGaugeLong;
+                case "org.apache.hadoop.metrics2.impl.MetricGaugeFloat" :
+                    MetricGaugeFloat metricGaugeFloat = new MetricGaugeFloat(info, 0.0f);
+                    put((K) k, (V) metricGaugeFloat);
+                    return (V) metricGaugeFloat;
+                case "org.apache.hadoop.metrics2.impl.MetricGaugeDouble" :
+                    MetricGaugeDouble metricGaugeDouble = new MetricGaugeDouble(info, 0.0);
+                    put((K) k, (V) metricGaugeDouble);
+                    return (V) metricGaugeDouble;
+                case "org.apache.hadoop.metrics2.impl.MetricMapCounterInt" :
+                    MetricMapCounterInt metricMapCounterInt = new MetricMapCounterInt(
+                            info, new NoNullHashMap<String, MetricCounterInt>(){});
+                    put((K) k,  (V) metricMapCounterInt);
+                    return (V) metricMapCounterInt;
+                case "org.apache.hadoop.metrics2.impl.MetricMapCounterLong" :
+                    MetricMapCounterLong metricMapCounterLong = new MetricMapCounterLong(
+                            info, new NoNullHashMap<String, MetricCounterLong>(){});
+                    put((K) k, (V) metricMapCounterLong);
+                    return (V) metricMapCounterLong;
+                case "org.apache.hadoop.metrics2.impl.MetricMapGaugeInt" :
+                    MetricMapGaugeInt metricMapGaugeInt = new MetricMapGaugeInt(
+                            info, new NoNullHashMap<String, MetricGaugeInt>(){});
+                    put((K) k, (V) metricMapGaugeInt);
+                    return (V) metricMapGaugeInt;
+                case "org.apache.hadoop.metrics2.impl.MetricMapGaugeLong" :
+                    MetricMapGaugeLong metricMapGaugeLong = new MetricMapGaugeLong(
+                            info, new NoNullHashMap<String, MetricGaugeLong>(){});
+                    put((K) k, (V) metricMapGaugeLong);
+                    return (V) metricMapGaugeLong;
+                case "org.apache.hadoop.metrics2.impl.MetricMapGaugeFloat" :
+                    MetricMapGaugeFloat metricMapGaugeFloat = new MetricMapGaugeFloat(
+                            info, new NoNullHashMap<String, MetricGaugeFloat>(){});
+                    put((K) k, (V) metricMapGaugeFloat);
+                    return (V) metricMapGaugeFloat;
+                case "org.apache.hadoop.metrics2.impl.MetricMapGaugeDouble" :
+                    MetricMapGaugeDouble metricMapGaugeDouble = new MetricMapGaugeDouble(
+                            info, new NoNullHashMap<String, MetricGaugeDouble>(){});
+                    put((K) k, (V) metricMapGaugeDouble);
+                    return (V) metricMapGaugeDouble;
                 default:
                     throw new InvalidTypeException("Haven`t support this type"
                             + v.getClass().getName()

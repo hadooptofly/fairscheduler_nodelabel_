@@ -35,11 +35,11 @@ import org.apache.hadoop.yarn.api.records.QueueACL;
 import org.apache.hadoop.yarn.api.records.QueueUserACLInfo;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.RMNodeLabelsManager;
-import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ActiveUsersManager;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerAppUtils;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplicationAttempt;
+import org.apache.hadoop.yarn.util.NoNullHashMap;
 import org.apache.hadoop.yarn.util.resource.Resources;
 
 @Private
@@ -57,11 +57,11 @@ public class FSLeafQueue extends FSQueue {
   private final Lock readLock = rwl.readLock();
   private final Lock writeLock = rwl.writeLock();
   
-  private Map<String, Resource> demand = Resources.createComposeResource();
+  private NoNullHashMap<String, Resource> demand = Resources.createComposeResource();
   
   // Variables used for preemption
-  private Map<String, Long> lastTimeAtMinShare;
-  private Map<String, Long> lastTimeAtFairShareThreshold;
+  private NoNullHashMap<String, Long> lastTimeAtMinShare;
+  private NoNullHashMap<String, Long> lastTimeAtFairShareThreshold;
   
   // Track the AM resource usage for this queue
   private Resource amResourceUsage;
@@ -72,8 +72,8 @@ public class FSLeafQueue extends FSQueue {
       FSParentQueue parent) {
     super(name, scheduler, parent);
 
-    this.lastTimeAtMinShare = new HashMap<String, Long>();
-    this.lastTimeAtFairShareThreshold = new HashMap<String, Long>();
+    this.lastTimeAtMinShare = new NoNullHashMap<String, Long>(){};
+    this.lastTimeAtFairShareThreshold = new NoNullHashMap<String, Long>(){};
     //initilize time
     for (String nodeLabel : getAccessibleNodeLabels()) {
       lastTimeAtMinShare.put(nodeLabel, scheduler.getClock().getTime());
@@ -237,13 +237,13 @@ public class FSLeafQueue extends FSQueue {
   }
 
   @Override
-  public Map<String, Resource> getDemand() {
+  public NoNullHashMap<String, Resource> getDemand() {
     return demand;
   }
 
   @Override
-  public Map<String, Resource> getResourceUsage() {
-    Map<String, Resource> usage = Resources.createComposeResource();
+  public NoNullHashMap<String, Resource> getResourceUsage() {
+    NoNullHashMap<String, Resource> usage = Resources.createComposeResource();
     readLock.lock();
     try {
       for (FSAppAttempt app : runnableApps) {

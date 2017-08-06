@@ -28,7 +28,8 @@ import org.apache.hadoop.security.authorize.AccessControlList;
 import org.apache.hadoop.yarn.api.records.QueueACL;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.server.resourcemanager.reservation.ReservationSchedulerConfiguration;
-import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
+import org.apache.hadoop.yarn.util.resource.ResourceWeights;
+import org.apache.hadoop.yarn.util.NoNullHashMap;
 import org.apache.hadoop.yarn.util.resource.Resources;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -39,12 +40,12 @@ public class AllocationConfiguration extends ReservationSchedulerConfiguration {
 
   private final Map<String, Set<String>> queueAccessiableNodeLabel;
   // Minimum resource allocation for each queue
-  private final Map<String, Map<String, Resource>> minQueueResources;
+  private final Map<String, NoNullHashMap<String, Resource>> minQueueResources;
   // Maximum amount of resources per queue
   @VisibleForTesting
-  final Map<String, Map<String, Resource>> maxQueueResources;
+  final Map<String, NoNullHashMap<String, Resource>> maxQueueResources;
   // Sharing weights for each queue
-  private final Map<String, Map<String, ResourceWeights>> queueWeights;
+  private final Map<String, NoNullHashMap<String, ResourceWeights>> queueWeights;
   
   // Max concurrent running applications for each queue and for each user; in addition,
   // for users that have no max specified, we use the userMaxJobsDefault.
@@ -96,10 +97,10 @@ public class AllocationConfiguration extends ReservationSchedulerConfiguration {
   private ReservationQueueConfiguration globalReservationQueueConfig;
 
   public AllocationConfiguration(Map<String, Set<String>> queueAccessiableNodeLabel,
-      Map<String, Map<String, Resource>> minQueueResources,
-      Map<String, Map<String, Resource>> maxQueueResources,
+      Map<String, NoNullHashMap<String, Resource>> minQueueResources,
+      Map<String, NoNullHashMap<String, Resource>> maxQueueResources,
       Map<String, Integer> queueMaxApps, Map<String, Integer> userMaxApps,
-      Map<String, Map<String, ResourceWeights>> queueWeights,
+      Map<String, NoNullHashMap<String, ResourceWeights>> queueWeights,
       Map<String, Float> queueMaxAMShares, int userMaxAppsDefault,
       int queueMaxAppsDefault, float queueMaxAMShareDefault,
       Map<String, SchedulingPolicy> schedulingPolicies,
@@ -136,9 +137,9 @@ public class AllocationConfiguration extends ReservationSchedulerConfiguration {
   
   public AllocationConfiguration(Configuration conf) {
     queueAccessiableNodeLabel = new HashMap<String, Set<String>>();
-    minQueueResources = new HashMap<String, Map<String, Resource>>();
-    maxQueueResources = new HashMap<String, Map<String, Resource>>();
-    queueWeights = new HashMap<String, Map<String, ResourceWeights>>();
+    minQueueResources = new HashMap<String, NoNullHashMap<String, Resource>>();
+    maxQueueResources = new HashMap<String, NoNullHashMap<String, Resource>>();
+    queueWeights = new HashMap<String, NoNullHashMap<String, ResourceWeights>>();
     queueMaxApps = new HashMap<String, Integer>();
     userMaxApps = new HashMap<String, Integer>();
     queueMaxAMShares = new HashMap<String, Float>();
@@ -211,8 +212,8 @@ public class AllocationConfiguration extends ReservationSchedulerConfiguration {
         -1f : fairSharePreemptionThreshold;
   }
 
-  public Map<String, ResourceWeights> getQueueWeight(String queue) {
-    Map<String, ResourceWeights> weights = queueWeights.get(queue);
+  public NoNullHashMap<String, ResourceWeights> getQueueWeight(String queue) {
+    NoNullHashMap<String, ResourceWeights> weights = queueWeights.get(queue);
     return weights;
   }
 
@@ -239,8 +240,8 @@ public class AllocationConfiguration extends ReservationSchedulerConfiguration {
    * Get the minimum resource allocation for the given queue.
    * @return the cap set on this queue, or 0 if not set.
    */
-  public Map<String, Resource> getMinResources(String queue) {
-    Map<String, Resource> minQueueResource = minQueueResources.get(queue);
+  public NoNullHashMap<String, Resource> getMinResources(String queue) {
+    NoNullHashMap<String, Resource> minQueueResource = minQueueResources.get(queue);
     return (minQueueResource == null) ? Resources.createComposeResource() : minQueueResource;
   }
 
@@ -248,8 +249,8 @@ public class AllocationConfiguration extends ReservationSchedulerConfiguration {
    * Get the maximum resource allocation for the given queue.
    * @return the cap set on this queue, or Integer.MAX_VALUE if not set.
    */
-  public Map<String, Resource> getMaxResources(String queueName) {
-    Map<String, Resource> maxQueueResource = maxQueueResources.get(queueName);
+  public NoNullHashMap<String, Resource> getMaxResources(String queueName) {
+    NoNullHashMap<String, Resource> maxQueueResource = maxQueueResources.get(queueName);
     return (maxQueueResource == null) ? Resources.createComposeResource() : maxQueueResource;
   }
   

@@ -22,6 +22,9 @@ import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlRootElement;
 
 import org.apache.hadoop.metrics2.lib.MutableGaugeInt;
+import org.apache.hadoop.metrics2.lib.MutableGaugeInt;
+import org.apache.hadoop.metrics2.lib.MutableMapGaugeInt;
+import org.apache.hadoop.metrics2.lib.MutableMapGaugeInt;
 import org.apache.hadoop.yarn.server.resourcemanager.ClusterMetrics;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics;
@@ -76,12 +79,12 @@ public class ClusterMetricsInfo {
         + rebootedNodes + unhealthyNodes;
 
     for (String nodeLabel : rm.getRMContext().getNodeLabelManager().getLabelSet()) {
-      MutableGaugeInt availMB = metrics.getAvailableMB().get(nodeLabel);
-      MutableGaugeInt allocateMB = metrics.getAllocatedMB().get(nodeLabel);
-      MutableGaugeInt availVcore = metrics.getAvailableVirtualCores().get(nodeLabel);
-      MutableGaugeInt allocateVcore = metrics.getAllocatedGpuCores().get(nodeLabel);
-      MutableGaugeInt availGcore = metrics.getAvailableGpuCores().get(nodeLabel);
-      MutableGaugeInt allocateGcore = metrics.getAllocatedGpuCores().get(nodeLabel);
+      MutableGaugeInt availMB = metrics.getAvailableMB().getValue().get(nodeLabel);
+      MutableGaugeInt allocateMB = metrics.getAllocatedMB().getValue().get(nodeLabel);
+      MutableGaugeInt availVcore = metrics.getAvailableVirtualCores().getValue().get(nodeLabel);
+      MutableGaugeInt allocateVcore = metrics.getAllocatedGpuCores().getValue().get(nodeLabel);
+      MutableGaugeInt availGcore = metrics.getAvailableGpuCores().getValue().get(nodeLabel);
+      MutableGaugeInt allocateGcore = metrics.getAllocatedGpuCores().getValue().get(nodeLabel);
 
       this.totalMB.put(nodeLabel, (long)(availMB != null ? availMB.value() : 0
               + (allocateMB != null ? allocateMB.value() : 0)));
@@ -116,51 +119,51 @@ public class ClusterMetricsInfo {
     return appsKilled;
   }
 
-  public Map<String, MutableGaugeInt> getReservedMB() {
+  public MutableMapGaugeInt getReservedMB() {
     return metrics.getReservedMB();
   }
 
-  public Map<String, MutableGaugeInt> getAvailableMB() {
+  public MutableMapGaugeInt getAvailableMB() {
     return metrics.getAvailableMB();
   }
 
-  public Map<String, MutableGaugeInt> getAllocatedMB() {
+  public MutableMapGaugeInt getAllocatedMB() {
     return metrics.getAllocatedMB();
   }
 
-  public Map<String, MutableGaugeInt> getReservedVirtualCores() {
+  public MutableMapGaugeInt getReservedVirtualCores() {
     return metrics.getReservedVirtualCores();
   }
 
-  public Map<String, MutableGaugeInt> getAvailableVirtualCores() {
+  public MutableMapGaugeInt getAvailableVirtualCores() {
     return metrics.getAvailableVirtualCores();
   }
 
-  public Map<String, MutableGaugeInt> getAllocatedVirtualCores() {
+  public MutableMapGaugeInt getAllocatedVirtualCores() {
     return metrics.getAllocatedVirtualCores();
   }
 
-  public Map<String, MutableGaugeInt> getReservedGpuCores() {
+  public MutableMapGaugeInt getReservedGpuCores() {
     return metrics.getReservedGpuCores();
   }
 
-  public Map<String, MutableGaugeInt> getAvailableGpuCores() {
+  public MutableMapGaugeInt getAvailableGpuCores() {
     return metrics.getAvailableGpuCores();
   }
 
-  public Map<String, MutableGaugeInt> getAllocatedGpuCores() {
+  public MutableMapGaugeInt getAllocatedGpuCores() {
     return metrics.getAllocatedGpuCores();
   }
 
-  public Map<String, MutableGaugeInt> getContainersAllocated() {
+  public MutableMapGaugeInt getContainersAllocated() {
     return metrics.getAllocatedContainers();
   }
 
-  public Map<String, MutableGaugeInt> getReservedContainers() {
+  public MutableMapGaugeInt getReservedContainers() {
     return metrics.getReservedContainers();
   }
 
-  public Map<String, MutableGaugeInt> getPendingContainers() {
+  public MutableMapGaugeInt getPendingContainers() {
     return metrics.getPendingContainers();
   }
 

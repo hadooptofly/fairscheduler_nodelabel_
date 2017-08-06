@@ -24,7 +24,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import com.google.common.collect.Sets;
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.LimitedPrivate;
@@ -40,7 +39,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.RMNodeLabelsManager;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore.RMState;
 import org.apache.hadoop.yarn.server.resourcemanager.reservation.ReservationConstants;
-import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
+import org.apache.hadoop.yarn.util.resource.ResourceWeights;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppEventType;
@@ -64,6 +63,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.QueueEntit
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.*;
 import org.apache.hadoop.yarn.server.resourcemanager.security.RMContainerTokenSecretManager;
 import org.apache.hadoop.yarn.util.Clock;
+import org.apache.hadoop.yarn.util.NoNullHashMap;
 import org.apache.hadoop.yarn.util.SystemClock;
 import org.apache.hadoop.yarn.util.resource.DefaultResourceCalculator;
 import org.apache.hadoop.yarn.util.resource.DominantResourceCalculator;
@@ -321,9 +321,9 @@ public class FairScheduler extends
               + ": " + clusterResource.get(nodeLabel)
               + "  Allocations: " + rootMetrics.getAllocatedResources().get(nodeLabel)
               + "  Availability: " + Resource.newInstance(rootMetrics.getAvailableMB()
-                  .get(nodeLabel).value(), rootMetrics.getAvailableVirtualCores()
-                  .get(nodeLabel).value(), rootMetrics.getAvailableGpuCores()
-                  .get(nodeLabel).value())
+                  .value(nodeLabel), rootMetrics.getAvailableVirtualCores()
+                  .value(nodeLabel), rootMetrics.getAvailableGpuCores()
+                  .value(nodeLabel))
               + "  Demand: " + rootQueue.getDemand().get(nodeLabel));
         }
       }
@@ -579,8 +579,8 @@ public class FairScheduler extends
   }
 
   // synchronized for sizeBasedWeight
-  public synchronized Map<String, ResourceWeights> getAppWeight(FSAppAttempt app) {
-    Map<String, ResourceWeights> resourceWeights = app.getResourceWeights();
+  public synchronized NoNullHashMap<String, ResourceWeights> getAppWeight(FSAppAttempt app) {
+    NoNullHashMap<String, ResourceWeights> resourceWeights = app.getResourceWeights();
     // Clean old weight because demand is
     // changed
     // TODO MAKE SURE APP DEMAND(queue, app) CHANGE MECHANISM IN RM
@@ -1263,10 +1263,10 @@ public class FairScheduler extends
     if (preemptionEnabled) {
       for (String nodeLabel : rootMetrics.getAllocatedResources().keySet()) {
         should |= (preemptionUtilizationThreshold < Math.max(
-            (float) rootMetrics.getAllocatedMB().get(nodeLabel).value() / clusterResource.get(nodeLabel).getMemory(),
-            Math.max((float) rootMetrics.getAllocatedVirtualCores().get(nodeLabel).value() /
+            (float) rootMetrics.getAllocatedMB().value(nodeLabel) / clusterResource.get(nodeLabel).getMemory(),
+            Math.max((float) rootMetrics.getAllocatedVirtualCores().value(nodeLabel) /
                     clusterResource.get(nodeLabel).getVirtualCores(),
-                (float) rootMetrics.getAllocatedGpuCores().get(nodeLabel).value() / clusterResource.get(nodeLabel).getGpuCores())));
+                (float) rootMetrics.getAllocatedGpuCores().value(nodeLabel) / clusterResource.get(nodeLabel).getGpuCores())));
       }
     }
     return should;

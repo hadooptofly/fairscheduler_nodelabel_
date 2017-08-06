@@ -397,8 +397,9 @@ public class MetricsRegistry {
     for (MetricsTag tag : tags()) {
       builder.add(tag);
 
-    for (MutableMetric metric : metrics()) {
-      metric.snapshot(builder, all);
+      for (MutableMetric metric : metrics()) {
+        metric.snapshot(builder, all);
+      }
     }
   }
 

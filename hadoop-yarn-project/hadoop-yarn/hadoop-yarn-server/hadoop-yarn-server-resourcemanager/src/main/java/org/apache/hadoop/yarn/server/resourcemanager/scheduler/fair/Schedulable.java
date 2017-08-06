@@ -22,10 +22,9 @@ import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
-import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
+import org.apache.hadoop.yarn.util.resource.ResourceWeights;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
-
-import java.util.Map;
+import org.apache.hadoop.yarn.util.NoNullHashMap;
 
 /**
  * A Schedulable represents an entity that can be scheduled such as an
@@ -64,19 +63,19 @@ public interface Schedulable {
    * number of currently utilized resources + number of unlaunched resources (that
    * are either not yet launched or need to be speculated).
    */
-  public Map<String, Resource> getDemand();
+  public NoNullHashMap<String, Resource> getDemand();
 
   /** Get the aggregate amount of resources consumed by the schedulable. */
-  public Map<String, Resource> getResourceUsage();
+  public NoNullHashMap<String, Resource> getResourceUsage();
 
   /** Minimum Resource share assigned to the schedulable. */
-  public Map<String, Resource> getMinShare();
+  public NoNullHashMap<String, Resource> getMinShare();
 
   /** Maximum Resource share assigned to the schedulable. */
-  public Map<String, Resource> getMaxShare();
+  public NoNullHashMap<String, Resource> getMaxShare();
 
   /** Job/queue weight in fair sharing. */
-  public Map<String, ResourceWeights> getWeights();
+  public NoNullHashMap<String, ResourceWeights> getWeights();
 
   /** Start time for jobs in FIFO queues; meaningless for QueueSchedulables.*/
   public long getStartTime();
@@ -100,9 +99,9 @@ public interface Schedulable {
   public RMContainer preemptContainer(String nodeLabel);
 
   /** Get the fair share assigned to this Schedulable. */
-  public Map<String, Resource> getFairShare();
+  public NoNullHashMap<String, Resource> getFairShare();
 
   /** Assign a fair share to this Schedulable.
    * @param fairShare*/
-  public void setFairShare(Map<String, Resource> fairShare);
+  public void setFairShare(NoNullHashMap<String, Resource> fairShare);
 }

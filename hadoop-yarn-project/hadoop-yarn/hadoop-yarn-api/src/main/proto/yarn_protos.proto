@@ -54,7 +54,7 @@ message ContainerIdProto {
 }
 
 message ResourceProto {
-  optional int64 memory = 1;
+  optional int32 memory = 1;
   optional int32 virtual_cores = 2;
   optional int32 gpu_cores = 3;
 }

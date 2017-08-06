@@ -17,6 +17,8 @@
  */
 package org.apache.hadoop.yarn.server.resourcemanager.resource;
 
+import org.apache.hadoop.yarn.util.resource.ResourceType;
+import org.apache.hadoop.yarn.util.resource.ResourceWeights;
 import org.junit.Assert;
 
 import org.junit.Test;

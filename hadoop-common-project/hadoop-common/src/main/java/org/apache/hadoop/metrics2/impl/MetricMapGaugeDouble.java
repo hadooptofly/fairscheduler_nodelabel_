@@ -22,19 +22,27 @@ import org.apache.hadoop.metrics2.AbstractMetric;
 import org.apache.hadoop.metrics2.MetricType;
 import org.apache.hadoop.metrics2.MetricsInfo;
 import org.apache.hadoop.metrics2.MetricsVisitor;
+import org.apache.hadoop.tools.metrics.NoNullHashMap;
 
-public class MetricGaugeFloat extends AbstractMetric {
-  final float value;
+public class MetricMapGaugeDouble extends AbstractMetric {
+  final NoNullHashMap<String, MetricGaugeDouble> value;
 
-  public MetricGaugeFloat(MetricsInfo info, float value) {
+  public MetricMapGaugeDouble(MetricsInfo info, NoNullHashMap<String, MetricGaugeDouble> value) {
     super(info);
     this.value = value;
   }
 
-  @Override
-  public Float value() {
+  public NoNullHashMap<String, MetricGaugeDouble> getValue() {
     return value;
   }
+
+  public Double value(String label) {
+    return value.get(label).value();
+  }
+
+  // no useful
+  @Override
+  public Double value() { return 0.0; }
 
   @Override
   public MetricType type() {
@@ -43,6 +51,6 @@ public class MetricGaugeFloat extends AbstractMetric {
 
   @Override
   public void visit(MetricsVisitor visitor) {
-    visitor.gauge(this, value);
+    visitor.gauge(this, value(""));
   }
 }

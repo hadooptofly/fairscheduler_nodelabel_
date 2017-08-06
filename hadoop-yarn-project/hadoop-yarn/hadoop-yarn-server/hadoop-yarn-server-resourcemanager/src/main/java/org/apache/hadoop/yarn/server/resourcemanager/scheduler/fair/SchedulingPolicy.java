@@ -26,6 +26,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies.Fai
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies.DominantResourceFairnessPolicy;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies.FairSharePolicy;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies.FifoPolicy;
+import org.apache.hadoop.yarn.util.NoNullHashMap;
 
 import java.util.Collection;
 import java.util.Map;
@@ -147,7 +148,7 @@ public abstract class SchedulingPolicy {
    * @param totalResources Total {@link Resource}s in the cluster
    */
   public abstract void computeShares(
-      Collection<? extends Schedulable> schedulables, Map<String, Resource> totalResources);
+      Collection<? extends Schedulable> schedulables, NoNullHashMap<String, Resource> totalResources);
 
   /**
    * Computes and updates the steady shares of {@link FSQueue}s as per the
@@ -160,7 +161,7 @@ public abstract class SchedulingPolicy {
    * @param totalResources Total {@link Resource}s in the cluster
    */
   public abstract void computeSteadyShares(
-      Collection<? extends FSQueue> queues, Map<String, Resource> totalResources);
+      Collection<? extends FSQueue> queues, NoNullHashMap<String, Resource> totalResources);
 
   /**
    * Check if the resource usage is over the fair share under this policy
@@ -169,8 +170,8 @@ public abstract class SchedulingPolicy {
    * @param fairShare {@link Resource} the fair share
    * @return true if check passes (is over) or false otherwise
    */
-  public abstract Map<String, Boolean> checkIfUsageOverFairShare(
-      Map<String, Resource> usage, Map<String, Resource> fairShare);
+  public abstract NoNullHashMap<String, Boolean> checkIfUsageOverFairShare(
+          NoNullHashMap<String, Resource> usage, NoNullHashMap<String, Resource> fairShare);
 
   /**
    * Check if the resource usage is over the fair share under this policy

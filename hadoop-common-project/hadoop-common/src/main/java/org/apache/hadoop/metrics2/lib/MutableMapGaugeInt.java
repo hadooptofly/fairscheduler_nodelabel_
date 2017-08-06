@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @InterfaceStability.Evolving
 public class MutableMapGaugeInt extends MutableMapGauge {
 
-  private NoNullHashMap<String, MutableGaugeInt> value = new NoNullHashMap<String, MutableGaugeInt>();
+  private NoNullHashMap<String, MutableGaugeInt> value = new NoNullHashMap<String, MutableGaugeInt>(){};
 
   public MutableMapGaugeInt(MetricsInfo info, NoNullHashMap<String, MutableGaugeInt> initValue) {
     super(info);
@@ -90,7 +90,7 @@ public class MutableMapGaugeInt extends MutableMapGauge {
   @Override
   public void snapshot(MetricsRecordBuilder builder, boolean all) {
     if (all || changed()) {
-      builder.addGauge(info(), value());
+      builder.addGauge(info(), value(""));
       clearChanged();
     }
   }

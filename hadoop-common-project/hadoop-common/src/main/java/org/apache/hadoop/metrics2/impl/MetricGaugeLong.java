@@ -23,10 +23,10 @@ import org.apache.hadoop.metrics2.MetricType;
 import org.apache.hadoop.metrics2.MetricsInfo;
 import org.apache.hadoop.metrics2.MetricsVisitor;
 
-class MetricGaugeLong extends AbstractMetric {
+public class MetricGaugeLong extends AbstractMetric {
   final long value;
 
-  MetricGaugeLong(MetricsInfo info, long value) {
+  public MetricGaugeLong(MetricsInfo info, long value) {
     super(info);
     this.value = value;
   }

@@ -45,7 +45,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.RMAuditLogger;
 import org.apache.hadoop.yarn.server.resourcemanager.RMAuditLogger.AuditConstants;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.RMNodeLabelsManager;
-import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
+import org.apache.hadoop.yarn.util.resource.ResourceWeights;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainerEventType;
@@ -56,6 +56,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.NodeType;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplicationAttempt;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
+import org.apache.hadoop.yarn.util.NoNullHashMap;
 import org.apache.hadoop.yarn.util.resource.DefaultResourceCalculator;
 import org.apache.hadoop.yarn.util.resource.Resources;
 
@@ -73,11 +74,11 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
 
   private long startTime;
   private Priority priority;
-  private Map<String, ResourceWeights> resourceWeights;
-  private Map<String, Resource> demand = new HashMap<String, Resource>();
+  private NoNullHashMap<String, ResourceWeights> resourceWeights;
+  private NoNullHashMap<String, Resource> demand = new NoNullHashMap<String, Resource>(){};
   private FairScheduler scheduler;
-  private Map<String, Resource> fairShare = new HashMap<String, Resource>();
-  private Map<String, Resource> preemptedResources = new HashMap<String, Resource>();
+  private NoNullHashMap<String, Resource> fairShare = new NoNullHashMap<String, Resource>(){};
+  private NoNullHashMap<String, Resource> preemptedResources = new NoNullHashMap<String, Resource>(){};
   private RMContainerComparator comparator = new RMContainerComparator();
   private final Map<RMContainer, Long> preemptionMap = new HashMap<RMContainer, Long>();
 
@@ -102,10 +103,10 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
     this.scheduler = scheduler;
     this.startTime = scheduler.getClock().getTime();
     this.priority = Priority.newInstance(1);
-    this.resourceWeights = new HashMap<String, ResourceWeights>();
+    this.resourceWeights = new NoNullHashMap<String, ResourceWeights>(){};
   }
 
-  public Map<String, ResourceWeights> getResourceWeights() {
+  public NoNullHashMap<String, ResourceWeights> getResourceWeights() {
     return resourceWeights;
   }
 
@@ -193,10 +194,10 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
     final FSQueue queue = (FSQueue) this.queue;
     SchedulingPolicy policy = queue.getPolicy();
 
-    Map<String, Resource> queueFairShare = queue.getFairShare();
-    Map<String, Resource> queueUsage = queue.getResourceUsage();
-    Map<String, Resource> clusterResource = new HashMap<String, Resource>();
-    Map<String, Resource> clusterUsage = this.scheduler.getQueueManager().getRootQueue().getResourceUsage();
+    NoNullHashMap<String, Resource> queueFairShare = queue.getFairShare();
+    NoNullHashMap<String, Resource> queueUsage = queue.getResourceUsage();
+    NoNullHashMap<String, Resource> clusterResource = new NoNullHashMap<String, Resource>(){};
+    NoNullHashMap<String, Resource> clusterUsage = this.scheduler.getQueueManager().getRootQueue().getResourceUsage();
 
     Set<String> queueLabels = queue.getAccessibleNodeLabels();
 
@@ -436,12 +437,12 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
     return (FSLeafQueue)super.getQueue();
   }
 
-  public Map<String, Resource> getPreemptedResources() {
+  public NoNullHashMap<String, Resource> getPreemptedResources() {
     return preemptedResources;
   }
 
   public void resetPreemptedResources() {
-    preemptedResources = new HashMap<String, Resource>();
+    preemptedResources = new NoNullHashMap<String, Resource>(){};
     for (RMContainer container : getPreemptionContainers()) {
       String nodeLabel = StringUtils.isBlank(container.getNodeLabel())
           ? RMNodeLabelsManager.NO_LABEL
@@ -806,7 +807,7 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
   }
 
   @Override
-  public Map<String, Resource> getDemand() {
+  public NoNullHashMap<String, Resource> getDemand() {
     return demand;
   }
 
@@ -816,17 +817,17 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
   }
 
   @Override
-  public Map<String, Resource> getMinShare() {
+  public NoNullHashMap<String, Resource> getMinShare() {
     return null;
   }
 
   @Override
-  public Map<String, Resource> getMaxShare() {
+  public NoNullHashMap<String, Resource> getMaxShare() {
     return null;
   }
 
   @Override
-  public Map<String, Resource> getResourceUsage() {
+  public NoNullHashMap<String, Resource> getResourceUsage() {
     // Here the getPreemptedResources() always return zero, except in
     // a preemption round
     // In the common case where preempted resource is zero, return the
@@ -836,7 +837,7 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
       return getCurrentConsumption();
     }
 
-    Map<String, Resource> usages = new HashMap<String, Resource>();
+    NoNullHashMap<String, Resource> usages = new NoNullHashMap<String, Resource>(){};
     for (Map.Entry<String, Resource> usage : getCurrentConsumption().entrySet()) {
       if (getPreemptedResources().containsKey(usage.getKey())) {
         usages.put(usage.getKey(), Resources
@@ -850,7 +851,7 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
   }
 
   @Override
-  public Map<String, ResourceWeights> getWeights() {
+  public NoNullHashMap<String, ResourceWeights> getWeights() {
     return scheduler.getAppWeight(this);
   }
 
@@ -862,12 +863,12 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
   }
 
   @Override
-  public Map<String, Resource> getFairShare() {
+  public NoNullHashMap<String, Resource> getFairShare() {
     return this.fairShare;
   }
 
   @Override
-  public void setFairShare(Map<String, Resource> fairShare) {
+  public void setFairShare(NoNullHashMap<String, Resource> fairShare) {
     this.fairShare = fairShare;
   }
 
@@ -875,7 +876,7 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
   public void updateDemand() {
     // Demand is current consumption plus outstanding requests
     // inner copy consumption.
-    demand = new HashMap<String, Resource>();
+    demand = new NoNullHashMap<String, Resource>(){};
     for (Map.Entry<String, Resource> use : getCurrentConsumption().entrySet()) {
       demand.put(use.getKey(), Resources.clone(use.getValue()));
     }

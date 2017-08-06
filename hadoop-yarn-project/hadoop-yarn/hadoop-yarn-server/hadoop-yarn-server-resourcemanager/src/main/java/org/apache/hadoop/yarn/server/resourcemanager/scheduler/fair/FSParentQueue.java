@@ -32,6 +32,7 @@ import org.apache.hadoop.yarn.api.records.QueueUserACLInfo;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.RMNodeLabelsManager;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
+import org.apache.hadoop.yarn.util.NoNullHashMap;
 import org.apache.hadoop.yarn.util.resource.Resources;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ActiveUsersManager;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplicationAttempt;
@@ -44,7 +45,7 @@ public class FSParentQueue extends FSQueue {
 
   private final List<FSQueue> childQueues = 
       new ArrayList<FSQueue>();
-  private Map<String, Resource> demand = new HashMap<String, Resource>();
+  private NoNullHashMap<String, Resource> demand = new NoNullHashMap<String, Resource>(){};
   private int runnableApps;
   
   public FSParentQueue(String name, FairScheduler scheduler,
@@ -85,13 +86,13 @@ public class FSParentQueue extends FSQueue {
   }
 
   @Override
-  public Map<String, Resource> getDemand() {
+  public NoNullHashMap<String, Resource> getDemand() {
     return demand;
   }
 
   @Override
-  public Map<String, Resource> getResourceUsage() {
-    Map<String, Resource> usage = new HashMap<String, Resource>();
+  public NoNullHashMap<String, Resource> getResourceUsage() {
+    NoNullHashMap<String, Resource> usage = new NoNullHashMap<String, Resource>(){};
     for (FSQueue child : childQueues) {
       Map<String, Resource> use = child.getResourceUsage();
       for (Map.Entry<String, Resource> labelUsage : use.entrySet()) {
@@ -113,7 +114,7 @@ public class FSParentQueue extends FSQueue {
     // Limit demand to maxResources
     Map<String, Resource> maxRes = scheduler.getAllocationConfiguration()
         .getMaxResources(getName());
-    demand = new HashMap<String, Resource>();
+    demand = new NoNullHashMap<String, Resource>(){};
     for (FSQueue childQueue : childQueues) {
       childQueue.updateDemand();
       Map<String, Resource> toAdd = childQueue.getDemand();

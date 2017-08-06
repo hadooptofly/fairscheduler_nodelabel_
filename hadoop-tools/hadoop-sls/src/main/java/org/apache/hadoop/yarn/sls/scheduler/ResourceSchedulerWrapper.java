@@ -531,7 +531,7 @@ public class ResourceSchedulerWrapper
           if(scheduler == null || scheduler.getRootQueueMetrics() == null) {
             return 0;
           } else {
-            return scheduler.getRootQueueMetrics().getAllocatedMB().get("").value();
+            return scheduler.getRootQueueMetrics().getAllocatedMB().getValue().get("").value();
           }
         }
       }
@@ -543,7 +543,7 @@ public class ResourceSchedulerWrapper
           if(scheduler == null || scheduler.getRootQueueMetrics() == null) {
             return 0;
           } else {
-            return scheduler.getRootQueueMetrics().getAllocatedVirtualCores().get("").value();
+            return scheduler.getRootQueueMetrics().getAllocatedVirtualCores().getValue().get("").value();
           }
         }
       }
@@ -555,7 +555,7 @@ public class ResourceSchedulerWrapper
           if(scheduler == null || scheduler.getRootQueueMetrics() == null) {
             return 0;
           } else {
-            return scheduler.getRootQueueMetrics().getAvailableMB().get("").value();
+            return scheduler.getRootQueueMetrics().getAvailableMB().getValue().get("").value();
           }
         }
       }
@@ -567,7 +567,7 @@ public class ResourceSchedulerWrapper
           if(scheduler == null || scheduler.getRootQueueMetrics() == null) {
             return 0;
           } else {
-            return scheduler.getRootQueueMetrics().getAvailableVirtualCores().get("").value();
+            return scheduler.getRootQueueMetrics().getAvailableVirtualCores().getValue().get("").value();
           }
         }
       }
@@ -594,7 +594,7 @@ public class ResourceSchedulerWrapper
           if(scheduler == null || scheduler.getRootQueueMetrics() == null) {
             return 0;
           } else {
-            return scheduler.getRootQueueMetrics().getAllocatedContainers().get("").value();
+            return scheduler.getRootQueueMetrics().getAllocatedContainers().getValue().get("").value();
           }
         }
       }

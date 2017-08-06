@@ -56,7 +56,7 @@ public class QueueMetrics implements MetricsSource {
   @Metric("# of apps killed") MutableCounterInt appsKilled;
   @Metric("# of apps failed") MutableCounterInt appsFailed;
 
-  @Metric("Allocated memory in MB") MutableMapGaugeLong allocatedMB;
+  @Metric("Allocated memory in MB") MutableMapGaugeInt allocatedMB;
   @Metric("Allocated CPU in virtual cores") MutableMapGaugeInt allocatedVCores;
   @Metric("Allocated GPU in cores") MutableMapGaugeInt allocatedGCores;
   @Metric("# of allocated containers") MutableMapGaugeInt allocatedContainers;
@@ -68,14 +68,14 @@ public class QueueMetrics implements MetricsSource {
   @Metric("Aggregate # of allocated off-switch containers")
     MutableCounterLong aggregateOffSwitchContainersAllocated;
   @Metric("Aggregate # of released containers") MutableCounterLong aggregateContainersReleased;
-  @Metric("Available memory in MB") MutableMapGaugeLong availableMB;
+  @Metric("Available memory in MB") MutableMapGaugeInt availableMB;
   @Metric("Available CPU in virtual cores") MutableMapGaugeInt availableVCores;
   @Metric("Available GPU in cores") MutableMapGaugeInt availableGCores;
-  @Metric("Pending memory allocation in MB") MutableMapGaugeLong pendingMB;
+  @Metric("Pending memory allocation in MB") MutableMapGaugeInt pendingMB;
   @Metric("Pending CPU allocation in virtual cores") MutableMapGaugeInt pendingVCores;
   @Metric("Pending GPU allocation in cores") MutableMapGaugeInt pendingGCores;
   @Metric("# of pending containers") MutableMapGaugeInt pendingContainers;
-  @Metric("# of reserved memory in MB") MutableMapGaugeLong reservedMB;
+  @Metric("# of reserved memory in MB") MutableMapGaugeInt reservedMB;
   @Metric("Reserved CPU in virtual cores") MutableMapGaugeInt reservedVCores;
   @Metric("Reserved GPU in cores") MutableMapGaugeInt reservedGCores;
   @Metric("# of reserved containers") MutableMapGaugeInt reservedContainers;
@@ -536,7 +536,7 @@ public class QueueMetrics implements MetricsSource {
       return allocated;
   }
 
-  public MutableMapGaugeLong getAllocatedMB() {
+  public MutableMapGaugeInt getAllocatedMB() {
     return allocatedMB;
   }
   
@@ -552,7 +552,7 @@ public class QueueMetrics implements MetricsSource {
     return allocatedContainers;
   }
 
-  public MutableMapGaugeLong getAvailableMB() {
+  public MutableMapGaugeInt getAvailableMB() {
     return availableMB;
   }  
   
@@ -564,7 +564,7 @@ public class QueueMetrics implements MetricsSource {
     return availableGCores;
   }
 
-  public MutableMapGaugeLong getPendingMB() {
+  public MutableMapGaugeInt getPendingMB() {
     return pendingMB;
   }
   
@@ -580,7 +580,7 @@ public class QueueMetrics implements MetricsSource {
     return pendingContainers;
   }
   
-  public MutableMapGaugeLong getReservedMB() {
+  public MutableMapGaugeInt getReservedMB() {
     return reservedMB;
   }
   

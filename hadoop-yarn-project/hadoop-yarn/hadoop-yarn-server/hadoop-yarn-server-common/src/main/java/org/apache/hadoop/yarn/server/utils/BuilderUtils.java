@@ -396,7 +396,7 @@ public class BuilderUtils {
     return report;
   }
 
-  public static Resource newResource(long memory, int vCores) {
+  public static Resource newResource(int memory, int vCores) {
     Resource resource = recordFactory.newRecordInstance(Resource.class);
     resource.setMemory(memory);
     resource.setVirtualCores(vCores);
@@ -404,7 +404,7 @@ public class BuilderUtils {
     return resource;
   }
 
-  public static Resource newResource(long memory, int vCores, int gCores) {
+  public static Resource newResource(int memory, int vCores, int gCores) {
     Resource resource = recordFactory.newRecordInstance(Resource.class);
     resource.setMemory(memory);
     resource.setVirtualCores(vCores);

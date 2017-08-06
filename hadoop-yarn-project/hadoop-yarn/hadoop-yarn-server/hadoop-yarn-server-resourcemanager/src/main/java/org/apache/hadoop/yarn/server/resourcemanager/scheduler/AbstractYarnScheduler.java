@@ -66,6 +66,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainerImpl
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainerRecoverEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNodeCleanContainerEvent;
+import org.apache.hadoop.yarn.util.NoNullHashMap;
 import org.apache.hadoop.yarn.util.resource.Resources;
 
 import com.google.common.util.concurrent.SettableFuture;
@@ -84,7 +85,7 @@ public abstract class AbstractYarnScheduler
   protected Map<NodeId, N> nodes = new ConcurrentHashMap<NodeId, N>();
 
   // Whole capacity of the cluster
-  protected Map<String, Resource> clusterResource = Resources.createComposeResource();
+  protected NoNullHashMap<String, Resource> clusterResource = Resources.createComposeResource();
 
   protected Resource minimumAllocation;
   private Resource maximumAllocation;
@@ -167,7 +168,7 @@ public abstract class AbstractYarnScheduler
   }
 
   @Override
-  public Map<String, Resource> getClusterResource() {
+  public NoNullHashMap<String, Resource> getClusterResource() {
     return clusterResource;
   }
 

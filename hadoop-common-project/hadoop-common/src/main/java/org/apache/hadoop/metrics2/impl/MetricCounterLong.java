@@ -23,10 +23,10 @@ import org.apache.hadoop.metrics2.MetricType;
 import org.apache.hadoop.metrics2.MetricsInfo;
 import org.apache.hadoop.metrics2.MetricsVisitor;
 
-class MetricCounterLong extends AbstractMetric {
+public class MetricCounterLong extends AbstractMetric {
   final long value;
 
-  MetricCounterLong(MetricsInfo info, long value) {
+  public MetricCounterLong(MetricsInfo info, long value) {
     super(info);
     this.value = value;
   }

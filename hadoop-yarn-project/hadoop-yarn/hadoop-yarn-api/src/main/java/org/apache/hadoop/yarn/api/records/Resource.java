@@ -73,7 +73,7 @@ public abstract class Resource implements Comparable<Resource> {
    */
   @Public
   @Stable
-  public abstract long getMemory();
+  public abstract int getMemory();
 
   /**
    * Set <em>memory</em> of the resource.
@@ -82,7 +82,7 @@ public abstract class Resource implements Comparable<Resource> {
    */
   @Public
   @Stable
-  public abstract void setMemory(long memory);
+  public abstract void setMemory(int memory);
 
   /**
    * Get <em>number of virtual cpu cores</em> of the resource.

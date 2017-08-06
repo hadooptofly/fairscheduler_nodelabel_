@@ -37,7 +37,7 @@
 //import org.apache.hadoop.yarn.conf.YarnConfiguration;
 //import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 //import org.apache.hadoop.yarn.server.resourcemanager.reservation.exceptions.PlanningException;
-//import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceType;
+//import org.apache.hadoop.yarn.util.resource.ResourceType;
 //import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
 //import org.apache.hadoop.yarn.server.resourcemanager.scheduler.Queue;
 //import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;

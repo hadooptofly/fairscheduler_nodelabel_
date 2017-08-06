@@ -28,6 +28,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSQueue;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.ComparatorWrapper;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.Schedulable;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.SchedulingPolicy;
+import org.apache.hadoop.yarn.util.NoNullHashMap;
 import org.apache.hadoop.yarn.util.resource.Resources;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -74,7 +75,7 @@ public class FifoPolicy extends SchedulingPolicy {
 
   @Override
   public void computeShares(Collection<? extends Schedulable> schedulables,
-                            Map<String, Resource> totalResources) {
+                            NoNullHashMap<String, Resource> totalResources) {
     if (schedulables.isEmpty()) {
       return;
     }
@@ -91,13 +92,13 @@ public class FifoPolicy extends SchedulingPolicy {
 
   @Override
   public void computeSteadyShares(Collection<? extends FSQueue> queues,
-      Map<String, Resource> totalResources) {
+      NoNullHashMap<String, Resource> totalResources) {
     // Nothing needs to do, as leaf queue doesn't have to calculate steady
     // fair shares for applications.
   }
 
   @Override
-  public Map<String, Boolean> checkIfUsageOverFairShare(Map<String, Resource> usage, Map<String, Resource> fairShare) {
+  public NoNullHashMap<String, Boolean> checkIfUsageOverFairShare(NoNullHashMap<String, Resource> usage, NoNullHashMap<String, Resource> fairShare) {
     throw new UnsupportedOperationException(
         "FifoPolicy doesn't support checkIfUsageOverFairshare operation, " +
             "as FifoPolicy only works for FSLeafQueue.");

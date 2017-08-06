@@ -30,8 +30,7 @@ import org.apache.hadoop.metrics2.MetricsCollector;
 import org.apache.hadoop.metrics2.MetricsFilter;
 import org.apache.hadoop.metrics2.MetricsRecordBuilder;
 import org.apache.hadoop.metrics2.MetricsTag;
-import org.apache.hadoop.metrics2.lib.Interns;
-import org.apache.hadoop.metrics2.lib.MutableCounterInt;
+import org.apache.hadoop.metrics2.lib.*;
 import org.apache.hadoop.util.Time;
 
 class MetricsRecordBuilderImpl extends MetricsRecordBuilder {
@@ -80,11 +79,39 @@ class MetricsRecordBuilderImpl extends MetricsRecordBuilder {
   }
 
   @Override
-  public MetricsRecordBuilderImpl addCounter(MetricsInfo info, Map<String, MutableCounterInt>) {
+  public MetricsRecordBuilderImpl addMapCounterInt(MetricsInfo info, Map<String, MutableCounterInt> value) {
     if (acceptable && (metricFilter == null ||
             metricFilter.accepts(info.name()))) {
-      metrics.add(new )
+      metrics.add(new MetricCounterInt(info, 0));
     }
+    return this;
+  }
+
+  @Override
+  public MetricsRecordBuilderImpl addMapCounterLong(MetricsInfo info, Map<String, MutableCounterLong> value) {
+    if (acceptable && (metricFilter == null ||
+            metricFilter.accepts(info.name()))) {
+      metrics.add(new MetricCounterLong(info, 0L));
+    }
+    return this;
+  }
+
+  @Override
+  public MetricsRecordBuilder addMapGaugeInt(MetricsInfo info, Map<String, MutableGaugeInt> value) {
+    if (acceptable && (metricFilter == null ||
+            metricFilter.accepts(info.name()))) {
+      metrics.add(new MetricGaugeInt(info, 0));
+    }
+    return this;
+  }
+
+  @Override
+  public MetricsRecordBuilder addMapGaugeLong(MetricsInfo info, Map<String, MutableGaugeLong> value) {
+    if (acceptable && (metricFilter == null ||
+            metricFilter.accepts(info.name()))) {
+      metrics.add(new MetricGaugeLong(info, 0L));
+    }
+    return this;
   }
 
   @Override

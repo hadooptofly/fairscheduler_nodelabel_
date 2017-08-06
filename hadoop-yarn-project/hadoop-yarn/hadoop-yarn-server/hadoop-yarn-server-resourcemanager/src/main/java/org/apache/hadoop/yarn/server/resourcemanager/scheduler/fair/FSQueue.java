@@ -20,7 +20,7 @@ package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair;
 
 import java.util.*;
 
-import org.apache.commons.math3.analysis.function.Max;
+import com.google.common.collect.Sets;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -33,16 +33,16 @@ import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.RMNodeLabelsManager;
-import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
+import org.apache.hadoop.yarn.util.resource.ResourceWeights;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.Queue;
-import org.apache.hadoop.yarn.util.Records;
+import org.apache.hadoop.yarn.util.NoNullHashMap;
 import org.apache.hadoop.yarn.util.resource.Resources;
 
 @Private
 @Unstable
 public abstract class FSQueue implements Queue, Schedulable {
-  private Map<String, Resource> fairShare = new HashMap<String, Resource>();
-  private Map<String, Resource> steadyFairShare = new HashMap<String, Resource>();
+  private NoNullHashMap<String, Resource> fairShare = new NoNullHashMap<String, Resource>(){};
+  private NoNullHashMap<String, Resource> steadyFairShare = new NoNullHashMap<String, Resource>(){};
   private final String name;
   protected final FairScheduler scheduler;
   private final FSQueueMetrics metrics;
@@ -93,12 +93,12 @@ public abstract class FSQueue implements Queue, Schedulable {
       throws AllocationConfigurationException;
 
   @Override
-  public Map<String, ResourceWeights> getWeights() {
+  public NoNullHashMap<String, ResourceWeights> getWeights() {
     return scheduler.getAllocationConfiguration().getQueueWeight(getName());
   }
 
   @Override
-  public Map<String, Resource> getMinShare() {
+  public NoNullHashMap<String, Resource> getMinShare() {
     return scheduler.getAllocationConfiguration().getMinResources(getName());
   }
 
@@ -107,8 +107,8 @@ public abstract class FSQueue implements Queue, Schedulable {
     QueueInfo queueInfo = recordFactory.newRecordInstance(QueueInfo.class);
     queueInfo.setQueueName(getQueueName());
     // Modify refrence to labels.
-    Map<String, Float> capacity = new HashMap<String, Float>();
-    Map<String, Float> currentCapacity = new HashMap<String, Float>();
+    NoNullHashMap<String, Float> capacity = new NoNullHashMap<String, Float>(){};
+    NoNullHashMap<String, Float> currentCapacity = new NoNullHashMap<String, Float>(){};
     Set<String> labels = queueInfo.getAccessibleNodeLabels();
     Iterator<String> it = labels.iterator();
     while(it.hasNext()) {
@@ -161,7 +161,7 @@ public abstract class FSQueue implements Queue, Schedulable {
   }
 
   @Override
-  public Map<String, Resource> getMaxShare() {
+  public NoNullHashMap<String, Resource> getMaxShare() {
     return scheduler.getAllocationConfiguration().getMaxResources(getName());
   }
 
@@ -183,22 +183,22 @@ public abstract class FSQueue implements Queue, Schedulable {
   }
 
   /** Get the fair share assigned to this Schedulable. */
-  public Map<String, Resource> getFairShare() {
+  public NoNullHashMap<String, Resource> getFairShare() {
     return fairShare;
   }
 
   @Override
-  public void setFairShare(Map<String, Resource> fairShare) {
+  public void setFairShare(NoNullHashMap<String, Resource> fairShare) {
     this.fairShare = fairShare;
     metrics.setFairShare(fairShare);
   }
 
   /** Get the steady fair share assigned to this Schedulable. */
-  public Map<String, Resource> getSteadyFairShare() {
+  public NoNullHashMap<String, Resource> getSteadyFairShare() {
     return steadyFairShare;
   }
 
-  public void setSteadyFairShare(Map<String, Resource> steadyFairShare) {
+  public void setSteadyFairShare(NoNullHashMap<String, Resource> steadyFairShare) {
     this.steadyFairShare = steadyFairShare;
     metrics.setSteadyFairShare(steadyFairShare);
   }
@@ -312,6 +312,11 @@ public abstract class FSQueue implements Queue, Schedulable {
   
   @Override
   public Set<String> getAccessibleNodeLabels() {
+
+    if (name.equals("root.default")) {
+      return Sets.newHashSet("");
+    }
+
     Set<String> labels = scheduler.getAllocationConfiguration().getAccessNodeLabels(name);
     if ( labels.size() == 0 ) {
       return getParent().getAccessibleNodeLabels();

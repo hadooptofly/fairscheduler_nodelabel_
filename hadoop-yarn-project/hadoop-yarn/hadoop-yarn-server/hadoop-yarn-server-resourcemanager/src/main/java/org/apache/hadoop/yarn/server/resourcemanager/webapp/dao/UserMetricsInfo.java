@@ -23,6 +23,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
 
 import org.apache.hadoop.metrics2.lib.MutableGaugeInt;
+import org.apache.hadoop.metrics2.lib.MutableMapGaugeInt;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics;
@@ -95,51 +96,51 @@ public class UserMetricsInfo {
     return appsKilled;
   }
 
-  public Map<String, MutableGaugeInt> getReservedMB() {
+  public MutableMapGaugeInt getReservedMB() {
     return userMetrics.getReservedMB();
   }
 
-  public Map<String, MutableGaugeInt> getAllocatedMB() {
+  public MutableMapGaugeInt getAllocatedMB() {
     return userMetrics.getAllocatedMB();
   }
 
-  public Map<String, MutableGaugeInt> getPendingMB() {
+  public MutableMapGaugeInt getPendingMB() {
     return userMetrics.getPendingMB();
   }
 
-  public Map<String, MutableGaugeInt> getReservedVirtualCores() {
+  public MutableMapGaugeInt getReservedVirtualCores() {
     return userMetrics.getReservedVirtualCores();
   }
 
-  public Map<String, MutableGaugeInt> getAllocatedVirtualCores() {
+  public MutableMapGaugeInt getAllocatedVirtualCores() {
     return userMetrics.getAllocatedVirtualCores();
   }
 
-  public Map<String, MutableGaugeInt> getPendingVirtualCores() {
+  public MutableMapGaugeInt getPendingVirtualCores() {
     return userMetrics.getPendingVirtualCores();
   }
 
-  public Map<String, MutableGaugeInt> getReservedGpuCores() {
+  public MutableMapGaugeInt getReservedGpuCores() {
     return userMetrics.getReservedGpuCores();
   }
 
-  public Map<String, MutableGaugeInt> getAllocatedGpuCores() {
+  public MutableMapGaugeInt getAllocatedGpuCores() {
     return userMetrics.getAllocatedGpuCores();
   }
 
-  public Map<String, MutableGaugeInt> getPendingGpuCores() {
+  public MutableMapGaugeInt getPendingGpuCores() {
     return userMetrics.getPendingGpuCores();
   }
 
-  public Map<String, MutableGaugeInt> getReservedContainers() {
+  public MutableMapGaugeInt getReservedContainers() {
     return userMetrics.getReservedContainers();
   }
 
-  public Map<String, MutableGaugeInt> getRunningContainers() {
+  public MutableMapGaugeInt getRunningContainers() {
     return userMetrics.getAllocatedContainers();
   }
 
-  public Map<String, MutableGaugeInt> getPendingContainers() {
+  public MutableMapGaugeInt getPendingContainers() {
     return userMetrics.getPendingContainers();
   }
 }
