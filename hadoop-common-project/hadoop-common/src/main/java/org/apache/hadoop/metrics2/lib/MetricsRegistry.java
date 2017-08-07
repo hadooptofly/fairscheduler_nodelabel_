@@ -18,19 +18,20 @@
 
 package org.apache.hadoop.metrics2.lib;
 
-import java.util.Collection;
-import java.util.Map;
-
-import com.google.common.collect.Maps;
 import com.google.common.base.Objects;
-
+import com.google.common.collect.Maps;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
-import org.apache.hadoop.metrics2.MetricsInfo;
 import org.apache.hadoop.metrics2.MetricsException;
+import org.apache.hadoop.metrics2.MetricsInfo;
 import org.apache.hadoop.metrics2.MetricsRecordBuilder;
 import org.apache.hadoop.metrics2.MetricsTag;
+import org.apache.hadoop.metrics2.impl.MetricGaugeLong;
 import org.apache.hadoop.metrics2.impl.MsInfo;
+import org.apache.hadoop.tools.metrics.NoNullHashMap;
+
+import java.util.Collection;
+import java.util.Map;
 
 /**
  * An optional metrics registry class for creating and maintaining a
@@ -133,6 +134,32 @@ public class MetricsRegistry {
     return ret;
   }
 
+  public MutableMapCounterInt newMapCounter(String name, String desc, int ival) {
+    return newMapCounter(Interns.info(name, desc), ival);
+  }
+
+  public synchronized MutableMapCounterInt newMapCounter(MetricsInfo info, int ival) {
+    checkMetricName(info.name());
+    NoNullHashMap<String, MutableCounterInt> map = new NoNullHashMap<String, MutableCounterInt>(){};
+    map.put("", new MutableCounterInt(info, ival));
+    MutableMapCounterInt ret = new MutableMapCounterInt(info, map);
+    metricsMap.put(info.name(), ret);
+    return ret;
+  }
+
+  public MutableMapCounterLong newMapCounter(String name, String desc, long lval) {
+    return newMapCounter(Interns.info(name, desc), lval);
+  }
+
+  public synchronized MutableMapCounterLong newMapCounter(MetricsInfo info, long lval) {
+    checkMetricName(info.name());
+    NoNullHashMap<String, MutableCounterLong> map = new NoNullHashMap<String, MutableCounterLong>(){};
+    map.put("", new MutableCounterLong(info, lval));
+    MutableMapCounterLong ret = new MutableMapCounterLong(info, map);
+    metricsMap.put(info.name(), ret);
+    return ret;
+  }
+
   /**
    * Create a mutable integer gauge
    * @param name  of the metric
@@ -152,6 +179,19 @@ public class MetricsRegistry {
   public synchronized MutableGaugeInt newGauge(MetricsInfo info, int iVal) {
     checkMetricName(info.name());
     MutableGaugeInt ret = new MutableGaugeInt(info, iVal);
+    metricsMap.put(info.name(), ret);
+    return ret;
+  }
+
+  public MutableMapGaugeInt newMapGauge(String name, String desc, int lval) {
+    return newMapGauge(Interns.info(name, desc), lval);
+  }
+
+  public synchronized MutableMapGaugeInt newMapGauge(MetricsInfo info, int lval) {
+    checkMetricName(info.name());
+    NoNullHashMap<String, MutableGaugeInt> map = new NoNullHashMap<String, MutableGaugeInt>(){};
+    map.put("", new MutableGaugeInt(info, lval));
+    MutableMapGaugeInt ret = new MutableMapGaugeInt(info, map);
     metricsMap.put(info.name(), ret);
     return ret;
   }
@@ -176,6 +216,19 @@ public class MetricsRegistry {
   public synchronized MutableGaugeLong newGauge(MetricsInfo info, long iVal) {
     checkMetricName(info.name());
     MutableGaugeLong ret = new MutableGaugeLong(info, iVal);
+    metricsMap.put(info.name(), ret);
+    return ret;
+  }
+
+  public MutableMapGaugeLong newMapGauge(String name, String desc, long lval) {
+    return newMapGauge(Interns.info(name, desc), lval);
+  }
+
+  public synchronized MutableMapGaugeLong newMapGauge(MetricsInfo info, long lval) {
+    checkMetricName(info.name());
+    NoNullHashMap<String, MutableGaugeLong> map = new NoNullHashMap<String, MutableGaugeLong>(){};
+    map.put("", new MutableGaugeLong(info, lval));
+    MutableMapGaugeLong ret = new MutableMapGaugeLong(info, map);
     metricsMap.put(info.name(), ret);
     return ret;
   }

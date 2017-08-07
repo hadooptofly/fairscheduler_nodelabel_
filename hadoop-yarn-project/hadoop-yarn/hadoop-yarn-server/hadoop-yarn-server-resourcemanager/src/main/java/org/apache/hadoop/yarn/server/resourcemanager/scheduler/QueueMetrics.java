@@ -99,6 +99,16 @@ public class QueueMetrics implements MetricsSource {
   private final Map<String, QueueMetrics> users;
   private final Configuration conf;
 
+  public QueueMetrics() {
+    runningTime = new MutableGaugeInt[1];
+    registry = new MetricsRegistry(RECORD_INFO);
+    queueName = "root";
+    parent = null;
+    users = null;
+    metricsSystem = null;
+    conf = new Configuration();
+  }
+
   protected QueueMetrics(MetricsSystem ms, String queueName, Queue parent, 
 	       boolean enableUserMetrics, Configuration conf) {
     registry = new MetricsRegistry(RECORD_INFO);

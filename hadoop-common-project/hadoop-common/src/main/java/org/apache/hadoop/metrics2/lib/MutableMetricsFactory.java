@@ -72,6 +72,19 @@ public class MutableMetricsFactory {
                               annotation.sampleName(), annotation.valueName(),
                               annotation.always());
     }
+    if (cls == MutableMapCounterInt.class) {
+      return registry.newMapCounter(info, 0);
+    }
+    if (cls == MutableMapCounterLong.class) {
+      return registry.newMapCounter(info, 0L);
+    }
+    if (cls == MutableMapGaugeInt.class) {
+      return registry.newMapGauge(info, 0);
+    }
+    if (cls == MutableMapGaugeLong.class) {
+      return registry.newMapCounter(info, 0L);
+    }
+
     //throw new MetricsException("Unsupported metric field "+ field.getName() +
     //                           " of type "+ field.getType().getName());
     return null;

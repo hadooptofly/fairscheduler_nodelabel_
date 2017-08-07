@@ -1,11 +1,29 @@
 package org.apache.hadoop.tools.metrics;
 
-import com.sun.jdi.InvalidTypeException;
 import org.apache.hadoop.metrics2.MetricsInfo;
-import org.apache.hadoop.metrics2.impl.*;
-import org.apache.hadoop.metrics2.lib.*;
+import org.apache.hadoop.metrics2.impl.MetricCounterInt;
+import org.apache.hadoop.metrics2.impl.MetricCounterLong;
+import org.apache.hadoop.metrics2.impl.MetricGaugeDouble;
+import org.apache.hadoop.metrics2.impl.MetricGaugeFloat;
+import org.apache.hadoop.metrics2.impl.MetricGaugeInt;
+import org.apache.hadoop.metrics2.impl.MetricGaugeLong;
+import org.apache.hadoop.metrics2.impl.MetricMapCounterInt;
+import org.apache.hadoop.metrics2.impl.MetricMapCounterLong;
+import org.apache.hadoop.metrics2.impl.MetricMapGaugeDouble;
+import org.apache.hadoop.metrics2.impl.MetricMapGaugeFloat;
+import org.apache.hadoop.metrics2.impl.MetricMapGaugeInt;
+import org.apache.hadoop.metrics2.impl.MetricMapGaugeLong;
+import org.apache.hadoop.metrics2.lib.MutableCounterInt;
+import org.apache.hadoop.metrics2.lib.MutableCounterLong;
+import org.apache.hadoop.metrics2.lib.MutableGaugeInt;
+import org.apache.hadoop.metrics2.lib.MutableGaugeLong;
+import org.apache.hadoop.metrics2.lib.MutableMapCounterInt;
+import org.apache.hadoop.metrics2.lib.MutableMapCounterLong;
+import org.apache.hadoop.metrics2.lib.MutableMapGaugeInt;
+import org.apache.hadoop.metrics2.lib.MutableMapGaugeLong;
 
 import java.lang.reflect.ParameterizedType;
+import java.security.InvalidParameterException;
 import java.util.HashMap;
 
 /**
@@ -35,7 +53,7 @@ public class NoNullHashMap<K, V> extends HashMap<K, V>{
         vClass = ((Class)((ParameterizedType)this.getClass().getGenericSuperclass()).getActualTypeArguments()[1]).getName();
     }
 
-    public V get(Object k, MetricsInfo info) throws InvalidTypeException{
+    public V get(Object k, MetricsInfo info) throws InvalidParameterException{
         V v = super.get(k);
         if (null == v) {
             switch (vClass)
@@ -131,7 +149,7 @@ public class NoNullHashMap<K, V> extends HashMap<K, V>{
                     put((K) k, (V) metricMapGaugeDouble);
                     return (V) metricMapGaugeDouble;
                 default:
-                    throw new InvalidTypeException("Haven`t support this type"
+                    throw new InvalidParameterException("Haven`t support this type"
                             + v.getClass().getName()
                             + " to use as value.");
             }
