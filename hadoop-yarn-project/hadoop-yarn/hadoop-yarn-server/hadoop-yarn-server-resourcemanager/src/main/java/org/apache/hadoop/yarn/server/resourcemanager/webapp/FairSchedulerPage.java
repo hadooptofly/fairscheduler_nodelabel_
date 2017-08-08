@@ -256,7 +256,7 @@ public class FairSchedulerPage extends RmView {
                 span(".q", "Queue: root")._().
                 span().$class("qstats").$style(left(Q_STATS_POS)).
                 _(join(percent(used), " used"))._().
-                _(FairSchedulerPage.QueueBlock.class)._()._();
+                _(QueueBlock.class)._()._();
           }
         }
       }

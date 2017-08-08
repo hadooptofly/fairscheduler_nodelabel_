@@ -29,6 +29,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.ClusterMetrics;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
+import org.apache.hadoop.yarn.util.NoNullHashMap;
 
 import java.util.Map;
 
@@ -43,9 +44,9 @@ public class ClusterMetricsInfo {
   protected int appsFailed;
   protected int appsKilled;
 
-  protected Map<String, Long> totalMB;
-  protected Map<String, Integer> totalVirtualCores;
-  protected Map<String, Integer> totalGpuCores;
+  protected NoNullHashMap<String, Integer> totalMB;
+  protected NoNullHashMap<String, Integer> totalVirtualCores;
+  protected NoNullHashMap<String, Integer> totalGpuCores;
   protected int totalNodes;
   protected int lostNodes;
   protected int unhealthyNodes;
@@ -70,6 +71,10 @@ public class ClusterMetricsInfo {
     this.appsFailed = metrics.getAppsFailed();
     this.appsKilled = metrics.getAppsKilled();
 
+    this.totalMB = new NoNullHashMap<String, Integer>(){};
+    this.totalVirtualCores = new NoNullHashMap<String, Integer>(){};
+    this.totalGpuCores = new NoNullHashMap<String, Integer>(){};
+
     this.activeNodes = clusterMetrics.getNumActiveNMs();
     this.lostNodes = clusterMetrics.getNumLostNMs();
     this.unhealthyNodes = clusterMetrics.getUnhealthyNMs();
@@ -79,19 +84,16 @@ public class ClusterMetricsInfo {
         + rebootedNodes + unhealthyNodes;
 
     for (String nodeLabel : rm.getRMContext().getNodeLabelManager().getLabelSet()) {
-      MutableGaugeInt availMB = metrics.getAvailableMB().getValue().get(nodeLabel);
-      MutableGaugeInt allocateMB = metrics.getAllocatedMB().getValue().get(nodeLabel);
-      MutableGaugeInt availVcore = metrics.getAvailableVirtualCores().getValue().get(nodeLabel);
-      MutableGaugeInt allocateVcore = metrics.getAllocatedGpuCores().getValue().get(nodeLabel);
-      MutableGaugeInt availGcore = metrics.getAvailableGpuCores().getValue().get(nodeLabel);
-      MutableGaugeInt allocateGcore = metrics.getAllocatedGpuCores().getValue().get(nodeLabel);
+      MutableGaugeInt availMB = metrics.getAvailableMB().getValue().get(nodeLabel, metrics.QUEUE_INFO);
+      MutableGaugeInt allocateMB = metrics.getAllocatedMB().getValue().get(nodeLabel, metrics.QUEUE_INFO);
+      MutableGaugeInt availVcore = metrics.getAvailableVirtualCores().getValue().get(nodeLabel, metrics.QUEUE_INFO);
+      MutableGaugeInt allocateVcore = metrics.getAllocatedGpuCores().getValue().get(nodeLabel, metrics.QUEUE_INFO);
+      MutableGaugeInt availGcore = metrics.getAvailableGpuCores().getValue().get(nodeLabel, metrics.QUEUE_INFO);
+      MutableGaugeInt allocateGcore = metrics.getAllocatedGpuCores().getValue().get(nodeLabel, metrics.QUEUE_INFO);
 
-      this.totalMB.put(nodeLabel, (long)(availMB != null ? availMB.value() : 0
-              + (allocateMB != null ? allocateMB.value() : 0)));
-      this.totalVirtualCores.put(nodeLabel, availVcore != null ? availVcore.value() : 0
-              + (allocateVcore != null ? allocateVcore.value() : 0));
-      this.totalGpuCores.put(nodeLabel, availGcore != null ? availGcore.value() : 0
-              + (allocateGcore != null ? allocateGcore.value() : 0));
+      this.totalMB.put(nodeLabel, availMB.value() + allocateMB.value());
+      this.totalVirtualCores.put(nodeLabel, availVcore.value() + allocateVcore.value());
+      this.totalGpuCores.put(nodeLabel, availGcore.value() + allocateGcore.value());
     }
   }
 
@@ -167,7 +169,7 @@ public class ClusterMetricsInfo {
     return metrics.getPendingContainers();
   }
 
-  public Map<String, Long> getTotalMB() {
+  public NoNullHashMap<String, Integer> getTotalMB() {
     return this.totalMB;
   }
 

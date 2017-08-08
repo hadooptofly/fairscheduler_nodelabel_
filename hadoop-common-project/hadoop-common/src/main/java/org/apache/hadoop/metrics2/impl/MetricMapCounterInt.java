@@ -43,7 +43,7 @@ public class MetricMapCounterInt extends AbstractMetric {
   }
 
   public int value(String label) {
-    return value.get(label).value();
+    return value.get(label, info()).value();
   }
 
   @Override

@@ -87,9 +87,9 @@ public class QueueMetrics implements MetricsSource {
   static final Logger LOG = LoggerFactory.getLogger(QueueMetrics.class);
   static final MetricsInfo RECORD_INFO = info("QueueMetrics",
       "Metrics for the resource scheduler");
-  protected static final MetricsInfo QUEUE_INFO = info("Queue", "Metrics by queue");
-  static final MetricsInfo USER_INFO = info("User", "Metrics by user");
-  static final Splitter Q_SPLITTER =
+  public static final MetricsInfo QUEUE_INFO = info("Queue", "Metrics by queue");
+  public static final MetricsInfo USER_INFO = info("User", "Metrics by user");
+  public  static final Splitter Q_SPLITTER =
       Splitter.on('.').omitEmptyStrings().trimResults();
 
   final MetricsRegistry registry;

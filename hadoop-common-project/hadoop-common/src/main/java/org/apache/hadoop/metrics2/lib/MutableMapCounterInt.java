@@ -52,12 +52,12 @@ public class MutableMapCounterInt extends MutableMapCounter {
    * @param delta of the increment
    */
   public synchronized void incr(String label, int delta) {
-    value.get(label).getValue().addAndGet(delta);
+    value.get(label, info()).getValue().addAndGet(delta);
     setChanged();
   }
 
   public int value(String label) {
-    return value.get(label).value();
+    return value.get(label, info()).value();
   }
 
   @Override

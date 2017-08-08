@@ -46,7 +46,7 @@ public class MutableMapGaugeInt extends MutableMapGauge {
   }
 
   public int value(String label) {
-    return value.get(label).value();
+    return value.get(label, info()).value();
   }
 
   @Override
@@ -59,7 +59,7 @@ public class MutableMapGaugeInt extends MutableMapGauge {
    * @param delta of the increment
    */
   public void incr(String label, int delta) {
-    value.get(label).getValue().addAndGet(delta);
+    value.get(label, info()).getValue().addAndGet(delta);
     setChanged();
   }
 
@@ -73,7 +73,7 @@ public class MutableMapGaugeInt extends MutableMapGauge {
    * @param delta of the decrement
    */
   public void decr(String label, int delta) {
-    value.get(label).getValue().addAndGet(-delta);
+    value.get(label, info()).getValue().addAndGet(-delta);
     setChanged();
   }
 
@@ -83,7 +83,7 @@ public class MutableMapGaugeInt extends MutableMapGauge {
    * @param value to set
    */
   public void set(String label, int value) {
-    this.value.get(label).set(value);
+    this.value.get(label, info()).set(value);
     setChanged();
   }
 

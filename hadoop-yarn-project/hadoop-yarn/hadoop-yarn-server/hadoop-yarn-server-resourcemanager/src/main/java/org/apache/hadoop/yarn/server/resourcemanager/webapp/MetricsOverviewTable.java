@@ -21,6 +21,7 @@ package org.apache.hadoop.yarn.server.resourcemanager.webapp;
 import org.apache.hadoop.metrics2.lib.MutableGaugeInt;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.ClusterMetricsInfo;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.SchedulerInfo;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.UserMetricsInfo;
@@ -70,40 +71,40 @@ public class MetricsOverviewTable extends HtmlBlock {
     StringBuilder totalGcore = new StringBuilder();
 
     for (String nodeLabel : rm.getRMContext().getNodeLabelManager().getLabelSet()) {
-      MutableGaugeInt allocContainer = clusterMetrics.getContainersAllocated().getValue().get(nodeLabel);
-      MutableGaugeInt allocMB = clusterMetrics.getAllocatedMB().getValue().get(nodeLabel);
-      MutableGaugeInt resMB = clusterMetrics.getReservedMB().getValue().get(nodeLabel);
-      MutableGaugeInt allocVcore = clusterMetrics.getAllocatedVirtualCores().getValue().get(nodeLabel);
-      MutableGaugeInt resVcore = clusterMetrics.getReservedVirtualCores().getValue().get(nodeLabel);
-      MutableGaugeInt allocGcore = clusterMetrics.getAllocatedGpuCores().getValue().get(nodeLabel);
-      MutableGaugeInt resGcore = clusterMetrics.getReservedGpuCores().getValue().get(nodeLabel);
+      MutableGaugeInt allocContainer = clusterMetrics.getContainersAllocated().getValue().get(nodeLabel, QueueMetrics.QUEUE_INFO);
+      MutableGaugeInt allocMB = clusterMetrics.getAllocatedMB().getValue().get(nodeLabel, QueueMetrics.QUEUE_INFO);
+      MutableGaugeInt resMB = clusterMetrics.getReservedMB().getValue().get(nodeLabel, QueueMetrics.QUEUE_INFO);
+      MutableGaugeInt allocVcore = clusterMetrics.getAllocatedVirtualCores().getValue().get(nodeLabel, QueueMetrics.QUEUE_INFO);
+      MutableGaugeInt resVcore = clusterMetrics.getReservedVirtualCores().getValue().get(nodeLabel, QueueMetrics.QUEUE_INFO);
+      MutableGaugeInt allocGcore = clusterMetrics.getAllocatedGpuCores().getValue().get(nodeLabel, QueueMetrics.QUEUE_INFO);
+      MutableGaugeInt resGcore = clusterMetrics.getReservedGpuCores().getValue().get(nodeLabel, QueueMetrics.QUEUE_INFO);
 
       allocateContainer.append(nodeLabel).append(": ").append(String
-              .valueOf(allocContainer != null ? allocContainer.value() : 0))
+              .valueOf(allocContainer.value()))
               .append("\n");
       allocateMB.append(nodeLabel).append(": ").append(StringUtils
-              .byteDesc((allocMB != null ? allocMB.value() : 0) * BYTES_IN_MB))
+              .byteDesc(((long)allocMB.value()) * BYTES_IN_MB))
               .append("\n");
       reserveMB.append(nodeLabel).append(": ").append(StringUtils
-              .byteDesc((reserveMB != null ? resMB.value() : 0) * BYTES_IN_MB))
+              .byteDesc(((long )resMB.value()) * BYTES_IN_MB))
               .append("\n");
       totalMB.append(nodeLabel).append(": ").append(StringUtils
-              .byteDesc(clusterMetrics.getTotalMB().get(nodeLabel) * BYTES_IN_MB))
+              .byteDesc( clusterMetrics.getTotalMB().get(nodeLabel).longValue() * BYTES_IN_MB))
               .append("\n");
       allocateVcore.append(nodeLabel).append(": ").append(String.valueOf(
-              allocVcore != null ? allocVcore.value() : 0))
+              allocVcore.value()))
               .append("\n");
       reserveVcore.append(nodeLabel).append(": ").append(String.valueOf(
-              resVcore != null ? resVcore.value() : 0))
+              resVcore.value()))
               .append("\n");
       totalVcore.append(nodeLabel).append(": ").append(String.valueOf(
               clusterMetrics.getTotalVirtualCores().get(nodeLabel)))
               .append("\n");
       allocateGcore.append(nodeLabel).append(": ").append(String.valueOf(
-              allocGcore != null ? allocGcore.value() : 0))
+              allocGcore.value()))
               .append("\n");
       reserveGcore.append(nodeLabel).append(": ").append(String.valueOf(
-              resGcore != null ? resGcore.value() : 0))
+              resGcore.value()))
               .append("\n");
       totalGcore.append(nodeLabel).append(": ").append(String.valueOf(
               clusterMetrics.getTotalGpuCores().get(nodeLabel)))
@@ -182,18 +183,18 @@ public class MetricsOverviewTable extends HtmlBlock {
         StringBuilder userReserveGcore = new StringBuilder();
 
         for (String nodeLabel : rm.getRMContext().getNodeLabelManager().getLabelSet()) {
-          MutableGaugeInt allocContainer = userMetrics.getRunningContainers().getValue().get(nodeLabel);
-          MutableGaugeInt pendContainer = userMetrics.getPendingContainers().getValue().get(nodeLabel);
-          MutableGaugeInt reserveContainer = userMetrics.getReservedContainers().getValue().get(nodeLabel);
-          MutableGaugeInt allocMB = userMetrics.getAllocatedMB().getValue().get(nodeLabel);
-          MutableGaugeInt pendMB = userMetrics.getPendingMB().getValue().get(nodeLabel);
-          MutableGaugeInt resMB = userMetrics.getReservedMB().getValue().get(nodeLabel);
-          MutableGaugeInt allocVcore = userMetrics.getAllocatedVirtualCores().getValue().get(nodeLabel);
-          MutableGaugeInt pendVcore = userMetrics.getPendingVirtualCores().getValue().get(nodeLabel);
-          MutableGaugeInt resVcore = userMetrics.getReservedVirtualCores().getValue().get(nodeLabel);
-          MutableGaugeInt allocGcore = userMetrics.getAllocatedGpuCores().getValue().get(nodeLabel);
-          MutableGaugeInt pendGcore = userMetrics.getPendingGpuCores().getValue().get(nodeLabel);
-          MutableGaugeInt resGcore = userMetrics.getReservedGpuCores().getValue().get(nodeLabel);
+          MutableGaugeInt allocContainer = userMetrics.getRunningContainers().getValue().get(nodeLabel, QueueMetrics.QUEUE_INFO);
+          MutableGaugeInt pendContainer = userMetrics.getPendingContainers().getValue().get(nodeLabel, QueueMetrics.QUEUE_INFO);
+          MutableGaugeInt reserveContainer = userMetrics.getReservedContainers().getValue().get(nodeLabel, QueueMetrics.QUEUE_INFO);
+          MutableGaugeInt allocMB = userMetrics.getAllocatedMB().getValue().get(nodeLabel, QueueMetrics.QUEUE_INFO);
+          MutableGaugeInt pendMB = userMetrics.getPendingMB().getValue().get(nodeLabel, QueueMetrics.QUEUE_INFO);
+          MutableGaugeInt resMB = userMetrics.getReservedMB().getValue().get(nodeLabel, QueueMetrics.QUEUE_INFO);
+          MutableGaugeInt allocVcore = userMetrics.getAllocatedVirtualCores().getValue().get(nodeLabel, QueueMetrics.QUEUE_INFO);
+          MutableGaugeInt pendVcore = userMetrics.getPendingVirtualCores().getValue().get(nodeLabel, QueueMetrics.QUEUE_INFO);
+          MutableGaugeInt resVcore = userMetrics.getReservedVirtualCores().getValue().get(nodeLabel, QueueMetrics.QUEUE_INFO);
+          MutableGaugeInt allocGcore = userMetrics.getAllocatedGpuCores().getValue().get(nodeLabel, QueueMetrics.QUEUE_INFO);
+          MutableGaugeInt pendGcore = userMetrics.getPendingGpuCores().getValue().get(nodeLabel, QueueMetrics.QUEUE_INFO);
+          MutableGaugeInt resGcore = userMetrics.getReservedGpuCores().getValue().get(nodeLabel, QueueMetrics.QUEUE_INFO);
 
 
           userAllocateContainer.append(nodeLabel).append(": ").append(String.valueOf(

@@ -214,6 +214,9 @@ public class AllocationConfiguration extends ReservationSchedulerConfiguration {
 
   public NoNullHashMap<String, ResourceWeights> getQueueWeight(String queue) {
     NoNullHashMap<String, ResourceWeights> weights = queueWeights.get(queue);
+    if (weights == null) {
+      weights = new NoNullHashMap<String, ResourceWeights>(){};
+    }
     return weights;
   }
 

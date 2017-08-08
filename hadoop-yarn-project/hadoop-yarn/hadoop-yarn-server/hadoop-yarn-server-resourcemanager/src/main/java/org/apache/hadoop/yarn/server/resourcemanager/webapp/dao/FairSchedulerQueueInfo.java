@@ -35,6 +35,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.AllocationCo
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSLeafQueue;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSQueue;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler;
+import org.apache.hadoop.yarn.util.NoNullHashMap;
 import org.apache.hadoop.yarn.util.resource.Resources;
 
 @XmlRootElement
@@ -44,15 +45,15 @@ public class FairSchedulerQueueInfo {
   private int maxApps;
   
   @XmlTransient
-  private Map<String, Float> fractionMemUsed;
+  private NoNullHashMap<String, Float> fractionMemUsed;
   @XmlTransient
-  private Map<String, Float> fractionMemSteadyFairShare;
+  private NoNullHashMap<String, Float> fractionMemSteadyFairShare;
   @XmlTransient
-  private Map<String, Float> fractionMemFairShare;
+  private NoNullHashMap<String, Float> fractionMemFairShare;
   @XmlTransient
-  private Map<String, Float> fractionMemMinShare;
+  private NoNullHashMap<String, Float> fractionMemMinShare;
   @XmlTransient
-  private Map<String, Float> fractionMemMaxShare;
+  private NoNullHashMap<String, Float> fractionMemMaxShare;
   
   private ResourceInfo minResources;
   private ResourceInfo maxResources;
@@ -60,7 +61,7 @@ public class FairSchedulerQueueInfo {
   private ResourceInfo steadyFairResources;
   private ResourceInfo fairResources;
   private ResourceInfo clusterResources;
-  private Map<String, Resource> usedResource;
+  private NoNullHashMap<String, Resource> usedResource;
   
   private String queueName;
   private String schedulingPolicy;
@@ -76,7 +77,13 @@ public class FairSchedulerQueueInfo {
     this.usedResource = queue.getResourceUsage();
     queueName = queue.getName();
     schedulingPolicy = queue.getPolicy().getName();
-    
+
+    fractionMemUsed = new NoNullHashMap<String, Float>(){};
+    fractionMemSteadyFairShare = new NoNullHashMap<String, Float>(){};
+    fractionMemFairShare = new NoNullHashMap<String, Float>(){};
+    fractionMemMinShare = new NoNullHashMap<String, Float>(){};
+    fractionMemMaxShare = new NoNullHashMap<String, Float>(){};
+
     clusterResources = new ResourceInfo(scheduler.getClusterResource());
     usedResources = new ResourceInfo(queue.getResourceUsage());
     steadyFairResources = new ResourceInfo(queue.getSteadyFairShare());

@@ -106,7 +106,7 @@ public abstract class FSQueue implements Queue, Schedulable {
   public QueueInfo getQueueInfo(boolean includeChildQueues, boolean recursive) {
     QueueInfo queueInfo = recordFactory.newRecordInstance(QueueInfo.class);
     queueInfo.setQueueName(getQueueName());
-    // Modify refrence to labels.
+    // Modify reference to labels.
     NoNullHashMap<String, Float> capacity = new NoNullHashMap<String, Float>(){};
     NoNullHashMap<String, Float> currentCapacity = new NoNullHashMap<String, Float>(){};
     Set<String> labels = queueInfo.getAccessibleNodeLabels();

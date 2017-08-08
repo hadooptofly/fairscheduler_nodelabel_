@@ -734,12 +734,12 @@ public class TestFairScheduler extends FairSchedulerTestBase {
     // verify metrics
     QueueMetrics queue1Metrics = scheduler.getQueueManager().getQueue("queue1")
         .getMetrics();
-    assertEquals(1024, queue1Metrics.getAllocatedMB().getValue().get(""));
-    assertEquals(2, queue1Metrics.getAllocatedVirtualCores().getValue().get(""));
-    assertEquals(1024, scheduler.getRootQueueMetrics().getAllocatedMB().getValue().get(""));
-    assertEquals(2, scheduler.getRootQueueMetrics().getAllocatedVirtualCores().getValue().get(""));
-    assertEquals(512, scheduler.getRootQueueMetrics().getAvailableMB().getValue().get(""));
-    assertEquals(4, scheduler.getRootQueueMetrics().getAvailableVirtualCores().getValue().get(""));
+    assertEquals(1024, queue1Metrics.getAllocatedMB().getValue().get("", QueueMetrics.QUEUE_INFO));
+    assertEquals(2, queue1Metrics.getAllocatedVirtualCores().getValue().get("", QueueMetrics.QUEUE_INFO));
+    assertEquals(1024, scheduler.getRootQueueMetrics().getAllocatedMB().getValue().get("", QueueMetrics.QUEUE_INFO));
+    assertEquals(2, scheduler.getRootQueueMetrics().getAllocatedVirtualCores().getValue().get("", QueueMetrics.QUEUE_INFO));
+    assertEquals(512, scheduler.getRootQueueMetrics().getAvailableMB().getValue().get("", QueueMetrics.QUEUE_INFO));
+    assertEquals(4, scheduler.getRootQueueMetrics().getAvailableVirtualCores().getValue().get("", QueueMetrics.QUEUE_INFO));
   }
 
   @Test (timeout = 5000)

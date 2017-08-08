@@ -68,11 +68,11 @@ public class NoNullHashMap<K, V> extends HashMap<K, V>{
                     return (V) mutableCounterLong;
                 case "org.apache.hadoop.metrics2.lib.MutableGaugeInt" :
                     MutableGaugeInt mutableGaugeInt = new MutableGaugeInt(info, 0);
-                    put((K) k, (V) v);
+                    put((K) k, (V) mutableGaugeInt);
                     return (V) mutableGaugeInt;
                 case "org.apache.hadoop.metrics2.lib.MutableGaugeLong" :
                     MutableGaugeLong mutableGaugeLong = new MutableGaugeLong(info, 0L);
-                    put((K) k, (V) v);
+                    put((K) k, (V) mutableGaugeLong);
                     return (V) mutableGaugeLong;
                 case "org.apache.hadoop.metrics2.lib.MutableMapCounterInt" :
                     MutableMapCounterInt mutableMapCounterInt = new MutableMapCounterInt(

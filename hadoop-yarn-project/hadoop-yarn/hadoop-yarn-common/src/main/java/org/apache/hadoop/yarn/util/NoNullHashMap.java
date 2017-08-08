@@ -47,6 +47,10 @@ public class NoNullHashMap<K, V> extends HashMap<K, V> {
                     ResourceWeights resourceWeights = new ResourceWeights(1, 1 , 1);
                     put((K) k, (V) resourceWeights);
                     return (V) resourceWeights;
+                case "java.lang.Integer":
+                    Integer i = 0;
+                    put((K) k, (V) i);
+                    return (V) i;
                 case "java.lang.Long":
                     Long l = 0L;
                     put((K) k, (V) l);

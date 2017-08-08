@@ -37,7 +37,7 @@ public class MetricMapCounterLong extends AbstractMetric {
   }
 
   public Long value(String label) {
-    return value.get(label).value();
+    return value.get(label, info()).value();
   }
 
   // no useful
