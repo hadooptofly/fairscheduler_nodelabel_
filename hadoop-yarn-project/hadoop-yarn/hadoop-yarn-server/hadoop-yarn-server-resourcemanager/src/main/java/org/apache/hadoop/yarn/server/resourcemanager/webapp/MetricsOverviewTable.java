@@ -79,34 +79,39 @@ public class MetricsOverviewTable extends HtmlBlock {
       MutableGaugeInt allocGcore = clusterMetrics.getAllocatedGpuCores().getValue().get(nodeLabel, QueueMetrics.QUEUE_INFO);
       MutableGaugeInt resGcore = clusterMetrics.getReservedGpuCores().getValue().get(nodeLabel, QueueMetrics.QUEUE_INFO);
 
-      allocateContainer.append(nodeLabel).append(": ").append(String
+      String label_str = nodeLabel.toUpperCase();
+      if (org.apache.commons.lang.StringUtils.isBlank(nodeLabel)) {
+        label_str = "DEFAULT";
+      }
+
+      allocateContainer.append(label_str).append(": ").append(String
               .valueOf(allocContainer.value()))
               .append("\n");
-      allocateMB.append(nodeLabel).append(": ").append(StringUtils
+      allocateMB.append(label_str).append(": ").append(StringUtils
               .byteDesc(((long)allocMB.value()) * BYTES_IN_MB))
               .append("\n");
-      reserveMB.append(nodeLabel).append(": ").append(StringUtils
+      reserveMB.append(label_str).append(": ").append(StringUtils
               .byteDesc(((long )resMB.value()) * BYTES_IN_MB))
               .append("\n");
-      totalMB.append(nodeLabel).append(": ").append(StringUtils
+      totalMB.append(label_str).append(": ").append(StringUtils
               .byteDesc( clusterMetrics.getTotalMB().get(nodeLabel).longValue() * BYTES_IN_MB))
               .append("\n");
-      allocateVcore.append(nodeLabel).append(": ").append(String.valueOf(
+      allocateVcore.append(label_str).append(": ").append(String.valueOf(
               allocVcore.value()))
               .append("\n");
-      reserveVcore.append(nodeLabel).append(": ").append(String.valueOf(
+      reserveVcore.append(label_str).append(": ").append(String.valueOf(
               resVcore.value()))
               .append("\n");
-      totalVcore.append(nodeLabel).append(": ").append(String.valueOf(
+      totalVcore.append(label_str).append(": ").append(String.valueOf(
               clusterMetrics.getTotalVirtualCores().get(nodeLabel)))
               .append("\n");
-      allocateGcore.append(nodeLabel).append(": ").append(String.valueOf(
+      allocateGcore.append(label_str).append(": ").append(String.valueOf(
               allocGcore.value()))
               .append("\n");
-      reserveGcore.append(nodeLabel).append(": ").append(String.valueOf(
+      reserveGcore.append(label_str).append(": ").append(String.valueOf(
               resGcore.value()))
               .append("\n");
-      totalGcore.append(nodeLabel).append(": ").append(String.valueOf(
+      totalGcore.append(label_str).append(": ").append(String.valueOf(
               clusterMetrics.getTotalGpuCores().get(nodeLabel)))
               .append("\n");
     }
