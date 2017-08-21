@@ -535,7 +535,7 @@ public class QueueMetrics implements MetricsSource {
   }
   
   public Map<String, Resource> getAllocatedResources() {
-    Map<String, Resource> allocated = new HashMap<String, Resource>();
+    Map<String, Resource> allocated = new org.apache.hadoop.yarn.util.NoNullHashMap<String, Resource>(){};
     for (String nodeLabel : allocatedContainers.getValue().keySet()) {
       allocated.put(nodeLabel,
           BuilderUtils.newResource(

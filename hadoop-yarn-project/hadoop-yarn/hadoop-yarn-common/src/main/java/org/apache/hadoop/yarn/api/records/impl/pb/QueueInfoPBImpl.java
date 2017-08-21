@@ -336,7 +336,7 @@ public class QueueInfoPBImpl extends QueueInfo {
 
 
   private void initCurrentCapacity() {
-    if (capacity != null) {
+    if (currentCapacity != null) {
       return;
     }
     QueueInfoProtoOrBuilder p = viaProto ? proto : builder;

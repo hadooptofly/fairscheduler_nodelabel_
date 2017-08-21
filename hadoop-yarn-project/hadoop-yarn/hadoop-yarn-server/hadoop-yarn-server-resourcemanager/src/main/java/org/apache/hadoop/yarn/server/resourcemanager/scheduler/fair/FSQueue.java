@@ -147,7 +147,7 @@ public abstract class FSQueue implements Queue, Schedulable {
     queueInfo.setCapacity(capacity);
     queueInfo.setCurrentCapacity(currentCapacity);
 
-    ArrayList<QueueInfo> childQueueInfos = new ArrayList<QueueInfo>();
+     ArrayList<QueueInfo> childQueueInfos = new ArrayList<QueueInfo>();
     if (includeChildQueues) {
       Collection<FSQueue> childQueues = getChildQueues();
       for (FSQueue child : childQueues) {
@@ -318,7 +318,7 @@ public abstract class FSQueue implements Queue, Schedulable {
     }
 
     Set<String> labels = scheduler.getAllocationConfiguration().getAccessNodeLabels(name);
-    if ( labels.size() == 0 ) {
+    if (null == labels || labels.size() == 0 ) {
       return getParent().getAccessibleNodeLabels();
     }
 
