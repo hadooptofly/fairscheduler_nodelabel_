@@ -117,15 +117,15 @@ public class ComputeFairShares {
       String label = labelRes.getKey();
 
       // handle gpu scenario
-      if (totalResources.get(label).getGpuCores() > 0) {
-        type = ResourceType.GPU;
-      }
+//      if (totalResources.get(label).getGpuCores() > 0) {
+//        type = ResourceType.GPU;
+//      }
 
       int takenResources = handleFixedFairShares(
           allSchedulables, schedulables, isSteadyShare, type, label);
 
       if (schedulables.isEmpty()) {
-        return;
+        continue;
       }
       // Find an upper bound on R that we can use in our binary search. We start
       // at R = 1 and double it until we have either used all the resources or we
@@ -133,6 +133,9 @@ public class ComputeFairShares {
       int totalMaxShare = 0;
       for (Schedulable sched : schedulables) {
         int maxShare = getResourceValue(sched.getMaxShare().get(label), type);
+        if (sched instanceof SchedulerApplicationAttempt) {
+          maxShare = Integer.MAX_VALUE;
+        }
         totalMaxShare = (int) Math.min((long)maxShare + (long)totalMaxShare,
             Integer.MAX_VALUE);
         if (totalMaxShare == Integer.MAX_VALUE) {
@@ -200,7 +203,7 @@ public class ComputeFairShares {
       ResourceType type, String label) {
     double share = sched.getWeights().get(label).getWeight(type) * w2rRatio;
     share = Math.max(share, getResourceValue(sched.getMinShare().get(label), type));
-    share = Math.min(share, getResourceValue(sched.getMaxShare().get(label), type));
+    share = Math.min(share, getResourceValue(sched instanceof SchedulerApplicationAttempt ? Resources.unbounded(): sched.getMaxShare().get(label), type));
     return (int) share;
   }
 
@@ -243,13 +246,13 @@ public class ComputeFairShares {
     //check if have access of this label
     if (sched instanceof FSQueue) {
       if (!((FSQueue) sched).getAccessibleNodeLabels().contains(label)
-          || !((FSQueue) sched).getAccessibleNodeLabels().contains("*")) {
+          && !((FSQueue) sched).getAccessibleNodeLabels().contains("*")) {
         return 0;
       }
     } else if (sched instanceof SchedulerApplicationAttempt){
       FSQueue queue = ((FSAppAttempt)sched).getQueue();
       if (!queue.getAccessibleNodeLabels().contains(label)
-          || !queue.getAccessibleNodeLabels().contains("*")) {
+          && !queue.getAccessibleNodeLabels().contains("*")) {
         return 0;
       } else {
         if ( sched.getWeights().get(label) == null

@@ -652,11 +652,11 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
         addSchedulingOpportunity(priority);
 
         // Check the AM resource usage for the leaf queue
-        if (getLiveContainers().size() == 0 && !getUnmanagedAM()) {
-          if (!getQueue().canRunAppAM(getAMResource())) {
-            return Resources.none();
-          }
-        }
+//        if (getLiveContainers().size() == 0 && !getUnmanagedAM()) {
+//          if (!getQueue().canRunAppAM(getAMResource())) {
+//            return Resources.none();
+//          }
+//        }
 
         ResourceRequest rackLocalRequest = getResourceRequest(priority,
             node.getRackName());
@@ -818,13 +818,11 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
 
   @Override
   public NoNullHashMap<String, Resource> getMinShare() {
-    return null;
+    return new NoNullHashMap<String, Resource>(){};
   }
 
   @Override
-  public NoNullHashMap<String, Resource> getMaxShare() {
-    return null;
-  }
+  public NoNullHashMap<String, Resource> getMaxShare() { return new NoNullHashMap<String, Resource>(){}; }
 
   @Override
   public NoNullHashMap<String, Resource> getResourceUsage() {
