@@ -36,8 +36,8 @@ public class FairSchedulerLeafQueueInfo extends FairSchedulerQueueInfo {
   public FairSchedulerLeafQueueInfo() {
   }
   
-  public FairSchedulerLeafQueueInfo(FSLeafQueue queue, FairScheduler scheduler) {
-    super(queue, scheduler);
+  public FairSchedulerLeafQueueInfo(FSLeafQueue queue, FairScheduler scheduler, String nodeLabel) {
+    super(queue, scheduler, nodeLabel);
     numPendingApps = queue.getNumPendingApps();
     numActiveApps = queue.getNumActiveApps();
     queuePath = queue.getQueueName();

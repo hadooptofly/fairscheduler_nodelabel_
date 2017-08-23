@@ -50,7 +50,7 @@ public class JAXBContextResolver implements ContextResolver<JAXBContext> {
             FifoSchedulerInfo.class, SchedulerTypeInfo.class, NodeInfo.class,
             UserMetricsInfo.class, CapacitySchedulerInfo.class,
             ClusterMetricsInfo.class, SchedulerInfo.class, AppsInfo.class,
-            NodesInfo.class, RemoteExceptionData.class,
+            NodesInfo.class, RemoteExceptionData.class,FairSchedulerQueueInfoList.class,
             CapacitySchedulerQueueInfoList.class, ResourceInfo.class,
             UsersInfo.class, UserInfo.class, ApplicationStatisticsInfo.class,
             StatisticsItemInfo.class };

@@ -20,6 +20,7 @@ package org.apache.hadoop.yarn.server.resourcemanager.webapp;
 
 import static org.apache.hadoop.yarn.util.StringHelper.join;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -57,6 +58,7 @@ public class FairSchedulerPage extends RmView {
   @RequestScoped
   static class FSQInfo {
     FairSchedulerQueueInfo qinfo;
+    FairSchedulerInfo sinfo;
     String label;
   }
   
@@ -136,14 +138,16 @@ public class FairSchedulerPage extends RmView {
 
     @Override
     public void render(Block html) {
-      Collection<FairSchedulerQueueInfo> subQueues = fsqinfo.qinfo.getChildQueues();
+      ArrayList<FairSchedulerQueueInfo> subQueues =
+              (fsqinfo.qinfo == null) ? fsqinfo.sinfo.getQueues().getQueuesList()
+                      : fsqinfo.qinfo.getQueues().getQueuesList();
       UL<Hamlet> ul = html.ul("#pq");
       for (FairSchedulerQueueInfo info : subQueues) {
         LI<UL<Hamlet>> li = null;
-          float capacity = info.getMaxResourcesFraction(fsqinfo.label);
-          float steadyFairShare = info.getSteadyFairShareMemoryFraction(fsqinfo.label);
-          float instantaneousFairShare = info.getFairShareMemoryFraction(fsqinfo.label);
-          float used = info.getUsedMemoryFraction(fsqinfo.label);
+          float capacity = info.getMaxResourcesFraction();
+          float steadyFairShare = info.getSteadyFairShareMemoryFraction();
+          float instantaneousFairShare = info.getFairShareMemoryFraction();
+          float used = info.getUsedMemoryFraction();
           li = ul.
               li().
               a(_Q).$style(width(capacity * Q_MAX_WIDTH)).
@@ -200,8 +204,6 @@ public class FairSchedulerPage extends RmView {
               span().$style(Q_END)._("100% ")._().
               span(".q", "default")._()._();
       } else {
-        FairSchedulerInfo sinfo = new FairSchedulerInfo(fs);
-        fsqinfo.qinfo = sinfo.getRootQueueInfo();
         ul.
           li().$style("margin-bottom: 1em").
             span().$style("font-weight: bold")._("Legend:")._().
@@ -222,8 +224,12 @@ public class FairSchedulerPage extends RmView {
         if (nodeLabels == null
             || (nodeLabels.size() == 1
                   && nodeLabels.get(0).getLabelName().isEmpty()))  {
-          float used = fsqinfo.qinfo.getUsedMemoryFraction(RMNodeLabelsManager.NO_LABEL);
-          fsqinfo.label = RMNodeLabelsManager.NO_LABEL;
+          FairSchedulerInfo sinfo = new FairSchedulerInfo(fs, fs.getQueueManager().getRootQueue()
+                  ,new NodeLabel(RMNodeLabelsManager.NO_LABEL));
+          fsqinfo.sinfo = sinfo;
+          fsqinfo.qinfo = null;
+          float used = fsqinfo.sinfo.getRootQueueInfo().getUsedMemoryFraction();
+          //fsqinfo.label = RMNodeLabelsManager.NO_LABEL;
           ul.li().
               a(_Q).$style(width(Q_MAX_WIDTH)).
               span().$style(join(width(used), ";left:0%;",
@@ -234,8 +240,12 @@ public class FairSchedulerPage extends RmView {
               _(QueueBlock.class)._();
         } else {
           for (NodeLabel nodeLabel : nodeLabels) {
+            FairSchedulerInfo sinfo = new FairSchedulerInfo(fs,
+                    fs.getQueueManager().getRootQueue(), nodeLabel);
+            fsqinfo.sinfo = sinfo;
+            fsqinfo.qinfo = null;
+            float used = fsqinfo.sinfo.getRootQueueInfo().getUsedMemoryFraction();
             fsqinfo.label = nodeLabel.getLabelName();
-            float used = fsqinfo.qinfo.getUsedMemoryFraction(nodeLabel.getLabelName());
             String partitionUiTag = "Partition: "
                 + (fsqinfo.label.equals("") ? "<default_partition>"
                 : fsqinfo.label);
@@ -245,7 +255,7 @@ public class FairSchedulerPage extends RmView {
                 used > 1 ? Q_OVER : Q_UNDER))._(".")._().
                 span(".q", partitionUiTag)._().
                 span().$class("qstats").$style(left(Q_STATS_POS)).
-                _(join(percent(used), " used"))._();
+                _(join(percent(used), " used"))._()._();
 
             //for the queue hierarchy under label
             UL<Hamlet> underLabel = html.ul("#pq");
