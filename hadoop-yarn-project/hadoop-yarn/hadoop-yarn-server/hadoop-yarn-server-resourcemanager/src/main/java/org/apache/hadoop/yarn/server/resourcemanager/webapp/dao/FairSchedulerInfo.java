@@ -113,7 +113,7 @@ public class FairSchedulerInfo extends SchedulerInfo {
                         nodeLabel.getLabelName());
       } else {
         info = new FairSchedulerQueueInfo(queue, scheduler, nodeLabel.getLabelName());
-        info.childQueues = getQueues(queue, nodeLabel).getQueuesList();
+        info.queues = getQueues(queue, nodeLabel);
       }
       queuesInfo.addToQueueList(info);
     }

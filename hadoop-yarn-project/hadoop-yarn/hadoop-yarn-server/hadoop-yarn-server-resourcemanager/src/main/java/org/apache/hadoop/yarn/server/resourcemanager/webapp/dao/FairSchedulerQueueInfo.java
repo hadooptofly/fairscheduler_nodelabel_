@@ -64,11 +64,9 @@ public class FairSchedulerQueueInfo {
   private NoNullHashMap<String, Resource> usedResource;
   
   private String queueName;
-  private FairSchedulerQueueInfoList queues;
+  public FairSchedulerQueueInfoList queues;
   private String schedulingPolicy;
-  
-  public Collection<FairSchedulerQueueInfo> childQueues;
-  
+
   public FairSchedulerQueueInfo() {
   }
   
@@ -84,7 +82,7 @@ public class FairSchedulerQueueInfo {
     steadyFairResources = new ResourceInfo(queue.getSteadyFairShare());
     fairResources = new ResourceInfo(queue.getFairShare());
     minResources = new ResourceInfo(queue.getMinShare());
-    Map<String, Resource> resource = new HashMap<String, Resource>();
+    Map<String, Resource> resource = new NoNullHashMap<String, Resource>(){};
     for (String label : queue.getMaxShare().keySet()) {
       Resource resource1 = scheduler.getClusterResource().get(label);
       if (resource1 == null) {
@@ -112,7 +110,6 @@ public class FairSchedulerQueueInfo {
 
     maxApps = allocConf.getQueueMaxApps(queueName);
 
-    childQueues = new ArrayList<FairSchedulerQueueInfo>();
     if (allocConf.isReservable(queueName) &&
         !allocConf.getShowReservationAsQueues(queueName)) {
       return;
@@ -198,10 +195,6 @@ public class FairSchedulerQueueInfo {
    */
   public String getSchedulingPolicy() {
     return schedulingPolicy;
-  }
-  
-  public Collection<FairSchedulerQueueInfo> getChildQueues() {
-    return childQueues;
   }
 
   public Map<String, Resource> getUsedResource() {

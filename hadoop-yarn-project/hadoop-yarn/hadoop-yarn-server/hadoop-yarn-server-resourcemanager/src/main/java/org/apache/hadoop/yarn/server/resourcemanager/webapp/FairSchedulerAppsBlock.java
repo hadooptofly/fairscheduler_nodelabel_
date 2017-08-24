@@ -30,6 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import org.apache.commons.lang.StringEscapeUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -123,8 +124,12 @@ public class FairSchedulerAppsBlock extends HtmlBlock {
         String share = fairShare.get(nodeLabel).getGpuCores() > 0 ?
             fairShare.get(nodeLabel).getGpuCores() + "GCores" : fairShare
                 .get(nodeLabel).getMemory() + "MB";
-        fair.append(nodeLabel + ": " + share + "\n");
+        if (StringUtils.isBlank(nodeLabel)) {
+          nodeLabel = "<NO_LABEL>";
+        }
+        fair.append(nodeLabel + "-> " + share + " | ");
       }
+      fair.substring(0, fair.lastIndexOf(" | "));
 
       appsTableData.append("[\"<a href='")
       .append(url("app", appInfo.getAppId())).append("'>")
