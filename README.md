@@ -17,7 +17,7 @@ Like these scenario:
       
 Like nodeLabel feature in CS, this feature will make fairscheduler schedule more 
 scalability.
-
+```xml
 Up to now, 
      Queue config manual:
                 which labels you can access:
@@ -42,4 +42,4 @@ Up to now,
                 ![image](https://github.com/hadooptofly/pictures/blob/master/QQ20170827-195518%402x.png)
                 resource allocation across labels default,kyb:
                 ![image](https://github.com/hadooptofly/pictures/blob/master/QQ20170827-195538%402x.png)
-                        
+             ```           
