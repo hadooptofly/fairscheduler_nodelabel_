@@ -17,7 +17,7 @@ Like these scenario:
       
 Like nodeLabel feature in CS, this feature will make fairscheduler schedule more 
 scalability.
-```xml
+```java
 Up to now, 
      Queue config manual:
                 which labels you can access:
