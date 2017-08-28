@@ -36,10 +36,12 @@ Up to now,
                             "Memory Reserved"	"VCores Used	
                             "VCores Total"	"VCores Reserved"	
                             "GCores Used"	"GCores Total"	
-                            "GCores Reserved" metrics label-differentiated:
+                            "GCores Reserved" 
+             ```           
+
+                metrics label-differentiated:
                 ![image](https://github.com/hadooptofly/pictures/blob/master/QQ20170827-195318%402x.png)
                 queue detail:
                 ![image](https://github.com/hadooptofly/pictures/blob/master/QQ20170827-195518%402x.png)
                 resource allocation across labels default,kyb:
                 ![image](https://github.com/hadooptofly/pictures/blob/master/QQ20170827-195538%402x.png)
-             ```           
