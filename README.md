@@ -37,7 +37,7 @@ Up to now,
                             "VCores Total"	"VCores Reserved"	
                             "GCores Used"	"GCores Total"	
                             "GCores Reserved" 
-             xml```           
+```           
 
                 metrics label-differentiated:
                 ![image](https://github.com/hadooptofly/pictures/blob/master/QQ20170827-195318%402x.png)
